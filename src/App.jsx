@@ -434,18 +434,26 @@ export default function App() {
             if (!incErr && incData) {
               const countVal = Array.isArray(incData) ? incData[0]?.total_visits : incData?.total_visits;
               sessionStorage.setItem(sessionKey, 'true');
-              if (!cancelled && countVal !== undefined) {
+              if (!cancelled && countVal !== undefined && countVal !== null) {
                 setVisitCount(Number(countVal));
                 return;
               }
             }
           }
-          const { data: readData, error: readErr } = await supabase.from('site_visits').select('total_visits').eq('id', 1).maybeSingle();
+
+          const { data: readData, error: readErr } = await supabase
+            .from('site_visits')
+            .select('total_visits')
+            .eq('id', 1)
+            .maybeSingle();
+
           if (!readErr && readData && !cancelled) {
             setVisitCount(Number(readData.total_visits || 0));
             return;
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error('Visits counter fetch failed:', e);
+        }
       }
 
       let stored = parseInt(localStorage.getItem('passguard_total_visits') || '0', 10);
@@ -1188,7 +1196,7 @@ export default function App() {
             </div>
             <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-3 border-t border-slate-800/80 pt-6 text-center">
               <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
-                <h3 className="text-lg md:text-xl font-black font-mono text-indigo-400" dir="ltr">{visitCount}+</h3>
+                <h3 className="text-lg md:text-xl font-black font-mono text-indigo-400" dir="ltr">+{visitCount}</h3>
                 <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statVisits}</p>
               </div>
               <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
