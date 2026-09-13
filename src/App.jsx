@@ -120,7 +120,7 @@ const POPULAR_SITES = [
   { name: "IGN", url: "https://ign.com" }, { name: "GameSpot", url: "https://gamespot.com" },
   { name: "PC Gamer", url: "https://pcgamer.com" }, { name: "The Verge", url: "https://theverge.com" },
   { name: "TechCrunch", url: "https://techcrunch.com" }, { name: "Wired", url: "https://wired.com" },
-  { name: "CNET", url: "https://cnet.com" }, { name: "Forbes", url: "https://forbes.com" },
+  { name: "CNET", url: "https://query.cnet.com" }, { name: "Forbes", url: "https://forbes.com" },
   { name: "Bloomberg", url: "https://bloomberg.com" }, { name: "Wall Street Journal", url: "https://wsj.com" },
   { name: "New York Times", url: "https://nytimes.com" }, { name: "CNN", url: "https://cnn.com" },
   { name: "BBC", url: "https://bbc.com" }, { name: "Fox News", url: "https://foxnews.com" },
@@ -130,7 +130,7 @@ const POPULAR_SITES = [
 
 const translations = {
   en: {
-    appName: "Pass-Guard", toolsBtn: "Security Tools", aboutBtn: "About App", toggleTheme: "Toggle Appearance",
+    appName: "Pass-Guard", toolsBtn: "Password Auditor", aboutBtn: "About Website", toggleTheme: "Toggle Appearance",
     welcomeTitle: "Welcome to", welcomeDesc: "An AES-GCM 256-bit encrypted password vault with secure cloud sync and remote administrative support.",
     openVaultBtn: "Open Vault (Sign In)", createVaultBtn: "Create New Vault", adminPortalBtn: "Administration Portal",
     statVisits: "Total Visits", statLocal: "Encrypted Vault", statEncryption: "AES-GCM Encryption", statProtection: "Active Protection",
@@ -156,7 +156,7 @@ const translations = {
     rec2: "• Ensure passwords are at least 16 characters in length, incorporating symbols, numerals, and mixed-case letters.",
     rec3: "• Vault records are encrypted in the browser before being stored. Remote support access is enabled by the trusted administrator model.",
     noDeviceLogs: "No device login records captured yet.", currentSessionBadge: "Active Session",
-    aboutModalTitle: "About Pass-Guard Security Architecture", aboutModalBody: "Pass-Guard uses Web Crypto standards (AES-GCM 256-bit and PBKDF2) to encrypt vault records in the browser before storing them in Supabase. Global synchronization and trusted remote support are enabled by design; therefore this deployment is not a strict zero-knowledge architecture.",
+    aboutModalTitle: "About Pass-Guard",
     toolsModalTitle: "Password Strength Auditor", toolsPlaceholder: "Type any password to evaluate its resistance...",
     recordDetailsTitle: "Edit Record Details", siteUrlLabel: "Platform URL", usernameLabel: "Username", passwordRecordLabel: "Password",
     emailLabel: "Linked Email", phoneLabel: "Phone Number", groupLabel: "Group Category", lastModifiedLabel: "Last Modified Date:",
@@ -185,10 +185,10 @@ const translations = {
     groupDeletedNotice: "Group deleted successfully."
   },
   ar: {
-    appName: "Pass-Guard", toolsBtn: "أدوات الأمان", aboutBtn: "عن التطبيق", toggleTheme: "تبديل المظهر",
+    appName: "Pass-Guard", toolsBtn: "فاحص كلمة السر", aboutBtn: "عن الموقع", toggleTheme: "تبديل المظهر",
     welcomeTitle: "مرحباً بك في", welcomeDesc: "خزنة كلمات مرور مشفرة بتقنية AES-GCM 256-bit مع مزامنة سحابية ودعم إداري عن بُعد للخزنات.",
     openVaultBtn: "فتح الخزنة (تسجيل الدخول)", createVaultBtn: "إنشاء خزنة جديدة", adminPortalBtn: "بوابة المشرف العام",
-    statVisits: "إجمالي الزيارات", statLocal: "خزنة مشفرة", statEncryption: "تشفير AES-GCM", statProtection: "حماية مستمرة",
+    statVisits: "إجمالي الزيارات", statLocal: "خزنة مشفرة", statEncryption: "AES-GCM تشفير", statProtection: "حماية مستمرة",
     loginHeading: "تسجيل الدخول", registerHeading: "إنشاء خزنة جديدة", adminHeading: "بوابة المشرف العام",
     loginSub: "أدخل بياناتك لفك تشفير الخزنة والوصول إلى حساباتك المحفوظة", registerSub: "أنشئ خزنتك المشفرة محلياً والمحمية بكلمة مرورك الرئيسية", adminSub: "وصول إداري عالمي حصري لتدقيق الخزنات والدعم الفني ومتابعة الإنذارات الأمنية",
     identifierLabel: "اسم المستخدم، البريد، أو رقم الهاتف", adminIdentifierLabel: "معرّف المشرف", passwordLabel: "كلمة المرور الرئيسية", adminPasswordLabel: "المفتاح السري للمشرف",
@@ -211,7 +211,7 @@ const translations = {
     rec2: "• احرص ألا يقل طول كلمة المرور عن 16 خانة، مع احتوائها على رموز خاصة، وأرقام، وأحرف كبيرة وصغيرة.",
     rec3: "• يتم تشفير سجلات الخزنة داخل المتصفح قبل تخزينها. تم تفعيل دعم المشرف عن بُعد وفق نموذج الثقة الإداري للمشروع.",
     noDeviceLogs: "لا يوجد سجل أجهزة ملتقط حتى الآن.", currentSessionBadge: "الجلسة الحالية",
-    aboutModalTitle: "عن المنظومة الأمنية لـ Pass-Guard", aboutModalBody: "يستخدم Pass-Guard معايير Web Crypto (AES-GCM 256-bit وPBKDF2) لتشفير سجلات الخزنة داخل المتصفح قبل تخزينها في Supabase. المزامنة العالمية والدعم الإداري عن بُعد مفعّلان عمداً، لذلك هذه النسخة ليست Zero-Knowledge بشكل صارم.",
+    aboutModalTitle: "عن Pass-Guard: خزنتك الآمنة بلا تعقيد",
     toolsModalTitle: "فاحص متانة كلمات المرور", toolsPlaceholder: "اكتب أي كلمة مرور لفحص مدى صمودها...",
     recordDetailsTitle: "تعديل بيانات الحساب:", siteUrlLabel: "عنوان المنصة الإلكترونية", usernameLabel: "اسم المستخدم", passwordRecordLabel: "كلمة المرور",
     emailLabel: "البريد الإلكتروني المقترن", phoneLabel: "رقم الهاتف", groupLabel: "المجموعة", lastModifiedLabel: "تاريخ آخر تعديل:",
@@ -1099,13 +1099,92 @@ export default function App() {
 
       {showAboutModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
-          <div className={`border p-8 rounded-3xl w-full max-w-lg space-y-4 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-lg font-bold flex items-center gap-2"><Info className="w-5 h-5 text-indigo-500" /> {t.aboutModalTitle}</h3>
-              <button onClick={() => setShowAboutModal(false)} className="text-slate-400 hover:text-white cursor-pointer font-bold">✕</button>
+          <div className={`border p-6 sm:p-7 rounded-3xl w-full max-w-xl max-h-[88vh] overflow-y-auto space-y-4 shadow-2xl transition-all ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <h3 className="text-base sm:text-lg font-black flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-500" />
+                <span>{t.aboutModalTitle}</span>
+              </h3>
+              <button onClick={() => setShowAboutModal(false)} className="text-slate-400 hover:text-white cursor-pointer font-bold px-2 py-1">✕</button>
             </div>
-            <p className="text-xs leading-relaxed text-slate-300">{t.aboutModalBody}</p>
-            <button onClick={() => setShowAboutModal(false)} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl cursor-pointer">{t.closeBtn}</button>
+            
+            {lang === 'ar' ? (
+              <div className="space-y-4 text-xs leading-relaxed text-slate-300">
+                <p className="font-semibold text-slate-200 bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 text-sm">
+                  في <span className="font-bold text-indigo-400">Pass-Guard</span>، نحمي كلمات مرورك بأعلى المعايير العالمية وبأبسط طريقة ممكنة.
+                </p>
+
+                <div className="space-y-2.5">
+                  <h4 className="font-bold text-slate-100 text-sm flex items-center gap-1.5">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    <span>مميزات النظام:</span>
+                  </h4>
+                  
+                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <h5 className="font-bold text-indigo-400">🔒 تشفير فوري داخل متصفحك:</h5>
+                    <p className="text-slate-400">كلمات مرورك تُشفّر مباشرة على جهازك بتقنية <span dir="ltr" className="font-mono text-slate-300 font-bold">AES-GCM 256-bit</span> قبل حفظها في السحابة.</p>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <h5 className="font-bold text-sky-400">☁️ مزامنة سحابية آمنة:</h5>
+                    <p className="text-slate-400">يمكنك الوصول إلى خزنتك من أي جهاز وفي أي وقت، مع بقاء بياناتك مشفرة بالكامل.</p>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <h5 className="font-bold text-emerald-400">🛠️ دعم فني واسترجاع مضمون:</h5>
+                    <p className="text-slate-400">يتضمن النظام دعمًا إداريًا خاصًا. في حال نسيت كلمة المرور الرئيسية أو احتجت مساعدة، يمكن لفريقنا مساعدتك في استرجاع حسابك، مما يمنع فقدان بياناتك نهائيًا.</p>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <h5 className="font-bold text-amber-400">⚡ أدوات ذكية:</h5>
+                    <p className="text-slate-400">نوفر مولد كلمات مرور قوية، وفاحص أمان لتقييم قوة كلماتك، مع إمكانية تنظيم حساباتك في مجموعات.</p>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800/80">
+                  نلتزم بتوفير بيئة موثوقة تجمع بين الحماية القصوى والسهولة التامة، لأن أمانك وخصوصيتك هما أساس عملنا.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 text-xs leading-relaxed text-slate-300">
+                <p className="font-semibold text-slate-200 bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 text-sm">
+                  At <span className="font-bold text-indigo-400">Pass-Guard</span>, we safeguard your credentials using top industry security standards in the simplest way possible.
+                </p>
+
+                <div className="space-y-2.5">
+                  <h4 className="font-bold text-slate-100 text-sm flex items-center gap-1.5">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    <span>System Features:</span>
+                  </h4>
+                  
+                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <h5 className="font-bold text-indigo-400">🔒 Client-Side Instant Encryption:</h5>
+                    <p className="text-slate-400">Your records are encrypted directly on your device via <span dir="ltr" className="font-mono text-slate-300 font-bold">AES-GCM 256-bit</span> before sync.</p>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <h5 className="font-bold text-sky-400">☁️ Secure Cloud Sync:</h5>
+                    <p className="text-slate-400">Access your vault anywhere, anytime, across all devices with your vault data fully encrypted.</p>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <h5 className="font-bold text-emerald-400">🛠️ Dedicated Remote Support & Recovery:</h5>
+                    <p className="text-slate-400">Our trusted administrator assistance helps ensure you never lose access if you misplace your master key.</p>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <h5 className="font-bold text-amber-400">⚡ Smart Security Tools:</h5>
+                    <p className="text-slate-400">Built-in resilient password generator, strength auditor, and custom group categories.</p>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800/80">
+                  We are committed to delivering a trusted, seamless experience pairing robust protection with daily ease.
+                </p>
+              </div>
+            )}
+
+            <button onClick={() => setShowAboutModal(false)} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl cursor-pointer shadow-lg">{t.closeBtn}</button>
           </div>
         </div>
       )}
