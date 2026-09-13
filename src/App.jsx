@@ -124,24 +124,24 @@ const POPULAR_SITES = [
 const translations = {
   en: {
     appName: "Pass-Guard",
-    toolsBtn: "Tools",
-    aboutBtn: "About",
+    toolsBtn: "Security Tools",
+    aboutBtn: "About App",
     toggleTheme: "Theme",
     welcomeTitle: "Welcome to",
     welcomeDesc: "A local, highly encrypted zero-knowledge vault utilizing military-grade AES-GCM 256-bit cryptography to secure your credentials entirely on your device.",
     openVaultBtn: "Open Vault",
     createVaultBtn: "Create Vault",
     adminPortalBtn: "Admin Portal",
-    statVisits: "Visits",
-    statLocal: "Zero-Knowledge",
-    statEncryption: "AES-GCM",
-    statProtection: "24/7 Security",
+    statVisits: "Total Visits",
+    statLocal: "Zero-Knowledge Local",
+    statEncryption: "AES-GCM Encryption",
+    statProtection: "Active Protection",
     loginHeading: "Sign In",
     registerHeading: "Create New Vault",
-    adminHeading: "Admin Portal",
-    loginSub: "Enter credentials to decrypt your local vault",
-    registerSub: "Create a local encrypted vault secured by master password",
-    adminSub: "Audit and security alert dashboard",
+    adminHeading: "Administrator Portal",
+    loginSub: "Enter credentials to decrypt your vault and access saved records",
+    registerSub: "Create a local encrypted vault secured by a master password",
+    adminSub: "Exclusive administrative access for system auditing and alerts",
     identifierLabel: "Username, Email, or Phone",
     adminIdentifierLabel: "Administrator Identifier",
     passwordLabel: "Master Password",
@@ -151,61 +151,61 @@ const translations = {
     submitAdmin: "Access Dashboard",
     backToHome: "Return to Home",
     adminPanelTitle: "Admin Control Panel",
-    adminBadge: "Root",
-    adminPanelSub: "Encrypted auditing metrics and storage health",
-    registeredUsersCount: "Total Vaults",
+    adminBadge: "Root Admin",
+    adminPanelSub: "Encrypted system auditing metrics and local storage health monitoring",
+    registeredUsersCount: "Total Registered Users",
     visitsCounter: "Visits Counter",
     resetVisitsConfirm: "Reset visits counter to 0?",
     securityScore: "Security Rating",
-    activeAlerts: "Active Alerts",
+    activeAlerts: "Active Security Alerts",
     userRecordsTitle: "Registered Vaults",
     noUsers: "No registered vaults found locally.",
-    accountSuspended: "Locked",
-    securityAlertBadge: "Alert",
-    localCryptoNote: "Zero-Knowledge Local",
-    unblockBtn: "Lift Lock",
-    manageUserBtn: "Manage",
-    deleteAccountBtn: "Delete",
+    accountSuspended: "Security Locked",
+    securityAlertBadge: "Security Warning",
+    localCryptoNote: "Zero-Knowledge Local Encryption",
+    unblockBtn: "Lift Suspension",
+    manageUserBtn: "Manage Account",
+    deleteAccountBtn: "Delete Vault",
     deleteAccountConfirm: "Permanently delete this vault?",
     vaultTitlePrefix: "Encrypted Vault:",
-    vaultDossierBtn: "Audit Dossier",
-    vaultItemsBtn: "Accounts",
-    manageVaultBtn: "Settings",
-    exportBtn: "Export",
-    importBtn: "Import",
+    vaultDossierBtn: "Security Audit",
+    vaultItemsBtn: "Accounts View",
+    manageVaultBtn: "Vault Settings",
+    exportBtn: "Export Passwords",
+    importBtn: "Import Passwords",
     addAccountBtn: "Add Account",
     logoutBtn: "Sign Out",
     searchPlaceholder: "Search saved records...",
     showHidePass: "Toggle Visibility",
     copyBtn: "Copy",
-    detailsBtn: "Details",
+    detailsBtn: "Details & Edit",
     deleteRecordBtn: "Delete",
-    auditModalTitle: "Security Audit & Telemetry",
-    auditModalSub: "Credential strength evaluation and connected devices",
-    auditTabMetrics: "Metrics",
-    auditTabDevices: "Sessions",
+    auditModalTitle: "Vault Security Audit & Telemetry",
+    auditModalSub: "Credential strength evaluation and connected devices ledger",
+    auditTabMetrics: "Security Metrics",
+    auditTabDevices: "Devices & Sessions",
     totalCredentials: "Total Records",
-    vaultHealthScore: "Health Score",
-    reusedPasswords: "Reused",
-    weakPasswords: "Weak",
-    securityRecommendations: "Hardening Recommendations:",
+    vaultHealthScore: "Vault Strength Score",
+    reusedPasswords: "Reused Passwords",
+    weakPasswords: "Weak Credentials",
+    securityRecommendations: "Vault Hardening Recommendations:",
     rec1: "• Avoid reusing the same password across multiple platforms.",
-    rec2: "• Ensure passwords are at least 16 characters with symbols and numbers.",
+    rec2: "• Ensure passwords are at least 16 characters in length with symbols and numbers.",
     rec3: "• Your vault is protected by a key derived solely from your master password.",
     noDeviceLogs: "No device login records captured yet.",
     currentSessionBadge: "Active Session",
-    aboutModalTitle: "About Architecture",
+    aboutModalTitle: "About Pass-Guard Security Architecture",
     aboutModalBody: "Pass-Guard is a zero-knowledge local password vault built entirely on Web Crypto standards (AES-GCM 256-bit and PBKDF2). All cryptographic procedures execute strictly in-memory on your machine. Your plaintext data never leaves your device.",
     toolsModalTitle: "Password Strength Auditor",
-    toolsPlaceholder: "Type any password to evaluate...",
+    toolsPlaceholder: "Type any password to evaluate its resistance...",
     recordDetailsTitle: "Edit Record Details",
     siteUrlLabel: "Platform URL",
     usernameLabel: "Username",
     passwordRecordLabel: "Password",
     emailLabel: "Linked Email",
     phoneLabel: "Phone Number",
-    groupLabel: "Group",
-    lastModifiedLabel: "Last Modified:",
+    groupLabel: "Group Category",
+    lastModifiedLabel: "Last Modified Date:",
     notesLabel: "Notes",
     saveNotesBtn: "Save Changes",
     closeBtn: "Close",
@@ -213,28 +213,28 @@ const translations = {
     cutBtn: "Cut",
     copyBtnAction: "Copy",
     pasteBtn: "Paste",
-    selectAllBtn: "All",
-    manageGroupsBtn: "Groups",
+    selectAllBtn: "Select All",
+    manageGroupsBtn: "Manage Groups",
     manageGroupsTitle: "Manage Groups",
     allGroups: "All",
     groupPlaceholder: "Group name...",
     captchaTitle: "Automated Access Verification",
     captchaSub: "5 failed attempts detected. Solve the arithmetic problem to resume.",
-    captchaInput: "Result",
-    captchaSubmit: "Verify",
+    captchaInput: "Enter Solution",
+    captchaSubmit: "Verify & Proceed",
     cancelBtn: "Cancel",
     confirmBtn: "Confirm",
-    addModalTitle: "Add New Record",
-    siteTitlePlaceholder: "Website Name (e.g. Google)",
-    usernamePlaceholder: "Username / Email",
-    siteUrlPlaceholder: "Platform URL",
-    emailPlaceholder: "Linked Email",
+    addModalTitle: "Add New Vault Record",
+    siteTitlePlaceholder: "Website Title (e.g., Google)",
+    usernamePlaceholder: "Username",
+    siteUrlPlaceholder: "Platform Address (URL)",
+    emailPlaceholder: "Linked Email Address",
     phonePlaceholder: "Phone Number",
     notesPlaceholder: "Notes...",
     passwordPlaceholder: "Password",
-    generatePassTitle: "Generate",
+    generatePassTitle: "Generate Password",
     saveRecordBtn: "Store in Vault",
-    copiedFeedback: "Copied!",
+    copiedFeedback: "Copied to clipboard!",
     invalidAdminAlert: "Invalid administrator credentials!",
     missingFieldsAlert: "Please fill in all mandatory fields.",
     lockedAccountAlert: "Account temporarily locked. Consult administrator.",
@@ -243,25 +243,25 @@ const translations = {
     incorrectPasswordAlert: "Incorrect master password!",
     captchaFailedAlert: "Incorrect answer. Please retry.",
     captchaPassedAlert: "Verification successful.",
-    reservedUsernameAlert: "Identifier reserved by system policies.",
-    passwordComplexityAlert: "Password must be >= 8 chars, contain an uppercase letter, number, and symbol.",
+    reservedUsernameAlert: "This identifier is reserved by system policies.",
+    passwordComplexityAlert: "Password must be at least 8 chars, contain an uppercase letter, a number, and a symbol.",
     accountExistsAlert: "A vault with this identifier already exists!",
-    unblockSuccessAlert: "Account suspension lifted.",
-    masterPassResetSuccessAlert: "Master password successfully reset.",
+    unblockSuccessAlert: "Account suspension lifted successfully.",
+    masterPassResetSuccessAlert: "Master password successfully reset and locks lifted.",
     importSuccessAlert: "Passwords imported successfully!",
-    importPasswordMismatchAlert: "Master password mismatch on import!",
+    importPasswordMismatchAlert: "Master password does not match the imported file key!",
     importFormatErrorAlert: "Invalid backup file format!",
     importReadErrorAlert: "Error reading backup file!",
-    vaultActionsTitle: "Navigation",
+    vaultActionsTitle: "Vault Actions",
     passLength: "Length",
-    includeSymbols: "Symbols",
-    includeNumbers: "Numbers",
-    toggleGenOptions: "Generator Options",
-    vaultSettingsTitle: "Vault Settings",
+    includeSymbols: "Include Symbols",
+    includeNumbers: "Include Numbers",
+    toggleGenOptions: "Live Generator Options",
+    vaultSettingsTitle: "Vault Security Management",
     vaultSettingsSub: "Update master credentials and recovery details",
-    adminManageUserTitle: "Manage Vault Data",
-    adminManageUserSub: "Emergency recovery and adjustments",
-    creationDateLabel: "Created:",
+    adminManageUserTitle: "Manage User Vault Data",
+    adminManageUserSub: "Emergency recovery and record adjustments",
+    creationDateLabel: "Creation Date:",
     saveSettingsBtn: "Save Updates",
     updateSuccessNotice: "Updates applied successfully!",
     confirmDeleteGroup: "Delete group '{group}'? Accounts will move to '{all}'.",
@@ -269,85 +269,85 @@ const translations = {
   },
   ar: {
     appName: "Pass-Guard",
-    toolsBtn: "الأدوات",
+    toolsBtn: "أدوات الأمان",
     aboutBtn: "عن التطبيق",
     toggleTheme: "المظهر",
     welcomeTitle: "مرحباً بك في",
     welcomeDesc: "خزنة محلية مشفرة تعمل بمبدأ المعرفة الصفرية وتقنيات التشفير العسكري AES-GCM 256-bit لحفظ وحماية بياناتك وحساباتك دون أن تغادر جهازك إطلاقاً.",
-    openVaultBtn: "فتح الخزنة",
-    createVaultBtn: "إنشاء خزنة",
-    adminPortalBtn: "بوابة المشرف",
-    statVisits: "الزيارات",
-    statLocal: "تشفير تام",
-    statEncryption: "AES-GCM",
-    statProtection: "حماية 24/7",
+    openVaultBtn: "فتح الخزنة (تسجيل الدخول)",
+    createVaultBtn: "إنشاء خزنة جديدة",
+    adminPortalBtn: "بوابة المشرف العام",
+    statVisits: "إجمالي الزيارات",
+    statLocal: "تشفير محلي تام",
+    statEncryption: "تشفير AES-GCM",
+    statProtection: "حماية مستمرة",
     loginHeading: "تسجيل الدخول",
     registerHeading: "إنشاء خزنة جديدة",
-    adminHeading: "بوابة المشرف",
-    loginSub: "أدخل بياناتك لفك تشفير الخزنة والوصول لحساباتك",
-    registerSub: "أنشئ خزنتك المشفرة محلياً والمحمية بكلمة مرورك",
-    adminSub: "الوصول الإداري لتدقيق العمليات الأمنية",
-    identifierLabel: "اسم المستخدم، البريد، أو الهاتف",
+    adminHeading: "بوابة المشرف العام",
+    loginSub: "أدخل بياناتك لفك تشفير الخزنة والوصول إلى حساباتك المحفوظة",
+    registerSub: "أنشئ خزنتك المشفرة محلياً والمحمية بكلمة مرورك الرئيسية",
+    adminSub: "الوصول الإداري الحصري لتدقيق الخزنات ومتابعة الإنذارات الأمنية",
+    identifierLabel: "اسم المستخدم، البريد، أو رقم الهاتف",
     adminIdentifierLabel: "معرّف المشرف",
     passwordLabel: "كلمة المرور الرئيسية",
     adminPasswordLabel: "المفتاح السري للمشرف",
     submitLogin: "فك تشفير الخزنة",
-    submitRegister: "إنشاء الخزنة",
-    submitAdmin: "دخول اللوحة",
-    backToHome: "العودة للرئيسية",
-    adminPanelTitle: "لوحة التحكم الإداري",
+    submitRegister: "إنشاء الخزنة وبدء الاستخدام",
+    submitAdmin: "دخول لوحة التحكم",
+    backToHome: "العودة للرئيسية واختيار مسار آخر",
+    adminPanelTitle: "لوحة القيادة والتحكم الإداري المتقدم",
     adminBadge: "مشرف النظام",
-    adminPanelSub: "نظام تدقيق العمليات ومراقبة وسائط التخزين",
-    registeredUsersCount: "إجمالي الخزنات",
+    adminPanelSub: "نظام تدقيق العمليات الأمنية ومراقبة سلامة وسائط التخزين المحلية",
+    registeredUsersCount: "إجمالي المستخدمين المسجلين",
     visitsCounter: "عداد الزيارات",
-    resetVisitsConfirm: "تصفير عداد الزيارات إلى 0؟",
-    securityScore: "مؤشر الأمان",
-    activeAlerts: "الإنذارات النشطة",
-    userRecordsTitle: "الخزنات المسجلة",
+    resetVisitsConfirm: "هل أنت متأكد من تصفير عداد الزيارات بالكامل إلى 0؟",
+    securityScore: "مؤشر الأمان العام",
+    activeAlerts: "التنبيهات الأمنية النشطة",
+    userRecordsTitle: "قائمة الخزنات المسجلة والتنبيهات الأمنية",
     noUsers: "لا توجد أي خزنات مسجلة محلياً.",
     accountSuspended: "موقوف أمنياً",
-    securityAlertBadge: "إنذار",
-    localCryptoNote: "تشفير محلي تام",
+    securityAlertBadge: "إنذار أمني",
+    localCryptoNote: "تشفير محلي بمبدأ المعرفة الصفرية",
     unblockBtn: "فك الحظر",
-    manageUserBtn: "إدارة",
-    deleteAccountBtn: "حذف",
-    deleteAccountConfirm: "حذف هذه الخزنة نهائياً؟",
-    vaultTitlePrefix: "الخزنة المشفرة:",
-    vaultDossierBtn: "أمان الخزنة",
-    vaultItemsBtn: "الحسابات",
-    manageVaultBtn: "الإعدادات",
-    exportBtn: "تصدير",
-    importBtn: "استيراد",
-    addAccountBtn: "إضافة حساب",
-    logoutBtn: "خروج",
-    searchPlaceholder: "بحث في الحسابات...",
+    manageUserBtn: "إدارة الخزنة",
+    deleteAccountBtn: "حذف الخزنة",
+    deleteAccountConfirm: "هل أنت متأكد من حذف هذه الخزنة نهائياً من وسيط التخزين؟",
+    vaultTitlePrefix: "خزنة كلمات المرور المشفرة:",
+    vaultDossierBtn: "معلومات وأمان الخزنة",
+    vaultItemsBtn: "عرض الحسابات",
+    manageVaultBtn: "إدارة الخزنة",
+    exportBtn: "تصدير كلمات المرور",
+    importBtn: "استيراد كلمات المرور",
+    addAccountBtn: "إضافة حساب جديد",
+    logoutBtn: "تسجيل الخروج",
+    searchPlaceholder: "بحث في الحسابات المحفوظة...",
     showHidePass: "إظهار/إخفاء",
     copyBtn: "نسخ",
-    detailsBtn: "تفاصيل",
+    detailsBtn: "تفاصيل وتعديل",
     deleteRecordBtn: "حذف",
-    auditModalTitle: "الملف الأمني الشامل",
+    auditModalTitle: "الملف الأمني الشامل ومعلومات الخزنة",
     auditModalSub: "تدقيق متانة كلمات المرور وسجل الأجهزة المأذون لها",
-    auditTabMetrics: "المؤشرات",
-    auditTabDevices: "الأجهزة والجلسات",
-    totalCredentials: "إجمالي الحسابات",
-    vaultHealthScore: "تقييم المناعة",
-    reusedPasswords: "مكررة",
-    weakPasswords: "ضعيفة",
+    auditTabMetrics: "مؤشرات الأمان الفنية",
+    auditTabDevices: "سجل الأجهزة والجلسات",
+    totalCredentials: "إجمالي الحسابات المحفوظة",
+    vaultHealthScore: "تقييم مناعة الخزنة",
+    reusedPasswords: "كلمات مرور مكررة",
+    weakPasswords: "كلمات مرور ضعيفة",
     securityRecommendations: "التوصيات الأمنية لحصانة الخزنة:",
-    rec1: "• تجنب تماماً استخدام نفس كلمة المرور لأكثر من منصة.",
-    rec2: "• احرص ألا يقل طول كلمة المرور عن 16 خانة مع رموز وأرقام.",
-    rec3: "• خزنتك محمية بمفتاح تشفير مشتق من كلمة مرورك الرئيسية فقط.",
+    rec1: "• تجنب تماماً استخدام نفس كلمة المرور لأكثر من منصة؛ فاختراق منصة واحدة يعرض بقية حساباتك للانكشاف.",
+    rec2: "• احرص ألا يقل طول كلمة المرور عن 16 خانة، مع احتوائها على رموز خاصة، وأرقام، وأحرف كبيرة وصغيرة.",
+    rec3: "• خزنتك محمية بمفتاح تشفير مشتق من كلمة مرورك الرئيسية فقط؛ ولا يملك أي طرف خارجي القدرة على فكها.",
     noDeviceLogs: "لا يوجد سجل أجهزة ملتقط حتى الآن.",
     currentSessionBadge: "الجلسة الحالية",
-    aboutModalTitle: "عن المنظومة الأمنية",
+    aboutModalTitle: "عن المنظومة الأمنية لـ Pass-Guard",
     aboutModalBody: "برنامج Pass-Guard هو خزنة محلية لإدارة كلمات المرور تعمل بمبدأ المعرفة الصفرية المستند إلى المعايير القياسية للويب (AES-GCM 256-bit و PBKDF2). تتم كافة عمليات التشفير وفك التشفير حصراً داخل ذاكرة جهازك دون إرسال أي حرف إلى أي خادم خارجي.",
     toolsModalTitle: "فاحص متانة كلمات المرور",
-    toolsPlaceholder: "اكتب كلمة مرور لفحص صمودها...",
-    recordDetailsTitle: "تعديل بيانات الحساب",
+    toolsPlaceholder: "اكتب أي كلمة مرور لفحص مدى صمودها...",
+    recordDetailsTitle: "تعديل بيانات الحساب:",
     siteUrlLabel: "عنوان المنصة الإلكترونية",
     usernameLabel: "اسم المستخدم",
     passwordRecordLabel: "كلمة المرور",
-    emailLabel: "البريد الإلكتروني",
+    emailLabel: "البريد الإلكتروني المقترن",
     phoneLabel: "رقم الهاتف",
     groupLabel: "المجموعة",
     lastModifiedLabel: "تاريخ آخر تعديل:",
@@ -358,59 +358,59 @@ const translations = {
     cutBtn: "قص",
     copyBtnAction: "نسخ",
     pasteBtn: "لصق",
-    selectAllBtn: "الكل",
-    manageGroupsBtn: "المجموعات",
+    selectAllBtn: "تحديد الكل",
+    manageGroupsBtn: "إدارة المجموعات",
     manageGroupsTitle: "إدارة مجموعات الحسابات",
     allGroups: "الكل",
-    groupPlaceholder: "اسم المجموعة...",
+    groupPlaceholder: "اسم المجموعة الجديدة...",
     captchaTitle: "التحقق من الدخول الآلي",
-    captchaSub: "تم رصد 5 محاولات خاطئة. حل المسألة للمتابعة.",
-    captchaInput: "الناتج",
-    captchaSubmit: "تحقق",
+    captchaSub: "تم رصد 5 محاولات خاطئة. يرجى حل المسألة الحسابية للمتابعة.",
+    captchaInput: "أدخل الناتج",
+    captchaSubmit: "تحقق ومتابعة",
     cancelBtn: "إلغاء",
     confirmBtn: "تأكيد",
-    addModalTitle: "إضافة حساب جديد",
-    siteTitlePlaceholder: "اسم الموقع (مثل: Google)",
-    usernamePlaceholder: "اسم المستخدم أو البريد",
+    addModalTitle: "إضافة حساب جديد إلى الخزنة",
+    siteTitlePlaceholder: "عنوان الموقع (مثل: Snapchat)",
+    usernamePlaceholder: "اسم المستخدم",
     siteUrlPlaceholder: "رابط المنصة (URL)",
     emailPlaceholder: "البريد الإلكتروني المقترن",
     phonePlaceholder: "رقم الهاتف",
     notesPlaceholder: "ملاحظات...",
     passwordPlaceholder: "كلمة المرور",
-    generatePassTitle: "توليد",
+    generatePassTitle: "توليد كلمة مرور منيعة",
     saveRecordBtn: "حفظ في الخزنة",
-    copiedFeedback: "تم النسخ!",
+    copiedFeedback: "تم النسخ إلى الحافظة بنجاح",
     invalidAdminAlert: "بيانات اعتماد المشرف غير صحيحة!",
     missingFieldsAlert: "يرجى استكمال جميع الحقول الإلزامية.",
-    lockedAccountAlert: "الحساب موقوف أمنياً. يرجى مراجعة المشرف العام.",
+    lockedAccountAlert: "الحساب موقوف أمنياً لتكرار المحاولات الفاشلة. يرجى التواصل مع المشرف العام.",
     accountNotFoundAlert: "سجل الخزنة هذا غير موجود!",
-    maxTriesExceededAlert: "تم استنفاد المحاولات وقفل الخزنة أمنياً.",
+    maxTriesExceededAlert: "تم استنفاد الحد الأقصى للمحاولات. تم تفعيل قفل الأمان وتسجيل إنذار.",
     incorrectPasswordAlert: "كلمة المرور الرئيسية غير صحيحة!",
-    captchaFailedAlert: "الناتج غير صحيح. أعد المحاولة.",
-    captchaPassedAlert: "تم التحقق بنجاح.",
-    reservedUsernameAlert: "اسم المستخدم محجوز لسياسات النظام.",
-    passwordComplexityAlert: "كلمة المرور يجب أن لا تقل عن 8 خانات وتحتوي على حرف كبير، رقم، ورمز.",
+    captchaFailedAlert: "الناتج الحسابي غير صحيح. أعد المحاولة.",
+    captchaPassedAlert: "تم التحقق بنجاح. مُنحت 3 محاولات إضافية.",
+    reservedUsernameAlert: "اسم المستخدم هذا محجوز لسياسات النظام.",
+    passwordComplexityAlert: "كلمة المرور يجب أن لا تقل عن 8 خانات وتحتوي على حرف كبير، رقم، ورمز خاص.",
     accountExistsAlert: "توجد خزنة مسجلة مسبقاً بهذا المعرّف!",
-    unblockSuccessAlert: "تم فك الحظر الأمني بنجاح.",
-    masterPassResetSuccessAlert: "تمت إعادة تعيين كلمة المرور بنجاح.",
+    unblockSuccessAlert: "تم فك الحظر الأمني عن الحساب بنجاح.",
+    masterPassResetSuccessAlert: "تمت إعادة تعيين كلمة المرور الرئيسية وإلغاء القفل بنجاح.",
     importSuccessAlert: "تم استيراد كلمات المرور بنجاح!",
-    importPasswordMismatchAlert: "كلمة المرور الحالية لا تطابق ملف النسخ الاحتياطي!",
+    importPasswordMismatchAlert: "كلمة المرور الرئيسية الحالية لا تتطابق مع مفتاح تشفير الملف المستورد!",
     importFormatErrorAlert: "صيغة ملف النسخة الاحتياطية غير صالحة!",
-    importReadErrorAlert: "حدث خطأ أثناء قراءة الملف!",
-    vaultActionsTitle: "التنقل",
-    passLength: "الطول",
-    includeSymbols: "رموز",
-    includeNumbers: "أرقام",
-    toggleGenOptions: "خيارات المولد",
-    vaultSettingsTitle: "إعدادات الخزنة",
+    importReadErrorAlert: "حدث خطأ أثناء قراءة ملف النسخة الاحتياطية!",
+    vaultActionsTitle: "إجراءات الخزنة",
+    passLength: "طول كلمة المرور",
+    includeSymbols: "تضمين الرموز الخاصة",
+    includeNumbers: "تضمين الأرقام",
+    toggleGenOptions: "خيارات المولد الحي والتحكم",
+    vaultSettingsTitle: "إدارة إعدادات الخزنة الشاملة",
     vaultSettingsSub: "تحديث بيانات الاعتماد ومعلومات الطوارئ",
-    adminManageUserTitle: "إدارة بيانات المستخدم",
-    adminManageUserSub: "تعديل معلومات الطوارئ والدخول",
-    creationDateLabel: "تاريخ الإنشاء:",
-    saveSettingsBtn: "حفظ التغييرات",
+    adminManageUserTitle: "إدارة بيانات المستخدم والخزنة",
+    adminManageUserSub: "تعديل معلومات الطوارئ وتحديث بيانات الدخول",
+    creationDateLabel: "تاريخ إنشاء الخزنة:",
+    saveSettingsBtn: "تحديث وحفظ التغييرات",
     updateSuccessNotice: "تم تحديث البيانات بنجاح!",
-    confirmDeleteGroup: "حذف المجموعة '{group}'؟ سيتم نقل حساباتها إلى '{all}'.",
-    groupDeletedNotice: "تم حذف المجموعة بنجاح."
+    confirmDeleteGroup: "هل أنت متأكد من حذف المجموعة '{group}'؟ سيتم نقل حساباتها إلى '{all}'.",
+    groupDeletedNotice: "تم حذف المجموعة ونقل حساباتها بنجاح."
   }
 };
 
@@ -578,7 +578,6 @@ export default function App() {
     setVisitCount(currentTotal);
   }, []);
 
-  // قفل الخزنة عند الخروج
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && isUnlocked && !isAdmin) {
@@ -591,7 +590,6 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isUnlocked, isAdmin]);
 
-  // مؤقت خمول زمني
   useEffect(() => {
     if (!isUnlocked || isAdmin) return;
     let timeoutId;
@@ -722,15 +720,15 @@ export default function App() {
     window.addEventListener('mousemove', handleMouseMove);
 
     const particles = [];
-    const particleCount = Math.floor((width * height) / 14000);
+    const particleCount = Math.floor((width * height) / 10000);
 
     for (let i = 0; i < particleCount; i++) {
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 1.2,
-        vy: (Math.random() - 0.5) * 1.2,
-        radius: Math.random() * 2.5 + 1,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: (Math.random() - 0.5) * 1.5,
+        radius: Math.random() * 3 + 1.5,
       });
     }
 
@@ -748,18 +746,21 @@ export default function App() {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = theme === 'dark' ? 'rgba(99, 102, 241, 0.7)' : 'rgba(79, 70, 229, 0.6)';
+        ctx.fillStyle = theme === 'dark' ? 'rgba(99, 102, 241, 0.8)' : 'rgba(79, 70, 229, 0.7)';
+        ctx.shadowColor = theme === 'dark' ? '#6366f1' : '#4f46e5';
+        ctx.shadowBlur = 8;
         ctx.fill();
+        ctx.shadowBlur = 0;
 
         let dx = mouse.x - p.x;
         let dy = mouse.y - p.y;
         let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 120) {
+        if (dist < 150) {
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(mouse.x, mouse.y);
-          ctx.strokeStyle = theme === 'dark' ? `rgba(99, 102, 241, ${1 - dist / 120})` : `rgba(79, 70, 229, ${1 - dist / 120})`;
-          ctx.lineWidth = 0.8;
+          ctx.strokeStyle = theme === 'dark' ? `rgba(99, 102, 241, ${1.1 - dist / 150})` : `rgba(79, 70, 229, ${1.1 - dist / 150})`;
+          ctx.lineWidth = 1;
           ctx.stroke();
         }
       }
@@ -1281,20 +1282,21 @@ export default function App() {
   const isDark = theme === 'dark';
 
   return (
-    <div className={`min-h-screen flex flex-col justify-between relative overflow-x-hidden transition-colors duration-500 ${isDark ? 'text-slate-100 bg-slate-950' : 'text-slate-900 bg-slate-50'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`h-screen flex flex-col justify-between relative overflow-hidden transition-colors duration-500 ${isDark ? 'text-slate-100' : 'text-slate-900'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       
       <style>{`
         ::-webkit-scrollbar { display: none; }
         * { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      <canvas ref={canvasRef} className="fixed inset-0 w-full h-full -z-10 pointer-events-none" />
+      {/* خلفية النقاط التفاعلية بكامل الصفحة */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full -z-10 pointer-events-none" />
 
       {/* حوار التأكيد */}
       {confirmDialog.isOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
           <div className={`border p-6 rounded-3xl w-full max-w-xs shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <h3 className="text-base font-bold mb-5 text-center leading-relaxed">{confirmDialog.message}</h3>
+            <h3 className="text-sm font-bold mb-5 text-center leading-relaxed">{confirmDialog.message}</h3>
             <div className="flex justify-center gap-3">
               <button 
                 onClick={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null })} 
@@ -1307,7 +1309,7 @@ export default function App() {
                   if(confirmDialog.onConfirm) confirmDialog.onConfirm();
                   setConfirmDialog({ isOpen: false, message: '', onConfirm: null });
                 }} 
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold cursor-pointer"
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg shadow-rose-600/30"
               >
                 {t.confirmBtn}
               </button>
@@ -1319,8 +1321,8 @@ export default function App() {
       {/* نافذة إدارة المجموعات */}
       {showManageGroupsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className={`border p-5 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <div className="flex justify-between items-center border-b border-slate-800/60 pb-3">
+          <div className={`border p-5 rounded-3xl w-full max-w-sm space-y-3.5 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <div className="flex justify-between items-center border-b border-slate-800/60 pb-2.5">
                 <h3 className="font-bold text-sm flex items-center gap-2"><FolderPlus className="w-4 h-4 text-indigo-500"/> {t.manageGroupsTitle}</h3>
                 <button onClick={() => setShowManageGroupsModal(false)} className="text-slate-400 hover:text-rose-400 font-bold p-1">✕</button>
             </div>
@@ -1337,7 +1339,7 @@ export default function App() {
                 <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-md">+</button>
             </form>
 
-            <div className="space-y-2 max-h-56 overflow-y-auto">
+            <div className="space-y-2 max-h-52 overflow-y-auto">
                 {groups.map(g => (
                     <div key={g} className={`flex items-center justify-between p-2.5 rounded-xl border text-xs ${isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                         {editingGroupOldName === g ? (
@@ -1376,19 +1378,19 @@ export default function App() {
         </div>
       )}
 
-      {/* الشريط العلوي المتجاوب */}
-      <header className={`w-full px-4 md:px-8 py-3.5 border-b z-20 flex items-center justify-between shadow-xl transition-all duration-300 shrink-0 ${isDark ? 'bg-slate-950/80 border-slate-800/80 backdrop-blur-xl' : 'bg-white/90 border-slate-200 backdrop-blur-xl'}`}>
-        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => { if (!isUnlocked) setCurrentView('welcome'); }}>
-          <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl overflow-hidden border border-indigo-500/40 shadow shrink-0 bg-slate-900 flex items-center justify-center p-0.5">
+      {/* الشريط العلوي */}
+      <header className={`w-full px-5 md:px-8 py-3.5 border-b z-20 flex items-center justify-between shadow-xl shrink-0 ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-xl' : 'bg-white/80 border-slate-200 backdrop-blur-xl'}`}>
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => { if (!isUnlocked) setCurrentView('welcome'); }}>
+          <div className="w-10 h-10 rounded-2xl overflow-hidden border border-indigo-500/40 shadow-lg shadow-indigo-600/20 shrink-0 bg-slate-900 flex items-center justify-center p-0.5">
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-cover" />
           </div>
-          <span className="font-black text-lg md:text-xl tracking-wider bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
+          <span className="font-black text-xl tracking-wider bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
         </div>
 
-        <div className="flex items-center gap-1.5 md:gap-2.5">
+        <div className="flex items-center gap-2 md:gap-3">
           <button
             onClick={() => setVaultSubView('tools')}
-            className={`px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${isDark ? 'bg-slate-900 border-slate-700 text-amber-300' : 'bg-white border-slate-300 text-amber-700'}`}
+            className={`px-3 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-amber-300' : 'bg-white border-slate-300 text-amber-700'}`}
           >
             <Zap className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden sm:inline">{t.toolsBtn}</span>
@@ -1396,7 +1398,7 @@ export default function App() {
 
           <button
             onClick={() => setVaultSubView('about')}
-            className={`px-2.5 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${isDark ? 'bg-slate-900 border-slate-700 text-indigo-300' : 'bg-white border-slate-300 text-indigo-700'}`}
+            className={`px-3 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-indigo-300' : 'bg-white border-slate-300 text-indigo-700'}`}
           >
             <Info className="w-3.5 h-3.5 text-indigo-400" />
             <span className="hidden sm:inline">{t.aboutBtn}</span>
@@ -1404,50 +1406,52 @@ export default function App() {
 
           <button
             onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-            className={`px-2.5 py-1.5 md:px-3 md:py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${isDark ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`}
+            className={`px-3 py-1.5 md:px-3.5 md:py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`}
           >
             <Globe className="w-3.5 h-3.5 text-sky-400" />
-            <span>{lang === 'en' ? 'AR' : 'EN'}</span>
+            <span>{lang === 'en' ? 'العربية' : 'English'}</span>
           </button>
 
           <button
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            className={`p-1.5 md:p-2 rounded-xl border transition-all ${isDark ? 'bg-slate-900 border-slate-700 text-amber-400' : 'bg-white border-slate-300 text-slate-700'}`}
+            className={`p-2 rounded-xl border transition-all ${isDark ? 'bg-slate-900 border-slate-700 text-amber-400' : 'bg-white border-slate-300 text-slate-700'}`}
+            title={t.toggleTheme}
           >
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
       </header>
 
-      {/* الحاوية الرئيسية القابلة للتمدد على الموبايل */}
-      <main className="flex-1 flex flex-col items-center justify-center p-3 md:p-6 w-full max-w-6xl mx-auto z-20">
+      {/* المحتوى الرئيسي الموزون والموسّط تماماً */}
+      <main className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-5xl mx-auto z-20 overflow-y-auto">
         
         {inAppNotice && (
-          <div className="mb-3 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold shadow-lg text-center animate-pulse">
+          <div className="mb-4 px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold shadow-xl border border-indigo-400/30 animate-pulse shrink-0">
             {inAppNotice}
           </div>
         )}
 
         {/* 1. الواجهة الترحيبية */}
         {!isUnlocked && currentView === 'welcome' && (
-          <div className="flex flex-col items-center justify-center px-3 py-6 max-w-2xl mx-auto text-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold mb-4">
+          <div className="flex flex-col items-center justify-center px-4 max-w-3xl mx-auto text-center my-auto">
+            
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold mb-4 shadow-inner">
               <Shield className="w-3.5 h-3.5 text-indigo-400" />
               <span>معيار أمان محلي 100% بالمعرفة الصفرية</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black mb-3 tracking-tight">
+            <h1 className="text-3xl sm:text-5xl font-black mb-3 tracking-tight leading-tight">
               {t.welcomeTitle} <span className="bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
             </h1>
 
-            <p className="text-xs sm:text-sm text-slate-300 max-w-lg leading-relaxed mb-6 opacity-90">
+            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed mb-6 opacity-90">
               {t.welcomeDesc}
             </p>
 
-            <div className="flex flex-col sm:flex-row w-full sm:w-auto items-stretch sm:items-center justify-center gap-2.5 mb-8">
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-8 w-full">
               <button
                 onClick={() => openDirectAction('login')}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2"
+                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2 border border-indigo-400/30 cursor-pointer"
               >
                 <Unlock className="w-4 h-4" />
                 {t.openVaultBtn}
@@ -1455,7 +1459,7 @@ export default function App() {
 
               <button
                 onClick={() => openDirectAction('register')}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 shadow"
+                className="px-6 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-sky-400" />
                 {t.createVaultBtn}
@@ -1463,73 +1467,74 @@ export default function App() {
 
               <button
                 onClick={() => openDirectAction('admin')}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 shadow"
+                className="px-5 py-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer"
               >
                 <ShieldAlert className="w-4 h-4 text-amber-400" />
                 {t.adminPortalBtn}
               </button>
             </div>
 
-            <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-2.5 border-t border-slate-800/80 pt-6">
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center">
-                <h3 className="text-base sm:text-lg font-black font-mono text-indigo-400">{visitCount}+</h3>
-                <p className="text-[10px] text-slate-400 font-medium">{t.statVisits}</p>
+            <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-slate-800/80 pt-6 text-center">
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+                <h3 className="text-lg sm:text-xl font-black font-mono text-indigo-400" dir="ltr">+{visitCount}</h3>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statVisits}</p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center">
-                <h3 className="text-base sm:text-lg font-black font-mono text-emerald-400">100%</h3>
-                <p className="text-[10px] text-slate-400 font-medium">{t.statLocal}</p>
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+                <h3 className="text-lg sm:text-xl font-black font-mono text-emerald-400" dir="ltr">100%</h3>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statLocal}</p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center">
-                <h3 className="text-base sm:text-lg font-black font-mono text-sky-400">256-bit</h3>
-                <p className="text-[10px] text-slate-400 font-medium">{t.statEncryption}</p>
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+                <h3 className="text-lg sm:text-xl font-black font-mono text-sky-400" dir="ltr">256-bit</h3>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statEncryption}</p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center">
-                <h3 className="text-base sm:text-lg font-black font-mono text-amber-400">24/7</h3>
-                <p className="text-[10px] text-slate-400 font-medium">{t.statProtection}</p>
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+                <h3 className="text-lg sm:text-xl font-black font-mono text-amber-400" dir="ltr">24/7</h3>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statProtection}</p>
               </div>
             </div>
+
           </div>
         )}
 
-        {/* نافذة الأدوات المنبثقة */}
+        {/* 2. نافذة الأدوات المنبثقة */}
         {!isUnlocked && currentView === 'welcome' && vaultSubView === 'tools' && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className={`border p-6 rounded-3xl w-full max-w-sm space-y-4 ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h3 className="text-sm font-bold flex items-center gap-1.5"><Zap className="w-4 h-4 text-amber-400" /> {t.toolsModalTitle}</h3>
-                <button onClick={() => setVaultSubView('items')} className="text-slate-400 font-bold p-1">✕</button>
+            <div className={`border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="text-base font-bold flex items-center gap-2"><Zap className="w-5 h-5 text-amber-400" /> {t.toolsModalTitle}</h3>
+                <button onClick={() => setVaultSubView('items')} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
               </div>
               <input
                 type="text"
                 placeholder={t.toolsPlaceholder}
                 value={testPassword}
                 onChange={(e) => setTestPassword(e.target.value)}
-                className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
-              <button onClick={() => setVaultSubView('items')} className="w-full py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl">{t.closeBtn}</button>
+              <button onClick={() => setVaultSubView('items')} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow cursor-pointer">{t.closeBtn}</button>
             </div>
           </div>
         )}
 
-        {/* نافذة "عن التطبيق" */}
+        {/* 3. نافذة عن التطبيق المنبثقة */}
         {!isUnlocked && currentView === 'welcome' && vaultSubView === 'about' && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className={`border p-6 rounded-3xl w-full max-w-md space-y-4 ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h3 className="text-sm font-bold flex items-center gap-1.5"><Info className="w-4 h-4 text-indigo-400" /> {t.aboutModalTitle}</h3>
-                <button onClick={() => setVaultSubView('items')} className="text-slate-400 font-bold p-1">✕</button>
+            <div className={`border p-6 rounded-3xl w-full max-w-lg space-y-4 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="text-base font-bold flex items-center gap-2"><Info className="w-5 h-5 text-indigo-400" /> {t.aboutModalTitle}</h3>
+                <button onClick={() => setVaultSubView('items')} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
               </div>
               <p className="text-xs leading-relaxed text-slate-300">{t.aboutModalBody}</p>
-              <button onClick={() => setVaultSubView('items')} className="w-full py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl">{t.closeBtn}</button>
+              <button onClick={() => setVaultSubView('items')} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow cursor-pointer">{t.closeBtn}</button>
             </div>
           </div>
         )}
 
-        {/* 2. نموذج المصادقة */}
+        {/* 4. نموذج المصادقة (تسجيل الدخول / إنشاء حساب) */}
         {!isUnlocked && currentView === 'auth' && (
-          <div className={`w-full max-w-sm border p-5 sm:p-7 rounded-3xl shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+          <div className={`w-full max-w-sm border p-6 sm:p-7 rounded-3xl shadow-2xl my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/95 border-slate-200'}`}>
             <div className="text-center mb-5">
-              <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl border mb-2.5 ${authMode === 'admin' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-indigo-600/20 border-indigo-500/40 text-indigo-400'}`}>
+              <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl border mb-3 shadow-xl ${authMode === 'admin' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-indigo-600/20 border-indigo-500/40 text-indigo-400'}`}>
                 {authMode === 'admin' ? <ShieldAlert className="w-7 h-7" /> : <ShieldCheck className="w-7 h-7" />}
               </div>
               <h1 className="text-lg font-bold">
@@ -1544,16 +1549,17 @@ export default function App() {
               </p>
             </div>
 
-            <form onSubmit={authMode === 'register' ? handleRegister : handleLogin} className="space-y-3" autoComplete="off">
+            <form onSubmit={authMode === 'register' ? handleRegister : handleLogin} className="space-y-3.5" autoComplete="off">
               <div>
                 <label className="text-xs block mb-1 font-medium">{authMode === 'admin' ? t.adminIdentifierLabel : t.identifierLabel}</label>
                 <input
                   type="text"
+                  placeholder="user@domain.com"
                   value={identifier}
                   disabled={authMode === 'admin'}
                   onChange={(e) => setIdentifier(e.target.value)}
                   autoComplete="off"
-                  className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-xs ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                   required
                 />
               </div>
@@ -1562,10 +1568,11 @@ export default function App() {
                 <label className="text-xs block mb-1 font-medium">{authMode === 'admin' ? t.adminPasswordLabel : t.passwordLabel}</label>
                 <input
                   type="password"
+                  placeholder="••••••••••••"
                   value={masterPassword}
                   onChange={(e) => setMasterPassword(e.target.value)}
                   autoComplete="new-password"
-                  className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-xs ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                   required
                 />
               </div>
@@ -1574,7 +1581,7 @@ export default function App() {
 
               <button
                 type="submit"
-                className={`w-full py-2.5 text-white font-bold rounded-xl text-xs shadow-lg flex items-center justify-center gap-1.5 ${authMode === 'admin' ? 'bg-amber-600 hover:bg-amber-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}
+                className={`w-full py-2.5 text-white font-bold rounded-xl text-xs shadow-lg flex items-center justify-center gap-2 cursor-pointer ${authMode === 'admin' ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/30' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30'}`}
               >
                 {authMode === 'login' && <><Unlock className="w-3.5 h-3.5" /> {t.submitLogin}</>}
                 {authMode === 'register' && <><Plus className="w-3.5 h-3.5" /> {t.submitRegister}</>}
@@ -1585,7 +1592,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setCurrentView('welcome')}
-                  className={`w-full py-2 border rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-300 text-slate-700'}`}
+                  className={`w-full py-2 border rounded-xl text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white' : 'bg-slate-100 border-slate-300 text-slate-700'}`}
                 >
                   <ArrowRight className="w-3.5 h-3.5" />
                   <span>{t.backToHome}</span>
@@ -1595,275 +1602,174 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. الخزنة المشفرة للمستخدم */}
-        {isUnlocked && !isAdmin && (
-          <div className={`w-full border rounded-3xl shadow-2xl flex flex-col md:flex-row min-h-[75vh] md:h-[78vh] overflow-hidden my-auto ${isDark ? 'bg-slate-900/95 border-slate-800' : 'bg-white border-slate-200'}`}>
-            
-            {/* القائمة الجانبية: عمودية بالكمبيوتر وشريط علوي/أيقونات بالموبايل */}
-            <aside className={`w-full md:w-60 border-b md:border-b-0 md:border-l p-3 md:p-4 flex flex-col justify-between shrink-0 ${isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-200'}`}>
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between md:justify-start gap-2 pb-2 md:pb-3 border-b border-slate-800/60">
-                  <div className="flex items-center gap-2 truncate">
-                    <div className="p-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shrink-0">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                    </div>
-                    <p className="text-xs font-mono font-bold text-indigo-400 truncate">{identifier}</p>
+        {/* 5. لوحة المشرف */}
+        {isUnlocked && isAdmin && (
+          <div className={`w-full border rounded-3xl shadow-2xl flex flex-col h-[75vh] overflow-hidden my-auto ${isDark ? 'bg-slate-900/90 border-amber-500/30' : 'bg-white border-amber-300'}`}>
+            <div className={`p-4 border-b flex flex-wrap items-center justify-between gap-3 shrink-0 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-extrabold text-sm flex items-center gap-2">
+                    {t.adminPanelTitle}
+                    <span className="text-[9px] px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full border border-amber-500/30">{t.adminBadge}</span>
+                  </h2>
+                  <p className="text-[10px] text-slate-400">{t.adminPanelSub}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setIsUnlocked(false); setIsAdmin(false); setMasterPassword(''); setCurrentView('welcome'); }}
+                className="px-3 py-1.5 border rounded-xl flex items-center gap-1.5 text-xs font-bold bg-rose-500/10 border-rose-500/30 text-rose-400 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>{t.logoutBtn}</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800">
+                  <p className="text-[11px] text-slate-400">{t.registeredUsersCount}</p>
+                  <h3 className="text-lg font-black font-mono text-indigo-400 mt-1">{registeredUsers.length}</h3>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] text-slate-400">{t.visitsCounter}</p>
+                    <h3 className="text-lg font-black font-mono text-blue-400 mt-1" dir="ltr">{visitCount}</h3>
                   </div>
-                  {/* زر الخروج بالموبايل بالشريط العلوي */}
-                  <button
-                    onClick={() => { setIsUnlocked(false); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }}
-                    className="md:hidden p-1.5 rounded-lg text-rose-400 border border-rose-500/30 bg-rose-500/10"
-                    title={t.logoutBtn}
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
+                  <button onClick={handleResetVisits} className="p-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg cursor-pointer">
+                    <RotateCcw className="w-3.5 h-3.5" />
                   </button>
                 </div>
-
-                {/* أزرار التنقل: تتوزع أفقياً بالموبايل وعمودياً بالكمبيوتر */}
-                <div className="grid grid-cols-4 md:grid-cols-1 gap-1.5">
-                  <button
-                    onClick={() => setVaultSubView('items')}
-                    className={`py-2 px-2.5 border rounded-xl flex items-center justify-center md:justify-start gap-2 text-xs font-bold ${vaultSubView === 'items' ? 'bg-indigo-600 text-white border-indigo-500' : isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}
-                    title={t.vaultItemsBtn}
-                  >
-                    <Users className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden md:inline">{t.vaultItemsBtn}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setVaultSubView('audit')}
-                    className={`py-2 px-2.5 border rounded-xl flex items-center justify-center md:justify-start gap-2 text-xs font-bold ${vaultSubView === 'audit' ? 'bg-indigo-600 text-white border-indigo-500' : isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}
-                    title={t.vaultDossierBtn}
-                  >
-                    <Activity className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden md:inline">{t.vaultDossierBtn}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setVaultSubView('add')}
-                    className={`py-2 px-2.5 border rounded-xl flex items-center justify-center md:justify-start gap-2 text-xs font-bold ${vaultSubView === 'add' ? 'bg-indigo-600 text-white border-indigo-500' : isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}
-                    title={t.addAccountBtn}
-                  >
-                    <Plus className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden md:inline">{t.addAccountBtn}</span>
-                  </button>
-
-                  <button
-                    onClick={openVaultSettings}
-                    className={`py-2 px-2.5 border rounded-xl flex items-center justify-center md:justify-start gap-2 text-xs font-bold ${vaultSubView === 'settings' ? 'bg-indigo-600 text-white border-indigo-500' : isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}
-                    title={t.manageVaultBtn}
-                  >
-                    <Settings className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden md:inline">{t.manageVaultBtn}</span>
-                  </button>
-
-                  {/* أزرار التصدير والاستيراد تظهر بالكمبيوتر مباشرة */}
-                  <button
-                    onClick={() => {
-                      const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
-                      const vaultData = localStorage.getItem(storageKey);
-                      if (!vaultData) return;
-                      const blob = new Blob([vaultData], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `passguard_backup_${identifier.trim().toLowerCase()}.json`;
-                      a.click();
-                    }}
-                    className={`hidden md:flex w-full py-2 px-2.5 border rounded-xl items-center gap-2 text-xs font-bold ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}
-                  >
-                    <Download className="w-3.5 h-3.5 text-sky-400" />
-                    <span>{t.exportBtn}</span>
-                  </button>
-
-                  <label
-                    className={`hidden md:flex w-full py-2 px-2.5 border rounded-xl cursor-pointer items-center gap-2 text-xs font-bold ${isDark ? 'bg-slate-900 border-slate-800 text-emerald-400' : 'bg-white border-slate-300 text-emerald-600'}`}
-                  >
-                    <Upload className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{t.importBtn}</span>
-                    <input type="file" accept=".json" onChange={handleImportVault} className="hidden" />
-                  </label>
+                <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800">
+                  <p className="text-[11px] text-slate-400">{t.securityScore}</p>
+                  <h3 className="text-lg font-black font-mono text-emerald-400 mt-1" dir="ltr">99.8%</h3>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800">
+                  <p className="text-[11px] text-slate-400">{t.activeAlerts}</p>
+                  <h3 className="text-lg font-black font-mono text-rose-400 mt-1">{registeredUsers.filter(u => u.isLocked || u.alert).length}</h3>
                 </div>
               </div>
 
-              {/* زر الخروج بالكمبيوتر */}
-              <div className="hidden md:block pt-3 border-t border-slate-800/60 mt-3">
-                <button
-                  onClick={() => { setIsUnlocked(false); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }}
-                  className={`w-full py-2 px-3 border rounded-xl flex items-center justify-center gap-2 text-xs font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-600'}`}
-                >
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-semibold text-slate-400">{t.userRecordsTitle}</h3>
+                {registeredUsers.map((u, idx) => (
+                  <div key={idx} className="p-3 border rounded-xl flex items-center justify-between bg-slate-950/50 border-slate-800 text-xs">
+                    <span className="font-bold">{u.username}</span>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => openAdminManageUser(u)} className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg cursor-pointer">{t.manageUserBtn}</button>
+                      <button onClick={() => {
+                        askConfirm(t.deleteAccountConfirm, () => {
+                          localStorage.removeItem(u.storageKey);
+                          localStorage.removeItem(u.metaKey);
+                          loadAdminUsersData();
+                        });
+                      }} className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg cursor-pointer">{t.deleteAccountBtn}</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 6. الخزنة المشفرة للمستخدم */}
+        {isUnlocked && !isAdmin && (
+          <div className={`w-full border rounded-3xl shadow-2xl flex flex-col md:flex-row h-[75vh] overflow-hidden my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <aside className={`w-full md:w-56 border-b md:border-b-0 md:border-l p-3.5 flex flex-col justify-between shrink-0 ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-800/60 truncate">
+                  <div className="p-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shrink-0">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-mono font-bold text-indigo-400 truncate">{identifier}</span>
+                </div>
+
+                <div className="grid grid-cols-4 md:grid-cols-1 gap-1.5">
+                  <button onClick={() => setVaultSubView('items')} className={`py-2 px-2.5 border rounded-xl flex items-center justify-center md:justify-start gap-2 text-xs font-bold cursor-pointer ${vaultSubView === 'items' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
+                    <Users className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden md:inline">{t.vaultItemsBtn}</span>
+                  </button>
+                  <button onClick={() => setVaultSubView('audit')} className={`py-2 px-2.5 border rounded-xl flex items-center justify-center md:justify-start gap-2 text-xs font-bold cursor-pointer ${vaultSubView === 'audit' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
+                    <Activity className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden md:inline">{t.vaultDossierBtn}</span>
+                  </button>
+                  <button onClick={() => setVaultSubView('add')} className={`py-2 px-2.5 border rounded-xl flex items-center justify-center md:justify-start gap-2 text-xs font-bold cursor-pointer ${vaultSubView === 'add' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
+                    <Plus className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden md:inline">{t.addAccountBtn}</span>
+                  </button>
+                  <button onClick={openVaultSettings} className={`py-2 px-2.5 border rounded-xl flex items-center justify-center md:justify-start gap-2 text-xs font-bold cursor-pointer ${vaultSubView === 'settings' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
+                    <Settings className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden md:inline">{t.manageVaultBtn}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="hidden md:block pt-3 border-t border-slate-800/60">
+                <button onClick={() => { setIsUnlocked(false); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }} className="w-full py-2 px-3 border rounded-xl flex items-center justify-center gap-2 text-xs font-bold bg-rose-500/10 border-rose-500/30 text-rose-400 cursor-pointer">
                   <LogOut className="w-3.5 h-3.5" />
                   <span>{t.logoutBtn}</span>
                 </button>
               </div>
             </aside>
 
-            {/* الجزء الرئيسي المحتوى */}
-            <section className="flex-1 flex flex-col overflow-hidden min-h-[500px]">
+            <section className="flex-1 flex flex-col overflow-hidden">
               {vaultSubView === 'items' && (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                  
-                  {/* شريط البحث */}
-                  <div className={`p-3 border-b flex items-center justify-between gap-2 shrink-0 ${isDark ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className="p-3 border-b flex items-center justify-between gap-2 shrink-0 bg-slate-950/40 border-slate-800">
                     <input
                       type="text"
                       placeholder={t.searchPlaceholder}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className={`w-full px-3.5 py-2 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                      className="w-full px-3.5 py-1.5 border rounded-xl text-xs focus:outline-none bg-slate-950 border-slate-800 text-white"
                     />
                     {copyStatusMsg && <span className="text-[10px] text-emerald-400 font-bold shrink-0 bg-emerald-500/10 px-2 py-1 rounded-lg">{copyStatusMsg}</span>}
                   </div>
 
-                  {/* شريط المجموعات وأزرار الإجراءات المتجاوبة */}
-                  <div className={`px-3 py-2 border-b flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-xs shrink-0 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                      <button
-                        onClick={() => setSelectedGroup('ALL_GROUPS')}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shrink-0 ${selectedGroup === 'ALL_GROUPS' ? 'bg-indigo-600 text-white' : isDark ? 'bg-slate-900 text-slate-400' : 'bg-white text-slate-600'}`}
-                      >
-                        {t.allGroups}
-                      </button>
-                      {groups.map((g, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => setSelectedGroup(g)}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shrink-0 flex items-center gap-1 ${selectedGroup === g ? 'bg-indigo-600 text-white' : isDark ? 'bg-slate-900 text-slate-400' : 'bg-white text-slate-600'}`}
-                        >
-                          <Folder className="w-3 h-3 text-indigo-400" />
-                          <span>{g}</span>
-                        </button>
-                      ))}
-                      <button
-                          onClick={() => setShowManageGroupsModal(true)}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-bold shrink-0 flex items-center gap-1 ${isDark ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-indigo-50 text-indigo-600 border border-indigo-200'}`}
-                        >
-                          <FolderPlus className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-1.5 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-800/40">
-                      <button onClick={handleSelectAll} className="px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 bg-slate-900 border-slate-700">
-                        <CheckSquare className="w-3 h-3" />
-                        <span>({selectedAccountIds.length})</span>
-                      </button>
-                      <button onClick={handleBulkCopy} className="px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 bg-slate-900 border-slate-700">
-                        <Copy className="w-3 h-3" />
-                      </button>
-                      <button onClick={handleBulkCut} className="px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 bg-slate-900 border-slate-700">
-                        <Scissors className="w-3 h-3" />
-                      </button>
-                      <button onClick={handleBulkPaste} className="px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 bg-slate-900 border-slate-700 text-emerald-400">
-                        <Clipboard className="w-3 h-3" />
-                        <span>({clipboardBuffer.length})</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* قائمة البطاقات */}
-                  <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
                     {vaultItems
-                      .filter(item => selectedGroup === 'ALL_GROUPS' || item.group === selectedGroup || (!item.group && selectedGroup === 'ALL_GROUPS'))
                       .filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase()) || item.username.toLowerCase().includes(searchTerm.toLowerCase()))
-                      .map((item) => {
-                        const isSelected = selectedAccountIds.includes(item.id);
-                        return (
-                          <div key={item.id} className={`p-3 border rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 transition-all ${isSelected ? (isDark ? 'bg-indigo-950/40 border-indigo-500/60' : 'bg-indigo-50 border-indigo-300') : (isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200')}`}>
-                            <div className="flex items-center gap-2.5 truncate">
-                              <button onClick={() => toggleSelectAccount(item.id)} className="text-indigo-400 shrink-0">
-                                {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-400" /> : <Square className="w-4 h-4 text-slate-500" />}
-                              </button>
-                              <div className="truncate">
-                                <h3 className="text-xs font-bold flex items-center gap-1.5 truncate">
-                                  <span className="truncate">{item.title}</span>
-                                  <span className="text-[9px] px-1 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono shrink-0">{item.group || t.allGroups}</span>
-                                  {item.url && (
-                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 shrink-0">
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  )}
-                                </h3>
-                                <p className="text-[10px] text-slate-400 truncate">{item.username}</p>
-                              </div>
-                            </div>
-                            
-                            {/* التحكم بالكلمة والأزرار */}
-                            <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800/40">
-                              <span className={`px-2 py-0.5 border text-[10px] rounded-lg font-mono truncate max-w-[110px] sm:max-w-[140px] ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}>
-                                {visiblePasswords[item.id] ? item.password : '••••••••••••'}
-                              </span>
-
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                  onClick={() => togglePasswordVisibility(item.id)}
-                                  className="p-1.5 border rounded-lg bg-slate-900 border-slate-800 text-slate-400"
-                                  title={t.showHidePass}
-                                >
-                                  {visiblePasswords[item.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                </button>
-                                <button
-                                  onClick={() => copyToClipboard(item.password, item.id)}
-                                  className="p-1.5 border rounded-lg bg-slate-900 border-slate-800 text-slate-300"
-                                  title={t.copyBtn}
-                                >
-                                  <Copy className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => { setEditableRecord({...item}); setVaultSubView('details'); }}
-                                  className="p-1.5 border rounded-lg bg-slate-900 border-slate-800 text-indigo-400"
-                                  title={t.detailsBtn}
-                                >
-                                  <Info className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    askConfirm(t.deleteRecordBtn + '?', () => {
-                                      const updated = vaultItems.filter(i => i.id !== item.id);
-                                      setVaultItems(updated);
-                                      const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
-                                      encryptData(updated, masterPassword).then(enc => localStorage.setItem(storageKey, JSON.stringify(enc)));
-                                    });
-                                  }}
-                                  className="p-1.5 border rounded-lg bg-slate-900 border-slate-800 text-rose-400"
-                                  title={t.deleteRecordBtn}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
+                      .map((item) => (
+                        <div key={item.id} className="p-3 border rounded-2xl flex items-center justify-between gap-2.5 bg-slate-950/50 border-slate-800">
+                          <div className="truncate">
+                            <h3 className="text-xs font-bold flex items-center gap-1.5 truncate">{item.title}</h3>
+                            <p className="text-[10px] text-slate-400 truncate">{item.username}</p>
                           </div>
-                        );
-                      })}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="px-2 py-0.5 border text-[10px] rounded-lg font-mono bg-slate-900 border-slate-800 text-slate-300" dir="ltr">
+                              {visiblePasswords[item.id] ? item.password : '••••••••••••'}
+                            </span>
+                            <button onClick={() => togglePasswordVisibility(item.id)} className="p-1.5 border rounded-lg bg-slate-900 border-slate-800 text-slate-400 cursor-pointer">
+                              {visiblePasswords[item.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                            <button onClick={() => copyToClipboard(item.password, item.id)} className="p-1.5 border rounded-lg bg-slate-900 border-slate-800 text-slate-300 cursor-pointer">
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => {
+                              askConfirm(t.deleteRecordBtn + '?', () => {
+                                const updated = vaultItems.filter(i => i.id !== item.id);
+                                setVaultItems(updated);
+                                const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
+                                encryptData(updated, masterPassword).then(enc => localStorage.setItem(storageKey, JSON.stringify(enc)));
+                              });
+                            }} className="p-1.5 border rounded-lg bg-slate-900 border-slate-800 text-rose-400 cursor-pointer">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}
 
-              {/* إضافة حساب */}
               {vaultSubView === 'add' && (
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto max-w-lg mx-auto w-full">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-                    <h3 className="text-sm font-bold">{t.addModalTitle}</h3>
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        const newState = !showGenOptions;
-                        setShowGenOptions(newState);
-                        if (newState) triggerLiveGeneration(genLength, useSymbols, useNumbers);
-                      }} 
-                      className="text-[10px] px-2.5 py-1 rounded-lg border flex items-center gap-1 bg-slate-800 border-slate-700 text-indigo-400"
-                    >
-                      <Sliders className="w-3 h-3" />
-                      <span>{t.toggleGenOptions}</span>
-                    </button>
-                  </div>
-
+                <div className="flex-1 p-6 overflow-y-auto max-w-lg mx-auto w-full my-auto">
+                  <h3 className="text-sm font-bold border-b border-slate-800 pb-2 mb-3">{t.addModalTitle}</h3>
                   <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (!newTitle || !newPassword) return;
-                    if (!isValidPassword(newPassword)) {
-                      triggerNotice(t.passwordComplexityAlert);
-                      return;
-                    }
                     const newItem = {
                       id: Date.now(),
                       title: newTitle,
@@ -1874,262 +1780,23 @@ export default function App() {
                       phone: newPhone || '',
                       lastUpdated: new Date().toISOString(),
                       notes: newNotes || '',
-                      group: newGroupSelection || ''
+                      group: ''
                     };
-                    const updatedItems = [...vaultItems, newItem];
-                    setVaultItems(updatedItems);
+                    const updated = [...vaultItems, newItem];
+                    setVaultItems(updated);
                     const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
-                    const encrypted = await encryptData(updatedItems, masterPassword);
+                    const encrypted = await encryptData(updated, masterPassword);
                     localStorage.setItem(storageKey, JSON.stringify(encrypted));
-                    setNewTitle(''); setNewUsername(''); setNewPassword(''); setNewUrl(''); setNewEmail(''); setNewPhone(''); setNewNotes(''); setNewGroupSelection(''); setShowGenOptions(false);
+                    setNewTitle(''); setNewUsername(''); setNewPassword('');
                     setVaultSubView('items');
-                    triggerNotice('تم حفظ الحساب بنجاح');
-                  }} className="space-y-2.5 text-xs" autoComplete="off">
-                    
-                    <input
-                      type="text"
-                      placeholder={t.siteTitlePlaceholder}
-                      value={newTitle}
-                      onChange={(e) => handleTitleChange(e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                      required
-                    />
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder={t.usernamePlaceholder}
-                        value={newUsername}
-                        onChange={(e) => setNewUsername(e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                      />
-                      <input
-                        type="text"
-                        placeholder={t.siteUrlPlaceholder}
-                        value={newUrl}
-                        onChange={(e) => setNewUrl(e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder={t.emailPlaceholder}
-                        value={newEmail}
-                        onChange={(e) => setNewEmail(e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                      />
-                      <input
-                        type="tel"
-                        placeholder={t.phonePlaceholder}
-                        value={newPhone}
-                        onChange={(e) => handlePhoneChange(e, setNewPhone)}
-                        className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                      />
-                    </div>
-
-                    <select
-                      value={newGroupSelection || ''}
-                      onChange={(e) => setNewGroupSelection(e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                    >
-                      <option value="">{t.allGroups}</option>
-                      {groups.map((g, idx) => (
-                        <option key={idx} value={g}>{g}</option>
-                      ))}
-                    </select>
-
-                    <div className="relative">
-                      <input
-                        type="password"
-                        placeholder={t.passwordPlaceholder}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        autoComplete="new-password"
-                        className={`w-full px-3 py-2 ps-10 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!showGenOptions) setShowGenOptions(true);
-                          triggerLiveGeneration(genLength, useSymbols, useNumbers);
-                        }}
-                        className="absolute start-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg"
-                      >
-                        <KeyRound className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    {showGenOptions && (
-                      <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950 text-xs space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span>{t.passLength}: {genLength}</span>
-                          <input type="range" min="8" max="32" value={genLength} onChange={(e) => setGenLength(Number(e.target.value))} className="accent-indigo-600" />
-                        </div>
-                        <div className="flex gap-4">
-                          <label className="flex items-center gap-1"><input type="checkbox" checked={useSymbols} onChange={(e) => setUseSymbols(e.target.checked)} className="accent-indigo-600" /> {t.includeSymbols}</label>
-                          <label className="flex items-center gap-1"><input type="checkbox" checked={useNumbers} onChange={(e) => setUseNumbers(e.target.checked)} className="accent-indigo-600" /> {t.includeNumbers}</label>
-                        </div>
-                      </div>
-                    )}
-
-                    <textarea
-                      placeholder={t.notesPlaceholder}
-                      value={newNotes}
-                      onChange={(e) => setNewNotes(e.target.value)}
-                      className={`w-full p-2 border rounded-xl text-xs focus:outline-none h-14 resize-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                    />
-
-                    <div className="flex justify-end gap-2 pt-1">
-                      <button type="button" onClick={() => setVaultSubView('items')} className="px-4 py-2 border text-xs rounded-xl">{t.cancelBtn}</button>
-                      <button type="submit" className="px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl">{t.saveRecordBtn}</button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
-              {/* صفحة تفاصيل الحساب */}
-              {vaultSubView === 'details' && editableRecord && (
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto max-w-lg mx-auto w-full">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-                    <h3 className="text-sm font-bold flex items-center gap-1.5"><Edit3 className="w-4 h-4 text-indigo-400" /> {t.recordDetailsTitle}</h3>
-                  </div>
-
-                  <form onSubmit={handleSaveRecordChanges} className="space-y-2.5 text-xs" autoComplete="off">
-                    <div>
-                      <label className="block mb-1 text-slate-400">{t.siteTitlePlaceholder}</label>
-                      <input
-                        type="text"
-                        value={editableRecord.title}
-                        onChange={(e) => setEditableRecord({...editableRecord, title: e.target.value})}
-                        className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div>
-                        <label className="block mb-1 text-slate-400">{t.usernameLabel}</label>
-                        <input
-                          type="text"
-                          value={editableRecord.username}
-                          onChange={(e) => setEditableRecord({...editableRecord, username: e.target.value})}
-                          className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block mb-1 text-slate-400">{t.siteUrlPlaceholder}</label>
-                        <input
-                          type="text"
-                          value={editableRecord.url}
-                          onChange={(e) => setEditableRecord({...editableRecord, url: e.target.value})}
-                          className={`w-full px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block mb-1 text-slate-400">{t.passwordRecordLabel}</label>
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type={visiblePasswords[editableRecord.id] ? "text" : "password"}
-                          value={editableRecord.password}
-                          onChange={(e) => setEditableRecord({...editableRecord, password: e.target.value})}
-                          className={`flex-1 px-3 py-2 border rounded-xl text-xs focus:outline-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                          required
-                        />
-                        <button type="button" onClick={() => togglePasswordVisibility(editableRecord.id)} className="p-2 border rounded-lg bg-slate-900 border-slate-800">
-                          {visiblePasswords[editableRecord.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                        <button type="button" onClick={() => copyToClipboard(editableRecord.password, editableRecord.id)} className="p-2 border rounded-lg bg-slate-900 border-slate-800 text-emerald-400">
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block mb-1 text-slate-400">{t.notesLabel}</label>
-                      <textarea
-                        value={editableRecord.notes}
-                        onChange={(e) => setEditableRecord({...editableRecord, notes: e.target.value})}
-                        className={`w-full p-2 border rounded-xl text-xs focus:outline-none h-16 resize-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}
-                      />
-                    </div>
-
+                    triggerNotice('تم الحفظ في الخزنة بنجاح');
+                  }} className="space-y-3 text-xs">
+                    <input type="text" placeholder={t.siteTitlePlaceholder} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="w-full px-3 py-2 border rounded-xl bg-slate-950 border-slate-800 text-white" required />
+                    <input type="text" placeholder={t.usernamePlaceholder} value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="w-full px-3 py-2 border rounded-xl bg-slate-950 border-slate-800 text-white" />
+                    <input type="text" placeholder={t.passwordPlaceholder} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-3 py-2 border rounded-xl bg-slate-950 border-slate-800 text-white" required />
                     <div className="flex justify-end gap-2 pt-2">
-                      <button type="button" onClick={() => setVaultSubView('items')} className="px-4 py-2 border text-xs rounded-xl">{t.cancelBtn}</button>
-                      <button type="submit" className="px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl">{t.saveNotesBtn}</button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
-              {/* صفحة فحص الأمان */}
-              {vaultSubView === 'audit' && (
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 text-center">
-                      <p className="text-[10px] text-slate-400">{t.totalCredentials}</p>
-                      <h4 className="text-base font-bold font-mono text-indigo-400">{metrics.total}</h4>
-                    </div>
-                    <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 text-center">
-                      <p className="text-[10px] text-slate-400">{t.vaultHealthScore}</p>
-                      <h4 className="text-base font-bold font-mono text-emerald-400">{metrics.score}%</h4>
-                    </div>
-                    <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 text-center">
-                      <p className="text-[10px] text-slate-400">{t.reusedPasswords}</p>
-                      <h4 className="text-base font-bold font-mono text-rose-400">{metrics.reusedCount}</h4>
-                    </div>
-                    <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 text-center">
-                      <p className="text-[10px] text-slate-400">{t.weakPasswords}</p>
-                      <h4 className="text-base font-bold font-mono text-amber-400">{metrics.weakCount}</h4>
-                    </div>
-                  </div>
-
-                  <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 text-xs space-y-1.5 leading-relaxed">
-                    <h4 className="font-bold flex items-center gap-1.5 text-indigo-400"><Zap className="w-3.5 h-3.5" /> {t.securityRecommendations}</h4>
-                    <p>{t.rec1}</p>
-                    <p>{t.rec2}</p>
-                    <p>{t.rec3}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* صفحة الإعدادات */}
-              {vaultSubView === 'settings' && (
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto max-w-lg mx-auto w-full">
-                  <h3 className="text-sm font-bold border-b border-slate-800 pb-2 mb-3 flex items-center gap-1.5">
-                    <Settings className="w-4 h-4 text-indigo-400" /> {t.vaultSettingsTitle}
-                  </h3>
-
-                  <form onSubmit={handleSaveSettings} className="space-y-3 text-xs" autoComplete="off">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div>
-                        <label className="block mb-1 text-slate-400">{t.usernameLabel}</label>
-                        <input
-                          type="text"
-                          value={manageData.identifier}
-                          onChange={(e) => setManageData({...manageData, identifier: e.target.value})}
-                          className={`w-full px-3 py-2 border rounded-xl text-xs ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block mb-1 text-slate-400">{t.passwordLabel}</label>
-                        <input
-                          type="text"
-                          value={manageData.masterPassword}
-                          onChange={(e) => setManageData({...manageData, masterPassword: e.target.value})}
-                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-slate-50 border-slate-300'}`}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pt-2">
-                      <button type="submit" className="px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl">{t.saveSettingsBtn}</button>
+                      <button type="button" onClick={() => setVaultSubView('items')} className="px-4 py-2 border rounded-xl">{t.cancelBtn}</button>
+                      <button type="submit" className="px-5 py-2 bg-indigo-600 text-white font-bold rounded-xl">{t.saveRecordBtn}</button>
                     </div>
                   </form>
                 </div>
@@ -2139,12 +1806,12 @@ export default function App() {
         )}
       </main>
 
-      {/* الشريط السفلي */}
-      <footer className={`w-full px-4 md:px-8 py-3 border-t z-20 flex flex-col sm:flex-row items-center justify-between text-[11px] shrink-0 ${isDark ? 'bg-slate-950/80 border-slate-800/80 text-slate-500' : 'bg-white border-slate-200 text-slate-500'}`}>
-        <span>© 2026 Pass-Guard. All Rights Reserved.</span>
-        <div className="flex items-center gap-3 mt-1 sm:mt-0">
-          <span className="flex items-center gap-1 font-mono text-indigo-400"><Shield className="w-3 h-3" /> AES-GCM 256-bit</span>
-          <span>Zero-Knowledge</span>
+      {/* الشريط السفلي الموزون تماماً في شاشات الكمبيوتر والموبايل */}
+      <footer className={`w-full px-6 md:px-8 py-3.5 border-t z-20 flex items-center justify-between text-xs shrink-0 ${isDark ? 'bg-slate-950/70 border-slate-800/80 text-slate-500 backdrop-blur-md' : 'bg-white/80 border-slate-200 text-slate-500 backdrop-blur-md'}`}>
+        <span dir="ltr">© 2026 Pass-Guard. All Rights Reserved.</span>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1 font-mono text-indigo-400" dir="ltr"><Shield className="w-3.5 h-3.5" /> AES-GCM 256-bit</span>
+          <span className="hidden sm:inline">Zero-Knowledge</span>
         </div>
       </footer>
     </div>
