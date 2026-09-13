@@ -424,28 +424,37 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     const loadVisits = async () => {
+      const sessionKey = 'passguard_session_counted';
+      const hasCountedSession = sessionStorage.getItem(sessionKey);
+
       if (supabaseConfigured) {
-        let shouldCount = !sessionStorage.getItem('passguard_session_visited');
-        let data = null;
-        if (shouldCount) {
-          const res = await supabase.rpc('increment_visit');
-          data = res.data;
-          if (!res.error) sessionStorage.setItem('passguard_session_visited', 'true');
-        } else {
-          const res = await supabase.from('site_visits').select('total_visits').eq('id', 1).single();
-          data = res.data;
-        }
-        const total = Number(data?.total_visits ?? 0);
-        if (!cancelled) setVisitCount(total);
-      } else {
-        let currentTotal = parseInt(localStorage.getItem('passguard_total_visits') || '0', 10);
-        if (!sessionStorage.getItem('passguard_session_visited')) {
-          currentTotal += 1;
-          localStorage.setItem('passguard_total_visits', currentTotal.toString());
-          sessionStorage.setItem('passguard_session_visited', 'true');
-        }
-        if (!cancelled) setVisitCount(currentTotal);
+        try {
+          if (!hasCountedSession) {
+            const { data: incData, error: incErr } = await supabase.rpc('increment_visit');
+            if (!incErr && incData) {
+              const countVal = Array.isArray(incData) ? incData[0]?.total_visits : incData?.total_visits;
+              sessionStorage.setItem(sessionKey, 'true');
+              if (!cancelled && countVal !== undefined) {
+                setVisitCount(Number(countVal));
+                return;
+              }
+            }
+          }
+          const { data: readData, error: readErr } = await supabase.from('site_visits').select('total_visits').eq('id', 1).maybeSingle();
+          if (!readErr && readData && !cancelled) {
+            setVisitCount(Number(readData.total_visits || 0));
+            return;
+          }
+        } catch (e) {}
       }
+
+      let stored = parseInt(localStorage.getItem('passguard_total_visits') || '0', 10);
+      if (!hasCountedSession) {
+        stored += 1;
+        localStorage.setItem('passguard_total_visits', stored.toString());
+        sessionStorage.setItem(sessionKey, 'true');
+      }
+      if (!cancelled) setVisitCount(stored);
     };
     loadVisits();
     return () => { cancelled = true; };
@@ -1153,7 +1162,14 @@ export default function App() {
         {!isUnlocked && currentView === 'welcome' && (
           <div className="flex flex-col items-center justify-center px-4 max-w-4xl mx-auto text-center my-auto">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold mb-4 shadow-inner animate-pulse">
-              <Shield className="w-3.5 h-3.5 text-indigo-400" /><span>تشفير AES-GCM 256-bit مع مزامنة سحابية آمنة</span>
+              <Shield className="w-3.5 h-3.5 text-indigo-400" />
+              <span>
+                {lang === 'ar' ? (
+                  <>تشفير <span dir="ltr" className="inline-block font-mono">AES-GCM 256-bit</span> مع مزامنة سحابية آمنة</>
+                ) : (
+                  'AES-GCM 256-bit encryption with secure cloud sync'
+                )}
+              </span>
             </div>
             <h1 className="text-3xl md:text-5xl font-black mb-3 tracking-tight leading-tight">
               {t.welcomeTitle} <span className="bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
@@ -1171,10 +1187,22 @@ export default function App() {
               </button>
             </div>
             <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-3 border-t border-slate-800/80 pt-6 text-center">
-              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md"><h3 className="text-lg md:text-xl font-black font-mono text-indigo-400">{visitCount}+</h3><p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statVisits}</p></div>
-              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md"><h3 className="text-lg md:text-xl font-black font-mono text-emerald-400">100%</h3><p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statLocal}</p></div>
-              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md"><h3 className="text-lg md:text-xl font-black font-mono text-sky-400">256-bit</h3><p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statEncryption}</p></div>
-              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md"><h3 className="text-lg md:text-xl font-black font-mono text-amber-400">24/7</h3><p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statProtection}</p></div>
+              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
+                <h3 className="text-lg md:text-xl font-black font-mono text-indigo-400" dir="ltr">{visitCount}+</h3>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statVisits}</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
+                <h3 className="text-lg md:text-xl font-black font-mono text-emerald-400" dir="ltr">100%</h3>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statLocal}</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
+                <h3 className="text-lg md:text-xl font-black font-mono text-sky-400" dir="ltr">256-bit</h3>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statEncryption}</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
+                <h3 className="text-lg md:text-xl font-black font-mono text-amber-400" dir="ltr">24/7</h3>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statProtection}</p>
+              </div>
             </div>
           </div>
         )}
@@ -1242,17 +1270,17 @@ export default function App() {
                     <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-lg ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
                       <div className="flex items-center gap-3">
                         <div className="p-3 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30"><BarChart3 className="w-5 h-5" /></div>
-                        <div><p className="text-xs text-slate-400">{t.visitsCounter}</p><h3 className="text-xl font-black font-mono mt-0.5 text-blue-400">{visitCount}</h3></div>
+                        <div><p className="text-xs text-slate-400">{t.visitsCounter}</p><h3 className="text-xl font-black font-mono mt-0.5 text-blue-400" dir="ltr">{visitCount}</h3></div>
                       </div>
                       <button onClick={handleResetVisits} className="p-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 rounded-xl cursor-pointer hover:scale-105"><RotateCcw className="w-4 h-4" /></button>
                     </div>
                     <div className={`p-4 rounded-2xl border flex items-center gap-4 shadow-lg ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
                       <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"><ShieldCheck className="w-5 h-5" /></div>
-                      <div><p className="text-xs text-slate-400">{t.securityScore}</p><h3 className="text-xl font-black font-mono mt-0.5 text-emerald-400">99.8%</h3></div>
+                      <div><p className="text-xs text-slate-400">{t.securityScore}</p><h3 className="text-xl font-black font-mono mt-0.5 text-emerald-400" dir="ltr">99.8%</h3></div>
                     </div>
                     <div className={`p-4 rounded-2xl border flex items-center gap-4 shadow-lg ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
                       <div className="p-3 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30"><Activity className="w-5 h-5" /></div>
-                      <div><p className="text-xs text-slate-400">{t.activeAlerts}</p><h3 className="text-xl font-black font-mono mt-0.5 text-red-400">{registeredUsers.filter(u => u.isLocked || u.alert).length}</h3></div>
+                      <div><p className="text-xs text-slate-400">{t.activeAlerts}</p><h3 className="text-xl font-black font-mono mt-0.5 text-red-400" dir="ltr">{registeredUsers.filter(u => u.isLocked || u.alert).length}</h3></div>
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -1734,7 +1762,7 @@ export default function App() {
       <footer className={`w-full px-8 py-4 border-t z-20 flex flex-col sm:flex-row items-center justify-between text-xs transition-colors duration-500 shrink-0 ${isDark ? 'bg-slate-950/70 border-slate-800/80 text-slate-500 backdrop-blur-md' : 'bg-white/80 border-slate-200 text-slate-500 backdrop-blur-md'}`}>
         <span>© 2026 Pass-Guard. Open-Source & Secure.</span>
         <div className="flex items-center gap-4 mt-2 sm:mt-0">
-          <span className="flex items-center gap-1 font-mono text-indigo-400"><Shield className="w-3.5 h-3.5" /> AES-GCM 256-bit</span>
+          <span className="flex items-center gap-1 font-mono text-indigo-400" dir="ltr"><Shield className="w-3.5 h-3.5" /> AES-GCM 256-bit</span>
           <span>Zero-Knowledge Architecture</span>
         </div>
       </footer>
