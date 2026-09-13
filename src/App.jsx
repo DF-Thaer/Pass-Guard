@@ -352,38 +352,73 @@ export default function App() {
     const nowISO = new Date().toISOString();
     let netInfo = { ip: '127.0.0.1', isp: 'Secure Local Network', location: 'Local Host' };
     try {
-      const res = await fetch('https://ipapi.co/json/');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
         netInfo = { ip: data.ip || '127.0.0.1', isp: data.org || data.asn || 'Verified Network', location: `${data.city || ''}، ${data.country_name || ''}` };
       }
     } catch (e) {}
 
+    const localEntry = {
+      id: `dev_${Date.now()}`,
+      device_id: device.deviceId,
+      deviceId: device.deviceId,
+      os: device.os,
+      browser: device.browser,
+      screen_res: device.screenRes,
+      screenRes: device.screenRes,
+      ip: netInfo.ip,
+      isp: netInfo.isp,
+      location: netInfo.location,
+      last_login: nowISO,
+      lastLogin: nowISO,
+      is_current: true,
+      isCurrent: true
+    };
+
     if (supabaseConfigured && vaultId && loginPassword) {
-      const { data, error } = await supabase.rpc('record_device_log', {
-        p_vault_id: vaultId,
-        p_master_password: loginPassword,
-        p_device_id: device.deviceId,
-        p_os: device.os,
-        p_browser: device.browser,
-        p_screen_res: device.screenRes,
-        p_ip: netInfo.ip,
-        p_isp: netInfo.isp,
-        p_location: netInfo.location,
-        p_last_login: nowISO,
-      });
-      if (!error && Array.isArray(data)) setVaultDeviceLogs(data);
-    } else {
-      const logKey = `passguard_devices_${cleanId}`;
-      let logs = [];
-      try { const saved = localStorage.getItem(logKey); if (saved) logs = JSON.parse(saved); } catch (e) {}
-      const existingIndex = logs.findIndex(l => l.deviceId === device.deviceId && l.ip === netInfo.ip);
-      const newEntry = { ...device, ...netInfo, lastLogin: nowISO, isCurrent: true };
-      if (existingIndex !== -1) logs[existingIndex] = newEntry; else logs.unshift(newEntry);
-      const updated = logs.slice(0, 10);
-      localStorage.setItem(logKey, JSON.stringify(updated));
-      setVaultDeviceLogs(updated);
+      try {
+        const { data, error } = await supabase.rpc('record_device_log', {
+          p_vault_id: vaultId,
+          p_master_password: loginPassword,
+          p_device_id: device.deviceId,
+          p_os: device.os,
+          p_browser: device.browser,
+          p_screen_res: device.screenRes,
+          p_ip: netInfo.ip,
+          p_isp: netInfo.isp,
+          p_location: netInfo.location,
+          p_last_login: nowISO,
+        });
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const formatted = data.map(d => ({
+            ...d,
+            deviceId: d.device_id || d.deviceId,
+            screenRes: d.screen_res || d.screenRes,
+            lastLogin: d.last_login || d.lastLogin,
+            isCurrent: d.is_current !== undefined ? d.is_current : d.isCurrent
+          }));
+          setVaultDeviceLogs(formatted);
+          return;
+        }
+      } catch (err) {}
     }
+
+    const logKey = `passguard_devices_${cleanId}`;
+    let logs = [];
+    try {
+      const saved = localStorage.getItem(logKey);
+      if (saved) logs = JSON.parse(saved);
+    } catch (e) {}
+    const existingIndex = logs.findIndex(l => (l.device_id || l.deviceId) === device.deviceId && l.ip === netInfo.ip);
+    if (existingIndex !== -1) logs[existingIndex] = localEntry;
+    else logs.unshift(localEntry);
+    const updated = logs.slice(0, 10);
+    try { localStorage.setItem(logKey, JSON.stringify(updated)); } catch (e) {}
+    setVaultDeviceLogs(updated);
   };
 
   useEffect(() => {
@@ -550,32 +585,31 @@ export default function App() {
     setError('');
 
     if (authMode === 'admin') {
-  if (!supabaseConfigured) { 
-    setError(lang === 'ar' ? 'Supabase غير متصل، تأكد من إعداد المفاتيح.' : 'Configure Supabase first.'); 
-    return; 
-  }
-  // نستخدم إيميلك مباشرة حتى لا يعتمد على متغيرات البيئة إذا لم تُمرر
-  const targetEmail = (ADMIN_EMAIL && ADMIN_EMAIL.trim()) || 'thaeraladom@gmail.com';
+      if (!supabaseConfigured) { 
+        setError(lang === 'ar' ? 'Supabase غير متصل، تأكد من إعداد المفاتيح.' : 'Configure Supabase first.'); 
+        return; 
+      }
+      const targetEmail = (ADMIN_EMAIL && ADMIN_EMAIL.trim()) || 'thaeraladom@gmail.com';
 
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
-    email: targetEmail, 
-    password: masterPassword 
-  });
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
+        email: targetEmail, 
+        password: masterPassword 
+      });
 
-  if (authError) { 
-    console.error('Supabase Auth Error:', authError);
-    setError(authError.message === 'Invalid login credentials' ? t.invalidAdminAlert : authError.message); 
-    return; 
-  }
+      if (authError) { 
+        console.error('Supabase Auth Error:', authError);
+        setError(authError.message === 'Invalid login credentials' ? t.invalidAdminAlert : authError.message); 
+        return; 
+      }
 
-  setAdminPassword(masterPassword);
-  setIsAdmin(true); 
-  setIsUnlocked(true); 
-  setAdminSubView('dashboard'); 
-  setError('');
-  await loadAdminUsersData();
-  return;
-  }
+      setAdminPassword(masterPassword);
+      setIsAdmin(true); 
+      setIsUnlocked(true); 
+      setAdminSubView('dashboard'); 
+      setError('');
+      await loadAdminUsersData();
+      return;
+    }
     if (!identifier.trim() || !masterPassword.trim()) { setError(t.missingFieldsAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
 
@@ -603,7 +637,6 @@ export default function App() {
         }
       }
 
-      // Automatic migration for a legacy local vault that was created before the global backend was enabled.
       try {
         const legacyEncrypted = JSON.parse(localStorage.getItem(`passguard_vault_${cleanId}`) || 'null');
         const legacyMeta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}');
@@ -1630,23 +1663,23 @@ export default function App() {
                           <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                             <div className="flex items-start gap-3">
                               <div className={`p-2.5 rounded-xl border shrink-0 ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400' : 'bg-white border-slate-300 text-indigo-600'}`}>
-                                {dev.os.includes("Android") || dev.os.includes("iOS") ? <Smartphone className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
+                                {(dev.os || '').includes("Android") || (dev.os || '').includes("iOS") ? <Smartphone className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
                               </div>
                               <div className="space-y-0.5 text-xs">
                                 <h4 className="font-bold flex items-center gap-2">
                                   <span>{dev.os} ({dev.browser})</span>
-                                  {dev.isCurrent && <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">{t.currentSessionBadge}</span>}
+                                  {(dev.is_current || dev.isCurrent) && <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">{t.currentSessionBadge}</span>}
                                 </h4>
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 font-mono pt-1">
                                   <span className="flex items-center gap-1"><Wifi className="w-3 h-3 text-indigo-400" /> IP: {dev.ip}</span>
                                   <span className="flex items-center gap-1"><Server className="w-3 h-3 text-amber-400" /> {dev.isp}</span>
                                   <span className="flex items-center gap-1"><Globe className="w-3 h-3 text-emerald-400" /> {dev.location}</span>
-                                  <span className="flex items-center gap-1 text-slate-500"><Lock className="w-3 h-3" /> {dev.deviceId}</span>
+                                  <span className="flex items-center gap-1 text-slate-500"><Lock className="w-3 h-3" /> {dev.device_id || dev.deviceId}</span>
                                 </div>
                               </div>
                             </div>
                             <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1 shrink-0 self-end sm:self-center">
-                              <Clock className="w-3.5 h-3.5 text-slate-500" /><span>{formatDate(dev.lastLogin)}</span>
+                              <Clock className="w-3.5 h-3.5 text-slate-500" /><span>{formatDate(dev.last_login || dev.lastLogin)}</span>
                             </div>
                           </div>
                         ))
