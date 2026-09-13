@@ -2662,7 +2662,7 @@ export default function App() {
 
       {/* الشريط السفلي */}
       <footer className={`w-full px-8 py-4 border-t z-20 flex flex-col sm:flex-row items-center justify-between text-xs transition-colors duration-500 shrink-0 ${isDark ? 'bg-slate-950/70 border-slate-800/80 text-slate-500 backdrop-blur-md' : 'bg-white/80 border-slate-200 text-slate-500 backdrop-blur-md'}`}>
-        <span>© 2026 Pass-Guard. Open-Source & Secure.</span>
+        <span>© 2026 Pass-Guard. All Rights Reserved. Proprietary Software.</span>
         <div className="flex items-center gap-4 mt-2 sm:mt-0">
           <span className="flex items-center gap-1 font-mono text-indigo-400"><Shield className="w-3.5 h-3.5" /> AES-GCM 256-bit</span>
           <span>Zero-Knowledge Architecture</span>
