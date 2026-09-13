@@ -1311,7 +1311,7 @@ export default function App() {
             <div className="flex justify-center gap-3">
               <button 
                 onClick={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null })} 
-                className={`px-6 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}
+                className={`px-6 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}
               >
                 {t.cancelBtn}
               </button>
@@ -1402,7 +1402,7 @@ export default function App() {
       <header className={`w-full px-8 py-4 border-b z-20 flex items-center justify-between shadow-xl transition-all duration-500 ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-2xl' : 'bg-white/80 border-slate-200/80 backdrop-blur-2xl'}`}>
         <div className="flex items-center gap-3.5 cursor-pointer group" onClick={() => { if (!isUnlocked) setCurrentView('welcome'); }}>
           <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-indigo-500/50 shadow-lg shadow-indigo-600/30 shrink-0 bg-gradient-to-br from-indigo-900 to-slate-950 flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform duration-300">
-            <img src="/logo.png" alt="Pass-Guard Logo" className="w-full h-full object-cover" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-cover" />
           </div>
           <span className="font-black text-xl tracking-wider bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
         </div>
