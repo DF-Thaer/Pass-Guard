@@ -575,13 +575,7 @@ export default function App() {
   setError('');
   await loadAdminUsersData();
   return;
-}
-      setAdminPassword(masterPassword);
-      setIsAdmin(true); setIsUnlocked(true); setAdminSubView('dashboard'); setError('');
-      await loadAdminUsersData();
-      return;
-    }
-
+  }
     if (!identifier.trim() || !masterPassword.trim()) { setError(t.missingFieldsAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
 
