@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from './supabaseClient';
 import { ShieldCheck, Lock, Copy, Check, Plus, Search, LogOut, Trash2, KeyRound, User, AlertTriangle, ShieldAlert, Users, Globe, Sun, Moon, Key, Unlock, Info, Shield, Zap, Download, Upload, Sliders, Eye, EyeOff, ExternalLink, BarChart3, Activity, ArrowRight, RotateCcw, Laptop, Smartphone, Wifi, Clock, Server, ArrowLeft, Save, CheckSquare, Square, Scissors, Clipboard, FolderPlus, Folder, Edit3, Settings } from 'lucide-react';
 
 const importCryptoKey = async (password, salt) => {
@@ -28,6 +29,39 @@ async function decryptData(encryptedObj, password) {
 }
 
 const isValidPassword = (pass) => !!(pass && pass.length >= 8 && /[A-Z]/.test(pass) && /[0-9]/.test(pass) && /[^A-Za-z0-9]/.test(pass));
+
+
+const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
+
+const normalizeIdentifier = (value) => value.trim().toLowerCase();
+
+const cacheVaultLocally = (identifier, encrypted, meta = {}) => {
+  try {
+    const cleanId = normalizeIdentifier(identifier);
+    localStorage.setItem(`passguard_vault_${cleanId}`, JSON.stringify(encrypted));
+    localStorage.setItem(`passguard_meta_${cleanId}`, JSON.stringify({
+      isLocked: !!meta.isLocked,
+      alert: !!meta.alert,
+      identifier: cleanId,
+      email: meta.email || '',
+      phone: meta.phone || '',
+      createdAt: meta.createdAt || new Date().toISOString(),
+    }));
+  } catch (e) {}
+};
+
+const cloudSaveVault = async ({ vaultId, identifier, masterPassword, encryptedData, email = null, phone = null }) => {
+  if (!supabaseConfigured) return { error: new Error('Supabase is not configured.') };
+  return await supabase.rpc('save_vault', {
+    p_vault_id: vaultId,
+    p_identifier: identifier,
+    p_master_password: masterPassword,
+    p_encrypted_data: encryptedData,
+    p_email: email,
+    p_phone: phone,
+  });
+};
 
 const generateSecurePassword = (length, includeSymbols, includeNumbers) => {
   const charSets = ["ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"];
@@ -97,11 +131,11 @@ const POPULAR_SITES = [
 const translations = {
   en: {
     appName: "Pass-Guard", toolsBtn: "Security Tools", aboutBtn: "About App", toggleTheme: "Toggle Appearance",
-    welcomeTitle: "Welcome to", welcomeDesc: "A local, highly encrypted zero-knowledge vault utilizing military-grade AES-GCM 256-bit cryptography to secure your credentials entirely on your device.",
+    welcomeTitle: "Welcome to", welcomeDesc: "An AES-GCM 256-bit encrypted password vault with secure cloud sync and remote administrative support.",
     openVaultBtn: "Open Vault (Sign In)", createVaultBtn: "Create New Vault", adminPortalBtn: "Administration Portal",
-    statVisits: "Total Visits", statLocal: "Zero-Knowledge Local", statEncryption: "AES-GCM Encryption", statProtection: "Active Protection",
+    statVisits: "Total Visits", statLocal: "Encrypted Vault", statEncryption: "AES-GCM Encryption", statProtection: "Active Protection",
     loginHeading: "Sign In", registerHeading: "Create New Vault", adminHeading: "Administrator Portal",
-    loginSub: "Enter credentials to decrypt your vault and access saved records", registerSub: "Create a local encrypted vault secured by a master password", adminSub: "Exclusive administrative access for system auditing and alerts",
+    loginSub: "Enter credentials to decrypt your vault and access saved records", registerSub: "Create a local encrypted vault secured by a master password", adminSub: "Exclusive global administrative access for system auditing, support, and security alerts",
     identifierLabel: "Username, Email, or Phone", adminIdentifierLabel: "Administrator Identifier", passwordLabel: "Master Password", adminPasswordLabel: "Administrator Secret Key",
     submitLogin: "Decrypt Vault", submitRegister: "Create & Initialize Vault", submitAdmin: "Access Admin Dashboard",
     backToHome: "Return to Home & Choose Another Action", adminPanelTitle: "Advanced Administrative Control Panel", adminBadge: "Root Admin",
@@ -109,7 +143,7 @@ const translations = {
     visitsCounter: "Visits Counter", resetVisitsConfirm: "Are you sure you want to reset the visits counter to 0?",
     securityScore: "Overall Security Rating", activeAlerts: "Active Security Alerts", userRecordsTitle: "Registered Vaults & Security Alerts",
     noUsers: "No registered vaults found locally.", accountSuspended: "Security Locked", securityAlertBadge: "Security Warning",
-    localCryptoNote: "Zero-Knowledge Local Encryption", unblockBtn: "Lift Suspension", manageUserBtn: "Manage Account",
+    localCryptoNote: "Cloud-Synced Encrypted Vault", unblockBtn: "Lift Suspension", manageUserBtn: "Manage Account",
     deleteAccountBtn: "Delete Vault", deleteAccountConfirm: "Are you sure you want to permanently delete this vault?",
     vaultTitlePrefix: "Encrypted Password Vault:", vaultDossierBtn: "Vault Security Audit", vaultItemsBtn: "Accounts View",
     manageVaultBtn: "Vault Management", exportBtn: "Export Passwords", importBtn: "Import Passwords", addAccountBtn: "Add New Record",
@@ -120,9 +154,9 @@ const translations = {
     reusedPasswords: "Reused Passwords", weakPasswords: "Weak Credentials", securityRecommendations: "Vault Hardening Recommendations:",
     rec1: "• Avoid reusing the same password across multiple platforms. A breach on one site compromises the rest.",
     rec2: "• Ensure passwords are at least 16 characters in length, incorporating symbols, numerals, and mixed-case letters.",
-    rec3: "• Your vault is protected by a cryptographic key derived solely from your master password; zero-knowledge guarantees total confidentiality.",
+    rec3: "• Vault records are encrypted in the browser before being stored. Remote support access is enabled by the trusted administrator model.",
     noDeviceLogs: "No device login records captured yet.", currentSessionBadge: "Active Session",
-    aboutModalTitle: "About Pass-Guard Security Architecture", aboutModalBody: "Pass-Guard is a zero-knowledge local password vault built entirely on Web Crypto standards (AES-GCM 256-bit and PBKDF2). All cryptographic procedures execute strictly in-memory on your machine. Your plaintext data never leaves your device.",
+    aboutModalTitle: "About Pass-Guard Security Architecture", aboutModalBody: "Pass-Guard uses Web Crypto standards (AES-GCM 256-bit and PBKDF2) to encrypt vault records in the browser before storing them in Supabase. Global synchronization and trusted remote support are enabled by design; therefore this deployment is not a strict zero-knowledge architecture.",
     toolsModalTitle: "Password Strength Auditor", toolsPlaceholder: "Type any password to evaluate its resistance...",
     recordDetailsTitle: "Edit Record Details", siteUrlLabel: "Platform URL", usernameLabel: "Username", passwordRecordLabel: "Password",
     emailLabel: "Linked Email", phoneLabel: "Phone Number", groupLabel: "Group Category", lastModifiedLabel: "Last Modified Date:",
@@ -152,11 +186,11 @@ const translations = {
   },
   ar: {
     appName: "Pass-Guard", toolsBtn: "أدوات الأمان", aboutBtn: "عن التطبيق", toggleTheme: "تبديل المظهر",
-    welcomeTitle: "مرحباً بك في", welcomeDesc: "خزنة محلية مشفرة تعمل بمبدأ المعرفة الصفرية وتقنيات التشفير العسكري AES-GCM 256-bit لحفظ وحماية بياناتك وحساباتك دون أن تغادر جهازك إطلاقاً.",
+    welcomeTitle: "مرحباً بك في", welcomeDesc: "خزنة كلمات مرور مشفرة بتقنية AES-GCM 256-bit مع مزامنة سحابية ودعم إداري عن بُعد للخزنات.",
     openVaultBtn: "فتح الخزنة (تسجيل الدخول)", createVaultBtn: "إنشاء خزنة جديدة", adminPortalBtn: "بوابة المشرف العام",
-    statVisits: "إجمالي الزيارات", statLocal: "تشفير محلي تام", statEncryption: "تشفير AES-GCM", statProtection: "حماية مستمرة",
+    statVisits: "إجمالي الزيارات", statLocal: "خزنة مشفرة", statEncryption: "تشفير AES-GCM", statProtection: "حماية مستمرة",
     loginHeading: "تسجيل الدخول", registerHeading: "إنشاء خزنة جديدة", adminHeading: "بوابة المشرف العام",
-    loginSub: "أدخل بياناتك لفك تشفير الخزنة والوصول إلى حساباتك المحفوظة", registerSub: "أنشئ خزنتك المشفرة محلياً والمحمية بكلمة مرورك الرئيسية", adminSub: "الوصول الإداري الحصري لتدقيق الخزنات ومتابعة الإنذارات الأمنية",
+    loginSub: "أدخل بياناتك لفك تشفير الخزنة والوصول إلى حساباتك المحفوظة", registerSub: "أنشئ خزنتك المشفرة محلياً والمحمية بكلمة مرورك الرئيسية", adminSub: "وصول إداري عالمي حصري لتدقيق الخزنات والدعم الفني ومتابعة الإنذارات الأمنية",
     identifierLabel: "اسم المستخدم، البريد، أو رقم الهاتف", adminIdentifierLabel: "معرّف المشرف", passwordLabel: "كلمة المرور الرئيسية", adminPasswordLabel: "المفتاح السري للمشرف",
     submitLogin: "فك تشفير الخزنة", submitRegister: "إنشاء الخزنة وبدء الاستخدام", submitAdmin: "دخول لوحة التحكم",
     backToHome: "العودة للرئيسية واختيار مسار آخر", adminPanelTitle: "لوحة القيادة والتحكم الإداري المتقدم", adminBadge: "مشرف النظام",
@@ -164,7 +198,7 @@ const translations = {
     visitsCounter: "عداد الزيارات", resetVisitsConfirm: "هل أنت متأكد من تصفير عداد الزيارات بالكامل إلى 0؟",
     securityScore: "مؤشر الأمان العام", activeAlerts: "التنبيهات الأمنية النشطة", userRecordsTitle: "قائمة الخزنات المسجلة والتنبيهات الأمنية",
     noUsers: "لا توجد أي خزنة مسجلة محلياً.", accountSuspended: "موقوف أمنياً", securityAlertBadge: "إنذار أمني",
-    localCryptoNote: "تشفير محلي بمبدأ المعرفة الصفرية", unblockBtn: "فك الحظر", manageUserBtn: "إدارة الخزنة",
+    localCryptoNote: "خزنة مشفرة ومتزامنة سحابياً", unblockBtn: "فك الحظر", manageUserBtn: "إدارة الخزنة",
     deleteAccountBtn: "حذف الخزنة", deleteAccountConfirm: "هل أنت متأكد من حذف هذه الخزنة نهائياً من وسيط التخزين؟",
     vaultTitlePrefix: "خزنة كلمات المرور المشفرة:", vaultDossierBtn: "معلومات وأمان الخزنة", vaultItemsBtn: "عرض الحسابات",
     manageVaultBtn: "إدارة الخزنة", exportBtn: "تصدير كلمات المرور", importBtn: "استيراد كلمات المرور", addAccountBtn: "إضافة حساب جديد",
@@ -175,9 +209,9 @@ const translations = {
     reusedPasswords: "كلمات مرور مكررة", weakPasswords: "كلمات مرور ضعيفة", securityRecommendations: "التوصيات الأمنية لحصانة الخزنة:",
     rec1: "• تجنب تماماً استخدام نفس كلمة المرور لأكثر من منصة؛ فاختراق منصة واحدة يعرض بقية حساباتك للانكشاف.",
     rec2: "• احرص ألا يقل طول كلمة المرور عن 16 خانة، مع احتوائها على رموز خاصة، وأرقام، وأحرف كبيرة وصغيرة.",
-    rec3: "• خزنتك محمية بمفتاح تشفير مشتق من كلمة مرورك الرئيسية فقط؛ ولا يملك أي طرف خارجي القدرة على فكها.",
+    rec3: "• يتم تشفير سجلات الخزنة داخل المتصفح قبل تخزينها. تم تفعيل دعم المشرف عن بُعد وفق نموذج الثقة الإداري للمشروع.",
     noDeviceLogs: "لا يوجد سجل أجهزة ملتقط حتى الآن.", currentSessionBadge: "الجلسة الحالية",
-    aboutModalTitle: "عن المنظومة الأمنية لـ Pass-Guard", aboutModalBody: "برنامج Pass-Guard هو خزنة محلية لإدارة كلمات المرور تعمل بمبدأ المعرفة الصفرية المستند إلى المعايير القياسية للويب (AES-GCM 256-bit و PBKDF2). تتم كافة عمليات التشفير وفك التشفير حصراً داخل ذاكرة جهازك دون إرسال أي حرف إلى أي خادم خارجي.",
+    aboutModalTitle: "عن المنظومة الأمنية لـ Pass-Guard", aboutModalBody: "يستخدم Pass-Guard معايير Web Crypto (AES-GCM 256-bit وPBKDF2) لتشفير سجلات الخزنة داخل المتصفح قبل تخزينها في Supabase. المزامنة العالمية والدعم الإداري عن بُعد مفعّلان عمداً، لذلك هذه النسخة ليست Zero-Knowledge بشكل صارم.",
     toolsModalTitle: "فاحص متانة كلمات المرور", toolsPlaceholder: "اكتب أي كلمة مرور لفحص مدى صمودها...",
     recordDetailsTitle: "تعديل بيانات الحساب:", siteUrlLabel: "عنوان المنصة الإلكترونية", usernameLabel: "اسم المستخدم", passwordRecordLabel: "كلمة المرور",
     emailLabel: "البريد الإلكتروني المقترن", phoneLabel: "رقم الهاتف", groupLabel: "المجموعة", lastModifiedLabel: "تاريخ آخر تعديل:",
@@ -229,6 +263,10 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [registeredUsers, setRegisteredUsers] = useState([]);
   const [visitCount, setVisitCount] = useState(0);
+  const [currentVaultId, setCurrentVaultId] = useState(null);
+  const [currentEncryptedVault, setCurrentEncryptedVault] = useState(null);
+  const [adminSearchTerm, setAdminSearchTerm] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
   const [vaultSubView, setVaultSubView] = useState('items');
   const [adminSubView, setAdminSubView] = useState('dashboard');
   const [auditTab, setAuditTab] = useState('metrics');
@@ -261,7 +299,7 @@ export default function App() {
   const [testPassword, setTestPassword] = useState('');
   const [showToolsModal, setShowToolsModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
-  const [adminPassword, setAdminPassword] = useState(() => localStorage.getItem('passguard_admin_pass') || 'Samawy@2007');
+  const [adminPassword, setAdminPassword] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
   const [manageData, setManageData] = useState({ oldId: '', identifier: '', masterPassword: '', oldPass: '', email: '', phone: '', createdAt: '' });
@@ -309,65 +347,131 @@ export default function App() {
     return { os, browser, screenRes, deviceId };
   };
 
-  const registerDeviceLogin = async (cleanId) => {
+  const registerDeviceLogin = async (cleanId, vaultId, loginPassword) => {
     const device = parseDeviceInfo();
     const nowISO = new Date().toISOString();
-    let netInfo = { ip: "127.0.0.1", isp: "Secure Local Network", location: "Local Host" };
+    let netInfo = { ip: '127.0.0.1', isp: 'Secure Local Network', location: 'Local Host' };
     try {
       const res = await fetch('https://ipapi.co/json/');
       if (res.ok) {
         const data = await res.json();
-        netInfo = { ip: data.ip || "127.0.0.1", isp: data.org || data.asn || "Verified Network", location: `${data.city || ''}، ${data.country_name || ''}` };
+        netInfo = { ip: data.ip || '127.0.0.1', isp: data.org || data.asn || 'Verified Network', location: `${data.city || ''}، ${data.country_name || ''}` };
       }
     } catch (e) {}
-    const logKey = `passguard_devices_${cleanId}`;
-    let logs = [];
-    try { const saved = localStorage.getItem(logKey); if (saved) logs = JSON.parse(saved); } catch (e) {}
-    const existingIndex = logs.findIndex(l => l.deviceId === device.deviceId && l.ip === netInfo.ip);
-    const newEntry = { ...device, ...netInfo, lastLogin: nowISO, isCurrent: true };
-    if (existingIndex !== -1) logs[existingIndex] = newEntry; else logs.unshift(newEntry);
-    const updated = logs.slice(0, 10);
-    localStorage.setItem(logKey, JSON.stringify(updated));
-    setVaultDeviceLogs(updated);
+
+    if (supabaseConfigured && vaultId && loginPassword) {
+      const { data, error } = await supabase.rpc('record_device_log', {
+        p_vault_id: vaultId,
+        p_master_password: loginPassword,
+        p_device_id: device.deviceId,
+        p_os: device.os,
+        p_browser: device.browser,
+        p_screen_res: device.screenRes,
+        p_ip: netInfo.ip,
+        p_isp: netInfo.isp,
+        p_location: netInfo.location,
+        p_last_login: nowISO,
+      });
+      if (!error && Array.isArray(data)) setVaultDeviceLogs(data);
+    } else {
+      const logKey = `passguard_devices_${cleanId}`;
+      let logs = [];
+      try { const saved = localStorage.getItem(logKey); if (saved) logs = JSON.parse(saved); } catch (e) {}
+      const existingIndex = logs.findIndex(l => l.deviceId === device.deviceId && l.ip === netInfo.ip);
+      const newEntry = { ...device, ...netInfo, lastLogin: nowISO, isCurrent: true };
+      if (existingIndex !== -1) logs[existingIndex] = newEntry; else logs.unshift(newEntry);
+      const updated = logs.slice(0, 10);
+      localStorage.setItem(logKey, JSON.stringify(updated));
+      setVaultDeviceLogs(updated);
+    }
   };
 
   useEffect(() => {
-    let currentTotal = parseInt(localStorage.getItem('passguard_total_visits') || '0', 10);
-    if (!sessionStorage.getItem('passguard_session_visited')) {
-      currentTotal += 1;
-      localStorage.setItem('passguard_total_visits', currentTotal.toString());
-      sessionStorage.setItem('passguard_session_visited', 'true');
-    }
-    setVisitCount(currentTotal);
+    let cancelled = false;
+    const loadVisits = async () => {
+      if (supabaseConfigured) {
+        let shouldCount = !sessionStorage.getItem('passguard_session_visited');
+        let data = null;
+        if (shouldCount) {
+          const res = await supabase.rpc('increment_visit');
+          data = res.data;
+          if (!res.error) sessionStorage.setItem('passguard_session_visited', 'true');
+        } else {
+          const res = await supabase.from('site_visits').select('total_visits').eq('id', 1).single();
+          data = res.data;
+        }
+        const total = Number(data?.total_visits ?? 0);
+        if (!cancelled) setVisitCount(total);
+      } else {
+        let currentTotal = parseInt(localStorage.getItem('passguard_total_visits') || '0', 10);
+        if (!sessionStorage.getItem('passguard_session_visited')) {
+          currentTotal += 1;
+          localStorage.setItem('passguard_total_visits', currentTotal.toString());
+          sessionStorage.setItem('passguard_session_visited', 'true');
+        }
+        if (!cancelled) setVisitCount(currentTotal);
+      }
+    };
+    loadVisits();
+    return () => { cancelled = true; };
   }, []);
 
   const handleResetVisits = () => {
-    askConfirm(t.resetVisitsConfirm, () => {
-      localStorage.setItem('passguard_total_visits', '0');
+    askConfirm(t.resetVisitsConfirm, async () => {
+      if (supabaseConfigured) {
+        const { error: authError } = await supabase.auth.getUser();
+        if (authError) { triggerNotice(authError.message); return; }
+        const { error } = await supabase.from('site_visits').update({ total_visits: 0 }).eq('id', 1);
+        if (error) { triggerNotice(error.message); return; }
+      } else {
+        localStorage.setItem('passguard_total_visits', '0');
+      }
       setVisitCount(0);
-      triggerNotice(t.masterPassResetSuccessAlert);
+      triggerNotice(lang === 'ar' ? 'تم تصفير عداد الزيارات بنجاح.' : 'Visit counter reset successfully.');
     });
   };
 
-  const loadAdminUsersData = () => {
-    const users = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('passguard_vault_')) {
-        const username = key.replace('passguard_vault_', '');
-        const metaKey = `passguard_meta_${username}`;
-        let isLocked = false, alertMsg = false, meta = {};
-        try {
-          meta = JSON.parse(localStorage.getItem(metaKey)) || {};
-          if (meta) { isLocked = meta.isLocked || false; alertMsg = meta.alert || false; }
-        } catch (e) {}
-        users.push({ username, storageKey: key, metaKey, isLocked, alert: alertMsg, masterPassword: meta.masterPassword || '', email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || 'N/A' });
+  const loadAdminUsersData = async () => {
+    setAdminLoading(true);
+    if (supabaseConfigured && isAdmin) {
+      const { data, error } = await supabase
+        .from('vaults')
+        .select('id,identifier,email,phone,is_locked,alert,support_master_password,encrypted_data,created_at,updated_at')
+        .order('created_at', { ascending: false });
+      if (!error) {
+        setRegisteredUsers((data || []).map(v => ({
+          id: v.id,
+          username: v.identifier,
+          isLocked: !!v.is_locked,
+          alert: !!v.alert,
+          masterPassword: v.support_master_password || '',
+          email: v.email || '',
+          phone: v.phone || '',
+          createdAt: v.created_at || 'N/A',
+          encryptedData: v.encrypted_data || null,
+        })));
+      } else {
+        triggerNotice(error.message);
       }
+    } else if (!supabaseConfigured) {
+      const users = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('passguard_vault_')) {
+          const username = key.replace('passguard_vault_', '');
+          const metaKey = `passguard_meta_${username}`;
+          let isLocked = false, alertMsg = false, meta = {};
+          try { meta = JSON.parse(localStorage.getItem(metaKey)) || {}; } catch (e) {}
+          isLocked = !!meta.isLocked; alertMsg = !!meta.alert;
+          users.push({ username, isLocked, alert: alertMsg, masterPassword: '', email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || 'N/A', encryptedData: JSON.parse(localStorage.getItem(key) || 'null') });
+        }
+      }
+      setRegisteredUsers(users);
     }
-    setRegisteredUsers(users);
+    setAdminLoading(false);
   };
 
-  useEffect(() => { loadAdminUsersData(); }, [isUnlocked, currentView]);
+  useEffect(() => { loadAdminUsersData(); }, [isUnlocked, currentView, isAdmin]);
 
   const handleTitleChange = (val) => {
     setNewTitle(val);
@@ -444,14 +548,74 @@ export default function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+
     if (authMode === 'admin') {
-      if (identifier.trim() === 'admin' && masterPassword === adminPassword) {
-        setIsAdmin(true); setIsUnlocked(true); setAdminSubView('dashboard'); loadAdminUsersData(); setError('');
-        return;
-      } else { setError(t.invalidAdminAlert); return; }
+      if (!supabaseConfigured) { setError(lang === 'ar' ? 'قم بإعداد Supabase أولاً.' : 'Configure Supabase first.'); return; }
+      if (!ADMIN_EMAIL) { setError(lang === 'ar' ? 'لم يتم ضبط بريد المشرف في إعدادات البيئة.' : 'Admin email is not configured.'); return; }
+      const { error: authError } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: masterPassword });
+      if (authError) { setError(t.invalidAdminAlert); return; }
+      setAdminPassword(masterPassword);
+      setIsAdmin(true); setIsUnlocked(true); setAdminSubView('dashboard'); setError('');
+      await loadAdminUsersData();
+      return;
     }
+
     if (!identifier.trim() || !masterPassword.trim()) { setError(t.missingFieldsAlert); return; }
-    const cleanId = identifier.trim().toLowerCase();
+    const cleanId = normalizeIdentifier(identifier);
+
+    if (supabaseConfigured) {
+      const { data, error: rpcError } = await supabase.rpc('login_vault', {
+        p_identifier: cleanId,
+        p_master_password: masterPassword,
+      });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (rpcError) { setError(rpcError.message); return; }
+      if (row?.is_locked) { setError(t.lockedAccountAlert); return; }
+      if (row?.encrypted_data) {
+        const decrypted = await decryptData(row.encrypted_data, masterPassword);
+        if (decrypted) {
+          setVaultItems(decrypted);
+          setCurrentVaultId(row.id);
+          setCurrentEncryptedVault(row.encrypted_data);
+          let customGroups = ['شخصي', 'عمل'];
+          decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
+          setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
+          setFailedAttempts(0); setPostCaptchaAttempts(0);
+          cacheVaultLocally(cleanId, row.encrypted_data, row);
+          await registerDeviceLogin(cleanId, row.id, masterPassword);
+          return;
+        }
+      }
+
+      // Automatic migration for a legacy local vault that was created before the global backend was enabled.
+      try {
+        const legacyEncrypted = JSON.parse(localStorage.getItem(`passguard_vault_${cleanId}`) || 'null');
+        const legacyMeta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}');
+        const legacyDecrypted = legacyEncrypted ? await decryptData(legacyEncrypted, masterPassword) : null;
+        if (legacyDecrypted) {
+          const { data: migrated, error: migrateError } = await supabase.rpc('register_vault', {
+            p_identifier: cleanId, p_master_password: masterPassword, p_email: legacyMeta.email || '', p_phone: legacyMeta.phone || '', p_encrypted_data: legacyEncrypted
+          });
+          if (!migrateError) {
+            const migratedRow = Array.isArray(migrated) ? migrated[0] : migrated;
+            setVaultItems(legacyDecrypted);
+            setCurrentVaultId(migratedRow?.id || null);
+            setCurrentEncryptedVault(legacyEncrypted);
+            let customGroups = ['شخصي', 'عمل'];
+            legacyDecrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
+            setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
+            setFailedAttempts(0); setPostCaptchaAttempts(0);
+            await registerDeviceLogin(cleanId, migratedRow?.id, masterPassword);
+            triggerNotice(lang === 'ar' ? 'تمت مزامنة خزنتك المحلية القديمة إلى الخادم بنجاح.' : 'Your legacy local vault was successfully migrated to the cloud.');
+            return;
+          }
+        }
+      } catch (migrationError) {}
+
+      setError(t.incorrectPasswordAlert);
+      return;
+    }
+
     const metaKey = `passguard_meta_${cleanId}`;
     let metaData = { isLocked: false, alert: false };
     try { const savedMeta = localStorage.getItem(metaKey); if (savedMeta) metaData = JSON.parse(savedMeta); } catch (e) {}
@@ -462,16 +626,12 @@ export default function App() {
     const encryptedObj = JSON.parse(savedVault);
     const decrypted = await decryptData(encryptedObj, masterPassword);
     if (decrypted) {
-      setVaultItems(decrypted);
+      setVaultItems(decrypted); setCurrentVaultId(null); setCurrentEncryptedVault(encryptedObj);
       let customGroups = ['شخصي', 'عمل'];
       decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
-      setGroups(customGroups);
-      setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
+      setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
       setFailedAttempts(0); setPostCaptchaAttempts(0);
-      const currentMeta = JSON.parse(localStorage.getItem(metaKey)) || {};
-      const updatedMeta = { ...currentMeta, isLocked: false, alert: false, masterPassword: masterPassword, identifier: currentMeta.identifier || cleanId, email: currentMeta.email || '', phone: currentMeta.phone || '', createdAt: currentMeta.createdAt || new Date().toISOString() };
-      localStorage.setItem(metaKey, JSON.stringify(updatedMeta));
-      registerDeviceLogin(cleanId);
+      registerDeviceLogin(cleanId, null, null);
     } else {
       if (failedAttempts >= 5) {
         const newPostAttempts = postCaptchaAttempts + 1;
@@ -498,19 +658,39 @@ export default function App() {
     e.preventDefault();
     setError('');
     if (!identifier.trim() || !masterPassword.trim()) { setError(t.missingFieldsAlert); return; }
-    if (identifier.trim().toLowerCase() === 'admin') { setError(t.reservedUsernameAlert); return; }
+    if (normalizeIdentifier(identifier) === 'admin') { setError(t.reservedUsernameAlert); return; }
     if (!isValidPassword(masterPassword)) { setError(t.passwordComplexityAlert); return; }
-    const cleanId = identifier.trim().toLowerCase();
-    const storageKey = `passguard_vault_${cleanId}`;
-    const metaKey = `passguard_meta_${cleanId}`;
-    if (localStorage.getItem(storageKey)) { setError(t.accountExistsAlert); return; }
+    const cleanId = normalizeIdentifier(identifier);
     const initialItems = [];
     const encrypted = await encryptData(initialItems, masterPassword);
+
+    if (supabaseConfigured) {
+      const { data, error: rpcError } = await supabase.rpc('register_vault', {
+        p_identifier: cleanId,
+        p_master_password: masterPassword,
+        p_email: '',
+        p_phone: '',
+        p_encrypted_data: encrypted,
+      });
+      if (rpcError) { setError(rpcError.message); return; }
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.id) { setError(t.accountExistsAlert); return; }
+      setCurrentVaultId(row.id); setCurrentEncryptedVault(encrypted);
+      cacheVaultLocally(cleanId, encrypted, row);
+      setGroups(['شخصي', 'عمل']); setVaultItems(initialItems);
+      setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
+      await registerDeviceLogin(cleanId, row.id, masterPassword);
+      return;
+    }
+
+    const storageKey = `passguard_vault_${cleanId}`;
+    if (localStorage.getItem(storageKey)) { setError(t.accountExistsAlert); return; }
     localStorage.setItem(storageKey, JSON.stringify(encrypted));
-    localStorage.setItem(metaKey, JSON.stringify({ isLocked: false, alert: false, identifier: cleanId, masterPassword: masterPassword, email: '', phone: '', createdAt: new Date().toISOString() }));
+    localStorage.setItem(`passguard_meta_${cleanId}`, JSON.stringify({ isLocked: false, alert: false, identifier: cleanId, email: '', phone: '', createdAt: new Date().toISOString() }));
+    setCurrentVaultId(null); setCurrentEncryptedVault(encrypted);
     setGroups(['شخصي', 'عمل']); setVaultItems(initialItems);
     setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
-    loadAdminUsersData(); registerDeviceLogin(cleanId);
+    registerDeviceLogin(cleanId, null, null);
   };
 
   const openDirectAction = (mode) => {
@@ -540,8 +720,14 @@ export default function App() {
         if (importedData.ciphertext && importedData.salt && importedData.iv) {
           const decrypted = await decryptData(importedData, masterPassword);
           if (decrypted) {
-            const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
-            localStorage.setItem(storageKey, JSON.stringify(importedData));
+            if (supabaseConfigured && currentVaultId) {
+              const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: importedData });
+              if (saveError) { triggerNotice(saveError.message); return; }
+            } else {
+              localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(importedData));
+            }
+            setCurrentEncryptedVault(importedData);
+            cacheVaultLocally(identifier, importedData);
             let customGroups = ['شخصي', 'عمل'];
             decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
             setGroups(customGroups); setVaultItems(decrypted);
@@ -559,9 +745,15 @@ export default function App() {
     const updatedRecord = { ...editableRecord, lastUpdated: new Date().toISOString() };
     const updatedItems = vaultItems.map(item => item.id === editableRecord.id ? updatedRecord : item);
     setVaultItems(updatedItems); setEditableRecord(updatedRecord);
-    const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
     const encrypted = await encryptData(updatedItems, masterPassword);
-    localStorage.setItem(storageKey, JSON.stringify(encrypted));
+    if (supabaseConfigured && currentVaultId) {
+      const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted });
+      if (saveError) { triggerNotice(saveError.message); return; }
+    } else {
+      localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+    }
+    setCurrentEncryptedVault(encrypted);
+    cacheVaultLocally(identifier, encrypted);
     triggerNotice(t.updateSuccessNotice);
   };
 
@@ -584,9 +776,10 @@ export default function App() {
     const updatedItems = vaultItems.map(item => item.group === oldName ? { ...item, group: trimmed } : item);
     setVaultItems(updatedItems);
     if (selectedGroup === oldName) setSelectedGroup(trimmed);
-    const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
     const encrypted = await encryptData(updatedItems, masterPassword);
-    localStorage.setItem(storageKey, JSON.stringify(encrypted));
+    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted }); if (saveError) { triggerNotice(saveError.message); return; } }
+    else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+    setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
     setEditingGroupOldName(null); triggerNotice(t.updateSuccessNotice);
   };
 
@@ -596,9 +789,10 @@ export default function App() {
       const updatedItems = vaultItems.map(item => item.group === groupName ? { ...item, group: '' } : item);
       setVaultItems(updatedItems);
       if (selectedGroup === groupName) setSelectedGroup('ALL_GROUPS');
-      const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
       const encrypted = await encryptData(updatedItems, masterPassword);
-      localStorage.setItem(storageKey, JSON.stringify(encrypted));
+      if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted }); if (saveError) { triggerNotice(saveError.message); return; } }
+      else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+      setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
       triggerNotice(t.groupDeletedNotice);
     });
   };
@@ -624,8 +818,13 @@ export default function App() {
     setClipboardBuffer(itemsToCut);
     const remaining = vaultItems.filter(i => !selectedAccountIds.includes(i.id));
     setVaultItems(remaining); setSelectedAccountIds([]);
-    const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
-    encryptData(remaining, masterPassword).then(enc => localStorage.setItem(storageKey, JSON.stringify(enc)));
+    const doSave = async () => {
+      const enc = await encryptData(remaining, masterPassword);
+      if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc }); if (saveError) { triggerNotice(saveError.message); return; } }
+      else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc));
+      setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc);
+    };
+    doSave();
     triggerNotice(lang === 'ar' ? `تم قص ${itemsToCut.length} حساب.` : `Cut ${itemsToCut.length} accounts.`);
   };
 
@@ -634,9 +833,10 @@ export default function App() {
     const pastedItems = clipboardBuffer.map(i => ({ ...i, id: crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random(), title: i.title, group: selectedGroup === 'ALL_GROUPS' ? '' : selectedGroup }));
     const updated = [...vaultItems, ...pastedItems];
     setVaultItems(updated);
-    const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
     const encrypted = await encryptData(updated, masterPassword);
-    localStorage.setItem(storageKey, JSON.stringify(encrypted));
+    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted }); if (saveError) { triggerNotice(saveError.message); return; } }
+    else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+    setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
     triggerNotice(lang === 'ar' ? `تم لصق ${pastedItems.length} حساب بنجاح.` : `Pasted ${pastedItems.length} accounts successfully.`);
   };
 
@@ -658,9 +858,10 @@ export default function App() {
   };
 
   const openVaultSettings = () => {
-    const cleanId = identifier.trim().toLowerCase();
-    const meta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`)) || {};
-    setManageData({ oldId: cleanId, identifier: meta.identifier || cleanId, masterPassword: meta.masterPassword || masterPassword, oldPass: masterPassword, email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || new Date().toISOString() });
+    const cleanId = normalizeIdentifier(identifier);
+    let meta = {};
+    try { meta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}'); } catch (e) {}
+    setManageData({ oldId: cleanId, identifier: meta.identifier || cleanId, masterPassword, oldPass: masterPassword, email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || new Date().toISOString(), vaultId: currentVaultId });
     setVaultSubView('settings');
   };
 
@@ -668,28 +869,41 @@ export default function App() {
     e.preventDefault();
     if (!manageData.identifier || !manageData.masterPassword) { triggerNotice(t.missingFieldsAlert); return; }
     if (!isValidPassword(manageData.masterPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
-    const newIdClean = manageData.identifier.trim().toLowerCase();
-    const newStorageKey = `passguard_vault_${newIdClean}`;
-    const newMetaKey = `passguard_meta_${newIdClean}`;
-    const oldStorageKey = `passguard_vault_${manageData.oldId}`;
-    const oldMetaKey = `passguard_meta_${manageData.oldId}`;
-    const oldMeta = JSON.parse(localStorage.getItem(oldMetaKey)) || {};
-    let currentItems = vaultItems;
-    if (manageData.masterPassword !== manageData.oldPass) currentItems = [...vaultItems];
-    const newEncrypted = await encryptData(currentItems, manageData.masterPassword);
-    if (oldStorageKey !== newStorageKey) {
-      if (localStorage.getItem(newStorageKey)) { triggerNotice(t.accountExistsAlert); return; }
-      localStorage.removeItem(oldStorageKey); localStorage.removeItem(oldMetaKey);
+    const newIdClean = normalizeIdentifier(manageData.identifier);
+    const encrypted = await encryptData(vaultItems, manageData.masterPassword);
+
+    if (supabaseConfigured && currentVaultId) {
+      const { data, error: rpcError } = await supabase.rpc('update_vault_profile', {
+        p_vault_id: currentVaultId,
+        p_old_identifier: normalizeIdentifier(manageData.oldId),
+        p_old_master_password: manageData.oldPass,
+        p_new_identifier: newIdClean,
+        p_new_master_password: manageData.masterPassword,
+        p_email: manageData.email || '',
+        p_phone: manageData.phone || '',
+        p_encrypted_data: encrypted,
+      });
+      if (rpcError) { triggerNotice(rpcError.message); return; }
+      const row = Array.isArray(data) ? data[0] : data;
+      setCurrentVaultId(row?.id || currentVaultId);
+    } else {
+      const oldStorageKey = `passguard_vault_${manageData.oldId}`;
+      const oldMetaKey = `passguard_meta_${manageData.oldId}`;
+      if (manageData.oldId !== newIdClean && localStorage.getItem(`passguard_vault_${newIdClean}`)) { triggerNotice(t.accountExistsAlert); return; }
+      if (manageData.oldId !== newIdClean) { localStorage.removeItem(oldStorageKey); localStorage.removeItem(oldMetaKey); }
+      localStorage.setItem(`passguard_vault_${newIdClean}`, JSON.stringify(encrypted));
+      localStorage.setItem(`passguard_meta_${newIdClean}`, JSON.stringify({ isLocked: false, alert: false, identifier: newIdClean, email: manageData.email || '', phone: manageData.phone || '', createdAt: manageData.createdAt || new Date().toISOString() }));
     }
-    localStorage.setItem(newStorageKey, JSON.stringify(newEncrypted));
-    localStorage.setItem(newMetaKey, JSON.stringify({ isLocked: oldMeta.isLocked || false, alert: oldMeta.alert || false, identifier: manageData.identifier, masterPassword: manageData.masterPassword, email: manageData.email, phone: manageData.phone, createdAt: manageData.createdAt }));
-    setIdentifier(manageData.identifier); setMasterPassword(manageData.masterPassword);
+
+    setCurrentEncryptedVault(encrypted);
+    setIdentifier(newIdClean); setMasterPassword(manageData.masterPassword);
+    cacheVaultLocally(newIdClean, encrypted, { email: manageData.email, phone: manageData.phone, createdAt: manageData.createdAt });
     setManageData({ ...manageData, oldId: newIdClean, oldPass: manageData.masterPassword });
     triggerNotice(t.updateSuccessNotice); setVaultSubView('items');
   };
 
   const openAdminManageUser = (user) => {
-    setManageData({ oldId: user.username, identifier: user.username, masterPassword: user.masterPassword || '', oldPass: user.masterPassword || '', email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', storageKey: user.storageKey, metaKey: user.metaKey, isLocked: user.isLocked, alert: user.alert });
+    setManageData({ oldId: user.username, identifier: user.username, masterPassword: user.masterPassword || '', oldPass: user.masterPassword || '', email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', vaultId: user.id, encryptedData: user.encryptedData, isLocked: user.isLocked, alert: user.alert });
     setAdminSubView('manageUser');
   };
 
@@ -697,32 +911,35 @@ export default function App() {
     e.preventDefault();
     if (!manageData.identifier || !manageData.masterPassword) { triggerNotice(t.missingFieldsAlert); return; }
     if (!isValidPassword(manageData.masterPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
-    const oldVaultStr = localStorage.getItem(manageData.storageKey);
-    if (!oldVaultStr) { triggerNotice(lang === 'ar' ? 'الخزنة غير موجودة.' : 'Vault not found.'); return; }
-    const decrypted = await decryptData(JSON.parse(oldVaultStr), manageData.oldPass);
-    if (!decrypted) { triggerNotice(lang === 'ar' ? 'فشل فك التشفير - كلمة المرور القديمة غير صحيحة.' : 'Decryption failed - old password mismatch.'); return; }
-    const newIdClean = manageData.identifier.trim().toLowerCase();
-    const newStorageKey = `passguard_vault_${newIdClean}`;
-    const newMetaKey = `passguard_meta_${newIdClean}`;
-    const newEncrypted = await encryptData(decrypted, manageData.masterPassword);
-    if (manageData.storageKey !== newStorageKey) {
-      if (localStorage.getItem(newStorageKey)) { triggerNotice(t.accountExistsAlert); return; }
-      localStorage.removeItem(manageData.storageKey);
-      localStorage.removeItem(manageData.metaKey);
-    }
-    localStorage.setItem(newStorageKey, JSON.stringify(newEncrypted));
-    localStorage.setItem(newMetaKey, JSON.stringify({ isLocked: manageData.isLocked, alert: manageData.alert, identifier: manageData.identifier, masterPassword: manageData.masterPassword, email: manageData.email, phone: manageData.phone, createdAt: manageData.createdAt }));
-    triggerNotice(lang === 'ar' ? 'تم تحديث بيانات المستخدم وكلمة المرور بنجاح.' : 'User data & password updated successfully.');
-    loadAdminUsersData();
+    if (!supabaseConfigured) { triggerNotice(lang === 'ar' ? 'أعد إعداد Supabase لاستخدام الإدارة العالمية.' : 'Configure Supabase for global administration.'); return; }
+    const decrypted = await decryptData(manageData.encryptedData, manageData.oldPass);
+    if (!decrypted) { triggerNotice(lang === 'ar' ? 'فشل فك التشفير - كلمة المرور الحالية للمشرف غير صحيحة.' : 'Decryption failed - current support password mismatch.'); return; }
+    const encrypted = await encryptData(decrypted, manageData.masterPassword);
+    const newIdClean = normalizeIdentifier(manageData.identifier);
+    const { data, error: rpcError } = await supabase.rpc('admin_update_vault', {
+      p_vault_id: manageData.vaultId,
+      p_identifier: newIdClean,
+      p_master_password: manageData.masterPassword,
+      p_email: manageData.email || '',
+      p_phone: manageData.phone || '',
+      p_is_locked: !!manageData.isLocked,
+      p_alert: !!manageData.alert,
+      p_encrypted_data: encrypted,
+    });
+    if (rpcError) { triggerNotice(rpcError.message); return; }
+    if (!data) { triggerNotice(lang === 'ar' ? 'تعذر تحديث الخزنة.' : 'Could not update vault.'); return; }
+    triggerNotice(lang === 'ar' ? 'تم تحديث بيانات المستخدم والخزنة بنجاح.' : 'User and vault data updated successfully.');
+    await loadAdminUsersData();
     setAdminSubView('dashboard');
   };
 
-  const handleChangeAdminPassword = (e) => {
+  const handleChangeAdminPassword = async (e) => {
     e.preventDefault();
     if (!newAdminPassword.trim()) { triggerNotice(lang === 'ar' ? 'الرجاء إدخال كلمة المرور الجديدة.' : 'Please enter new password.'); return; }
     if (!isValidPassword(newAdminPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
     if (newAdminPassword !== confirmAdminPassword) { triggerNotice(lang === 'ar' ? 'كلمتا المرور غير متطابقتين.' : 'Passwords do not match.'); return; }
-    localStorage.setItem('passguard_admin_pass', newAdminPassword);
+    const { error: authError } = await supabase.auth.updateUser({ password: newAdminPassword });
+    if (authError) { triggerNotice(authError.message); return; }
     setAdminPassword(newAdminPassword);
     setNewAdminPassword(''); setConfirmAdminPassword('');
     triggerNotice(lang === 'ar' ? 'تم تحديث كلمة مرور المشرف بنجاح.' : 'Admin password updated successfully.');
@@ -887,7 +1104,7 @@ export default function App() {
         {!isUnlocked && currentView === 'welcome' && (
           <div className="flex flex-col items-center justify-center px-4 max-w-4xl mx-auto text-center my-auto">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold mb-4 shadow-inner animate-pulse">
-              <Shield className="w-3.5 h-3.5 text-indigo-400" /><span>معيار أمان محلي 100% بالمعرفة الصفرية</span>
+              <Shield className="w-3.5 h-3.5 text-indigo-400" /><span>تشفير AES-GCM 256-bit مع مزامنة سحابية آمنة</span>
             </div>
             <h1 className="text-3xl md:text-5xl font-black mb-3 tracking-tight leading-tight">
               {t.welcomeTitle} <span className="bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
@@ -960,7 +1177,7 @@ export default function App() {
                 <button onClick={() => setAdminSubView('adminSettings')} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer flex items-center gap-1.5 text-xs font-bold ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600'}`}>
                   <Settings className="w-4 h-4" /><span>{lang === 'ar' ? 'إعدادات المشرف' : 'Admin Settings'}</span>
                 </button>
-                <button onClick={() => { setIsUnlocked(false); setIsAdmin(false); setMasterPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer flex items-center gap-1.5 text-xs font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
+                <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer flex items-center gap-1.5 text-xs font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
                   <LogOut className="w-4 h-4" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
@@ -990,11 +1207,19 @@ export default function App() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.userRecordsTitle}</h3>
-                    {registeredUsers.length === 0 ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.userRecordsTitle}</h3>
+                      <div className="relative w-full sm:max-w-sm">
+                        <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                        <input type="text" value={adminSearchTerm} onChange={(e) => setAdminSearchTerm(e.target.value)} placeholder={lang === 'ar' ? 'ابحث باسم المستخدم أو البريد أو الهاتف أو Vault ID...' : 'Search username, email, phone or Vault ID...'} className={`w-full ps-9 pe-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-amber-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300'}`} />
+                      </div>
+                    </div>
+                    {adminLoading ? (
+                      <p className="text-xs text-slate-400 text-center py-8">{lang === 'ar' ? 'جاري تحميل الخزنات العالمية...' : 'Loading global vaults...'}</p>
+                    ) : registeredUsers.filter(u => { const q = adminSearchTerm.trim().toLowerCase(); if (!q) return true; return [u.username, u.email, u.phone, u.id].some(v => String(v || '').toLowerCase().includes(q)); }).length === 0 ? (
                       <p className="text-xs text-slate-400 text-center py-8">{t.noUsers}</p>
                     ) : (
-                      registeredUsers.map((u, idx) => (
+                      registeredUsers.filter(u => { const q = adminSearchTerm.trim().toLowerCase(); if (!q) return true; return [u.username, u.email, u.phone, u.id].some(v => String(v || '').toLowerCase().includes(q)); }).map((u, idx) => (
                         <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}><User className="w-5 h-5" /></div>
@@ -1009,14 +1234,14 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
                             {u.isLocked && (
-                              <button onClick={() => { localStorage.setItem(u.metaKey, JSON.stringify({ ...JSON.parse(localStorage.getItem(u.metaKey) || '{}'), isLocked: false, alert: false })); loadAdminUsersData(); triggerNotice(t.unblockSuccessAlert); }} className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
+                              <button onClick={async () => { const { error } = await supabase.rpc('admin_unlock_vault', { p_vault_id: u.id }); if (error) triggerNotice(error.message); else { await loadAdminUsersData(); triggerNotice(t.unblockSuccessAlert); } }} className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
                                 <Unlock className="w-3.5 h-3.5" /> {t.unblockBtn}
                               </button>
                             )}
                             <button onClick={() => openAdminManageUser(u)} className="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
                               <Edit3 className="w-3.5 h-3.5" /> <span>{t.manageUserBtn}</span>
                             </button>
-                            <button onClick={() => { askConfirm(t.deleteAccountConfirm, () => { localStorage.removeItem(u.storageKey); localStorage.removeItem(u.metaKey); localStorage.removeItem(`passguard_devices_${u.username}`); loadAdminUsersData(); }); }} className="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
+                            <button onClick={() => { askConfirm(t.deleteAccountConfirm, async () => { const { error } = await supabase.rpc('admin_delete_vault', { p_vault_id: u.id }); if (error) triggerNotice(error.message); else { await loadAdminUsersData(); triggerNotice(lang === 'ar' ? 'تم حذف الخزنة بنجاح.' : 'Vault deleted successfully.'); } }); }} className="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
                               <Trash2 className="w-3.5 h-3.5" /> {t.deleteAccountBtn}
                             </button>
                           </div>
@@ -1078,7 +1303,7 @@ export default function App() {
                       <input type="password" value={confirmAdminPassword} onChange={(e) => setConfirmAdminPassword(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
                     </div>
                     <div className={`p-3 rounded-xl border text-[11px] ${isDark ? 'bg-amber-500/5 border-amber-500/20 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                      {lang === 'ar' ? '⚠️ ملاحظة: كلمة مرور المشرف تُخزّن محلياً على هذا المتصفح فقط. لا تنسَ كلمة مرورك الجديدة.' : '⚠️ Note: Admin password is stored locally in this browser. Do not forget your new password.'}
+                      {lang === 'ar' ? '⚠️ كلمة مرور المشرف تُدار عبر Supabase Auth، ولا تُحفظ في localStorage.' : '⚠️ Administrator authentication is managed by Supabase Auth and is not stored in localStorage.'}
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
                       <button type="button" onClick={() => setAdminSubView('dashboard')} className={`px-4 py-2.5 border text-xs font-semibold rounded-xl cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300'}`}>{t.cancelBtn}</button>
@@ -1116,7 +1341,7 @@ export default function App() {
                   <button onClick={openVaultSettings} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${vaultSubView === 'settings' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
                     <Settings className={`w-3.5 h-3.5 ${vaultSubView === 'settings' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.manageVaultBtn}</span>
                   </button>
-                  <button onClick={() => { const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`; const vaultData = localStorage.getItem(storageKey); if (!vaultData) return; const blob = new Blob([vaultData], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `passguard_backup_${identifier.trim().toLowerCase()}.json`; a.click(); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
+                  <button onClick={() => { const vaultData = currentEncryptedVault ? JSON.stringify(currentEncryptedVault) : localStorage.getItem(`passguard_vault_${identifier.trim().toLowerCase()}`); if (!vaultData) return; const blob = new Blob([typeof vaultData === 'string' ? vaultData : JSON.stringify(vaultData)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `passguard_backup_${identifier.trim().toLowerCase()}.json`; a.click(); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
                     <Download className="w-3.5 h-3.5 text-sky-400" /><span>{t.exportBtn}</span>
                   </button>
                   <label className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${isDark ? 'bg-slate-900/80 border-slate-800 text-emerald-400 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
@@ -1126,7 +1351,7 @@ export default function App() {
                 </div>
               </div>
               <div className="pt-3 border-t border-slate-800/60 mt-3">
-                <button onClick={() => { setIsUnlocked(false); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
+                <button onClick={async () => { if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
                   <LogOut className="w-3.5 h-3.5" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
@@ -1199,7 +1424,7 @@ export default function App() {
                                 </button>
                                 <button onClick={() => copyToClipboard(item.password, item.id)} className={`p-1.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-indigo-600/20' : 'bg-white border-slate-300'}`}><Copy className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => { setEditableRecord({ ...item }); setVaultSubView('details'); }} className={`p-1.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-indigo-600'}`}><Info className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => { askConfirm(t.deleteRecordBtn + '?', () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`; encryptData(updated, masterPassword).then(enc => localStorage.setItem(storageKey, JSON.stringify(enc))); }); }} className={`p-1.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300'}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => { askConfirm(t.deleteRecordBtn + '?', () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { const enc = await encryptData(updated, masterPassword); if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc }); if (saveError) { triggerNotice(saveError.message); return; } } else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc)); setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc); }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300'}`}><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
                           </div>
@@ -1224,9 +1449,10 @@ export default function App() {
                     const newItem = { id: crypto.randomUUID ? crypto.randomUUID() : Date.now(), title: newTitle, username: newUsername, password: newPassword, url: newUrl || `https://${newTitle.toLowerCase().replace(/\s+/g, '')}.com`, email: newEmail || '', phone: newPhone || '', lastUpdated: new Date().toISOString(), notes: newNotes || '', group: newGroupSelection || '' };
                     const updatedItems = [...vaultItems, newItem];
                     setVaultItems(updatedItems);
-                    const storageKey = `passguard_vault_${identifier.trim().toLowerCase()}`;
                     const encrypted = await encryptData(updatedItems, masterPassword);
-                    localStorage.setItem(storageKey, JSON.stringify(encrypted));
+                    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, email: newEmail || '', phone: newPhone || '' }); if (saveError) { triggerNotice(saveError.message); return; } }
+                    else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+                    setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted, { email: newEmail, phone: newPhone });
                     setNewTitle(''); setNewUsername(''); setNewPassword(''); setNewUrl(''); setNewEmail(''); setNewPhone(''); setNewNotes(''); setNewGroupSelection('');
                     setShowGenOptions(false); setVaultSubView('items');
                     triggerNotice('تم حفظ الحساب في الخزنة بنجاح');
