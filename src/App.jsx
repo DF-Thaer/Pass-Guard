@@ -1122,25 +1122,25 @@ export default function App() {
         </div>
       )}
 
-      <header className={`w-full px-8 py-4 border-b z-20 flex items-center justify-between shadow-xl transition-all duration-500 ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-2xl' : 'bg-white/80 border-slate-200/80 backdrop-blur-2xl'}`}>
-        <div className="flex items-center gap-3.5 cursor-pointer group" onClick={() => { if (!isUnlocked) setCurrentView('welcome'); }}>
-          <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-indigo-600 shrink-0 bg-gradient-to-br from-indigo-900 to-slate-950 flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300 neon-logo">
+      <header className={`w-full px-3 sm:px-8 py-3 sm:py-4 border-b z-20 flex items-center justify-between shadow-xl transition-all duration-500 ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-2xl' : 'bg-white/80 border-slate-200/80 backdrop-blur-2xl'}`}>
+        <div className="flex items-center gap-2 sm:gap-3.5 cursor-pointer group shrink-0" onClick={() => { if (!isUnlocked) setCurrentView('welcome'); }}>
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-indigo-600 shrink-0 bg-gradient-to-br from-indigo-900 to-slate-950 flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300 neon-logo">
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-cover" />
           </div>
-          <span className="font-black text-xl tracking-wider bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
+          <span className="font-black text-base sm:text-xl tracking-wider bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowToolsModal(true)} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-amber-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-amber-700 hover:bg-slate-50'}`}>
-            <Zap className="w-3.5 h-3.5 text-amber-400" /><span>{t.toolsBtn}</span>
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <button onClick={() => setShowToolsModal(true)} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-amber-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-amber-700 hover:bg-slate-50'}`} title={t.toolsBtn}>
+            <Zap className="w-3.5 h-3.5 text-amber-400" /><span className="hidden sm:inline">{t.toolsBtn}</span>
           </button>
-          <button onClick={() => setShowAboutModal(true)} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-indigo-700 hover:bg-slate-50'}`}>
-            <Info className="w-3.5 h-3.5 text-indigo-400" /><span>{t.aboutBtn}</span>
+          <button onClick={() => setShowAboutModal(true)} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-indigo-700 hover:bg-slate-50'}`} title={t.aboutBtn}>
+            <Info className="w-3.5 h-3.5 text-indigo-400" /><span className="hidden sm:inline">{t.aboutBtn}</span>
           </button>
-          <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-slate-200 hover:bg-slate-800' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-            <Globe className="w-3.5 h-3.5 text-sky-400" /><span>{lang === 'en' ? 'العربية' : 'English'}</span>
+          <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-slate-200 hover:bg-slate-800' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`} title={lang === 'en' ? 'العربية' : 'English'}>
+            <Globe className="w-3.5 h-3.5 text-sky-400" /><span className="text-[11px] sm:text-xs">{lang === 'en' ? 'عربي' : 'EN'}</span>
           </button>
-          <button onClick={() => setTheme(isDark ? 'light' : 'dark')} className={`p-2.5 rounded-xl border transition-all duration-300 cursor-pointer shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-amber-400 hover:bg-slate-800' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`} title={t.toggleTheme}>
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          <button onClick={() => setTheme(isDark ? 'light' : 'dark')} className={`p-2 sm:p-2.5 rounded-xl border transition-all duration-300 cursor-pointer shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-amber-400 hover:bg-slate-800' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`} title={t.toggleTheme}>
+            {isDark ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
           </button>
         </div>
       </header>
