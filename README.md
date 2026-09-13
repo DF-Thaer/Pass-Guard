@@ -1,16 +1,45 @@
-# React + Vite
+# 🛡️ Pass-Guard | Secure Zero-Knowledge Password Vault
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A local, client-side encrypted password manager built with **React**, **Vite**, and the **Web Crypto API**. Designed with a strict **Zero-Knowledge Architecture**, ensuring your master credentials and vault data never leave your browser unencrypted.
 
-Currently, two official plugins are available:
+🔗 **Live Demo**: [https://df-thaer.github.io/Pass-Guard/](https://df-thaer.github.io/Pass-Guard/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## ✨ Key Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Zero-Knowledge Cryptography**: All encryption and decryption routines run locally in-memory using military-grade `AES-GCM 256-bit` and `PBKDF2` (100,000 iterations).
+- **Interactive Security Auditor**: Real-time evaluation of password entropy, strength scores, and reused credential detection.
+- **Categorization & Management**: Custom group tagging, multi-account actions (bulk copy, cut, paste), and search indexing.
+- **Telemetry & Session Auditing**: Tracks authorized login environments, network telemetry, and detected devices.
+- **Encrypted Backup & Restore**: Full JSON import/export encrypted against your unique derived master key.
+- **Automated CI/CD**: Seamless GitHub Pages builds powered by GitHub Actions.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🚀 Tech Stack
+
+- **Framework**: React 19 + Vite
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Cryptography**: Web Crypto API (Native Browser Standards)
+- **Hosting**: GitHub Pages
+
+---
+
+## 🛠️ Local Development
+
+Clone and run the application locally:
+
+```bash
+# Clone repository
+git clone [https://github.com/DF-Thaer/Pass-Guard.git](https://github.com/DF-Thaer/Pass-Guard.git)
+
+# Navigate to directory
+cd Pass-Guard
+
+# Install dependencies
+npm install --legacy-peer-deps
+
+# Start dev server
+npm run dev
