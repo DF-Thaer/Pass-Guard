@@ -63,7 +63,6 @@ async function decryptData(encryptedObj, password) {
   }
 }
 
-// دالة التحقق من قوة كلمة المرور
 const isValidPassword = (pass) => {
   if (!pass) return false;
   return pass.length >= 8 && /[A-Z]/.test(pass) && /[0-9]/.test(pass) && /[^A-Za-z0-9]/.test(pass);
@@ -435,7 +434,6 @@ export default function App() {
   const [userCaptchaInput, setUserCaptchaInput] = useState('');
   const [mathCaptcha, setMathCaptcha] = useState({ num1: 5, num2: 3, answer: 8 });
 
-  // نافذة التأكيد المدمجة
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: null });
 
   const [vaultItems, setVaultItems] = useState([]);
@@ -444,7 +442,6 @@ export default function App() {
 
   const [visitCount, setVisitCount] = useState(0);
 
-  // واجهات تحكم الخزنة
   const [vaultSubView, setVaultSubView] = useState('items'); 
   const [adminSubView, setAdminSubView] = useState('dashboard');
 
@@ -454,7 +451,6 @@ export default function App() {
   const [editableRecord, setEditableRecord] = useState(null);
   const [visiblePasswords, setVisiblePasswords] = useState({});
 
-  // إدارة المجموعات
   const [groups, setGroups] = useState(['شخصي', 'عمل']);
   const [selectedGroup, setSelectedGroup] = useState('ALL_GROUPS');
   const [showManageGroupsModal, setShowManageGroupsModal] = useState(false);
@@ -485,7 +481,6 @@ export default function App() {
 
   const [testPassword, setTestPassword] = useState('');
 
-  // إعدادات الخزنة
   const [manageData, setManageData] = useState({ oldId: '', identifier: '', masterPassword: '', oldPass: '', email: '', phone: '', createdAt: '' });
 
   const [inAppNotice, setInAppNotice] = useState('');
@@ -587,6 +582,43 @@ export default function App() {
 
     setVisitCount(currentTotal);
   }, []);
+
+  // 1. قفل الخزنة التلقائي الفوري عند مغادرة التبويب أو تصغير المتصفح
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isUnlocked && !isAdmin) {
+        setIsUnlocked(false);
+        setMasterPassword('');
+        setCurrentView('welcome');
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isUnlocked, isAdmin]);
+
+  // 2. مؤقت خمول زمني: قفل الخزنة تلقائياً بعد 5 دقائق من انعدام النشاط
+  useEffect(() => {
+    if (!isUnlocked || isAdmin) return;
+
+    let timeoutId;
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setIsUnlocked(false);
+        setMasterPassword('');
+        setCurrentView('welcome');
+      }, 5 * 60 * 1000);
+    };
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [isUnlocked, isAdmin]);
 
   const handleResetVisits = () => {
     askConfirm(t.resetVisitsConfirm, () => {
@@ -1041,7 +1073,6 @@ export default function App() {
         const newGroups = groups.filter(g => g !== groupName);
         setGroups(newGroups);
         
-        // مسح اسم المجموعة لينتقل إلى الكل بشكل ديناميكي
         const updatedItems = vaultItems.map(item => item.group === groupName ? {...item, group: ''} : item);
         setVaultItems(updatedItems);
         
@@ -1290,7 +1321,6 @@ export default function App() {
   return (
     <div className={`min-h-screen font-sans flex flex-col justify-between relative overflow-x-hidden overflow-y-auto transition-colors duration-500 ${isDark ? 'text-slate-100' : 'text-slate-900'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       
-      {/* كود إخفاء شريط التمرير الأبيض من المتصفح مع الإبقاء على ميزة التمرير */}
       <style>{`
         ::-webkit-scrollbar {
           display: none;
@@ -1303,7 +1333,6 @@ export default function App() {
 
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full -z-10 pointer-events-none" />
 
-      {/* حوار التأكيد المدمج داخل الموقع */}
       {confirmDialog.isOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
           <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl transition-all duration-300 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -1329,7 +1358,6 @@ export default function App() {
         </div>
       )}
 
-      {/* نافذة إدارة المجموعات المخصصة */}
       {showManageGroupsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] transition-all duration-300 animate-fadeIn">
           <div className={`border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -1562,7 +1590,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 2. نموذج المصادقة */}
+        {/* 2. نموذج المصادقة مع حماية الـ Autofill */}
         {!isUnlocked && currentView === 'auth' && (
           <div className={`w-full max-w-md border p-7 rounded-3xl shadow-2xl backdrop-blur-2xl transition-all duration-500 ease-in-out my-auto ${isDark ? 'bg-slate-900/90 border-slate-800 shadow-black/80' : 'bg-white/90 border-slate-200 shadow-slate-200'}`}>
             <div className="text-center mb-5">
@@ -1581,7 +1609,7 @@ export default function App() {
               </p>
             </div>
 
-            <form onSubmit={authMode === 'register' ? handleRegister : handleLogin} className="space-y-3.5">
+            <form onSubmit={authMode === 'register' ? handleRegister : handleLogin} className="space-y-3.5" autoComplete="off">
               <div>
                 <label className={`text-xs block mb-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   {authMode === 'admin' ? t.adminIdentifierLabel : t.identifierLabel}
@@ -1592,6 +1620,8 @@ export default function App() {
                   value={identifier}
                   disabled={authMode === 'admin'}
                   onChange={(e) => setIdentifier(e.target.value)}
+                  autoComplete="off"
+                  spellCheck="false"
                   className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm transition-all duration-300 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                   required
                 />
@@ -1606,6 +1636,7 @@ export default function App() {
                   placeholder="••••••••••••"
                   value={masterPassword}
                   onChange={(e) => setMasterPassword(e.target.value)}
+                  autoComplete="new-password"
                   className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm transition-all duration-300 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                   required
                 />
@@ -1788,7 +1819,7 @@ export default function App() {
                   
                   <p className="text-[11px] text-slate-400 mb-4">{t.adminManageUserSub}</p>
 
-                  <form onSubmit={handleAdminSaveUser} className="space-y-3 text-xs">
+                  <form onSubmit={handleAdminSaveUser} className="space-y-3 text-xs" autoComplete="off">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block mb-1 text-slate-400">{t.usernameLabel}</label>
@@ -1864,7 +1895,6 @@ export default function App() {
         {isUnlocked && !isAdmin && (
           <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col md:flex-row h-[78vh] max-h-[78vh] overflow-hidden transition-all duration-500 ease-in-out my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
             
-            {/* القائمة الجانبية (Sidebar) الثابتة بترتيب جديد ومتناسق */}
             <aside className={`w-full md:w-64 border-b md:border-b-0 md:border-l p-4 flex flex-col justify-between shrink-0 transition-all duration-300 ${isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-200'}`}>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-800/60">
@@ -1957,13 +1987,9 @@ export default function App() {
               </div>
             </aside>
 
-            {/* الجزء الرئيسي */}
             <section className="flex-1 flex flex-col overflow-hidden transition-all duration-500 ease-in-out">
-              
-              {/* عرض الحسابات */}
               {vaultSubView === 'items' && (
                 <div className="flex-1 flex flex-col overflow-hidden animate-fadeIn transition-all duration-300">
-                  
                   <div className={`p-3.5 border-b flex items-center justify-between gap-3 shrink-0 ${isDark ? 'bg-slate-950/30 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                     <div className="relative flex-1">
                       <input
@@ -1978,7 +2004,6 @@ export default function App() {
                   </div>
 
                   <div className={`px-4 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
-                    
                     <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
                       <button
                         onClick={() => setSelectedGroup('ALL_GROUPS')}
@@ -2005,7 +2030,6 @@ export default function App() {
                           <FolderPlus className="w-3.5 h-3.5" />
                           <span>{t.manageGroupsBtn}</span>
                       </button>
-
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -2045,7 +2069,6 @@ export default function App() {
                         <span>{t.pasteBtn} ({clipboardBuffer.length})</span>
                       </button>
                     </div>
-
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-5 space-y-2.5">
@@ -2134,7 +2157,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* صفحة إضافة حساب جديد */}
               {vaultSubView === 'add' && (
                 <div className="flex-1 flex flex-col p-6 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center transition-all duration-300">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 shrink-0">
@@ -2190,7 +2212,7 @@ export default function App() {
                     setShowGenOptions(false);
                     setVaultSubView('items');
                     triggerNotice('تم حفظ الحساب في الخزنة بنجاح');
-                  }} className="space-y-3 text-xs">
+                  }} className="space-y-3 text-xs" autoComplete="off">
                     
                     <div>
                       <input
@@ -2265,10 +2287,11 @@ export default function App() {
 
                     <div className="relative">
                       <input
-                        type="text"
+                        type="password"
                         placeholder={t.passwordPlaceholder}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
+                        autoComplete="new-password"
                         className={`w-full px-3.5 py-2.5 ps-11 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-all duration-300 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                         required
                       />
@@ -2339,7 +2362,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* صفحة تفاصيل الحساب وتعديلها بالكامل */}
               {vaultSubView === 'details' && editableRecord && (
                 <div className="flex-1 flex flex-col p-6 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center transition-all duration-300">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4 shrink-0">
@@ -2349,8 +2371,7 @@ export default function App() {
                     </h3>
                   </div>
 
-                  <form onSubmit={handleSaveRecordChanges} className="space-y-3 text-xs">
-                    
+                  <form onSubmit={handleSaveRecordChanges} className="space-y-3 text-xs" autoComplete="off">
                     <div>
                       <label className="block mb-1 text-slate-400">{t.siteTitlePlaceholder}</label>
                       <input
@@ -2425,6 +2446,7 @@ export default function App() {
                           type={visiblePasswords[editableRecord.id] ? "text" : "password"}
                           value={editableRecord.password}
                           onChange={(e) => setEditableRecord({...editableRecord, password: e.target.value})}
+                          autoComplete="new-password"
                           className={`flex-1 px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-all duration-300 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                           required
                         />
@@ -2478,7 +2500,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* صفحة معلومات وأمان الخزنة الشاملة */}
               {vaultSubView === 'audit' && (
                 <div className="flex-1 flex flex-col p-6 overflow-y-auto space-y-6 animate-fadeIn transition-all duration-300">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 shrink-0">
@@ -2582,7 +2603,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* صفحة إدارة إعدادات الخزنة الخاصة بالمستخدم */}
               {vaultSubView === 'settings' && (
                 <div className="flex-1 flex flex-col p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center transition-all duration-300">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
@@ -2594,7 +2614,7 @@ export default function App() {
 
                   <p className="text-[11px] text-slate-400 mb-4">{t.vaultSettingsSub}</p>
 
-                  <form onSubmit={handleSaveSettings} className="space-y-3 text-xs">
+                  <form onSubmit={handleSaveSettings} className="space-y-3 text-xs" autoComplete="off">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block mb-1 text-slate-400">{t.usernameLabel}</label>
