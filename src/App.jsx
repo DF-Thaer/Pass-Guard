@@ -550,10 +550,32 @@ export default function App() {
     setError('');
 
     if (authMode === 'admin') {
-      if (!supabaseConfigured) { setError(lang === 'ar' ? 'قم بإعداد Supabase أولاً.' : 'Configure Supabase first.'); return; }
-      if (!ADMIN_EMAIL) { setError(lang === 'ar' ? 'لم يتم ضبط بريد المشرف في إعدادات البيئة.' : 'Admin email is not configured.'); return; }
-      const { error: authError } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: masterPassword });
-      if (authError) { setError(t.invalidAdminAlert); return; }
+  if (!supabaseConfigured) { 
+    setError(lang === 'ar' ? 'Supabase غير متصل، تأكد من إعداد المفاتيح.' : 'Configure Supabase first.'); 
+    return; 
+  }
+  // نستخدم إيميلك مباشرة حتى لا يعتمد على متغيرات البيئة إذا لم تُمرر
+  const targetEmail = (ADMIN_EMAIL && ADMIN_EMAIL.trim()) || 'thaeraladom@gmail.com';
+
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
+    email: targetEmail, 
+    password: masterPassword 
+  });
+
+  if (authError) { 
+    console.error('Supabase Auth Error:', authError);
+    setError(authError.message === 'Invalid login credentials' ? t.invalidAdminAlert : authError.message); 
+    return; 
+  }
+
+  setAdminPassword(masterPassword);
+  setIsAdmin(true); 
+  setIsUnlocked(true); 
+  setAdminSubView('dashboard'); 
+  setError('');
+  await loadAdminUsersData();
+  return;
+}
       setAdminPassword(masterPassword);
       setIsAdmin(true); setIsUnlocked(true); setAdminSubView('dashboard'); setError('');
       await loadAdminUsersData();
