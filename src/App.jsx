@@ -1440,7 +1440,24 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
                             {u.isLocked && (
-                              <button onClick={async () => { const { error } = await supabase.rpc('admin_unlock_vault', { p_vault_id: u.id }); if (error) triggerNotice(error.message); else { await loadAdminUsersData(); triggerNotice(t.unblockSuccessAlert); } }} className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
+                              <button onClick={async () => {
+                                if (supabaseConfigured) {
+                                  const { error } = await supabase.rpc('admin_unlock_vault', { p_vault_id: String(u.id) });
+                                  if (error) {
+                                    triggerNotice(error.message);
+                                    return;
+                                  }
+                                }
+                                const metaKey = `passguard_meta_${u.username}`;
+                                try {
+                                  const m = JSON.parse(localStorage.getItem(metaKey) || '{}');
+                                  m.isLocked = false;
+                                  m.alert = false;
+                                  localStorage.setItem(metaKey, JSON.stringify(m));
+                                } catch (e) {}
+                                await loadAdminUsersData();
+                                triggerNotice(t.unblockSuccessAlert);
+                              }} className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
                                 <Unlock className="w-3.5 h-3.5" /> {t.unblockBtn}
                               </button>
                             )}
