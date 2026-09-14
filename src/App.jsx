@@ -120,7 +120,7 @@ const POPULAR_SITES = [
   { name: "IGN", url: "https://ign.com" }, { name: "GameSpot", url: "https://gamespot.com" },
   { name: "PC Gamer", url: "https://pcgamer.com" }, { name: "The Verge", url: "https://theverge.com" },
   { name: "TechCrunch", url: "https://techcrunch.com" }, { name: "Wired", url: "https://wired.com" },
-  { name: "CNET", url: "https://query.cnet.com" }, { name: "Forbes", url: "https://forbes.com" },
+  { name: "CNET", url: "https://cnet.com" }, { name: "Forbes", url: "https://forbes.com" },
   { name: "Bloomberg", url: "https://bloomberg.com" }, { name: "Wall Street Journal", url: "https://wsj.com" },
   { name: "New York Times", url: "https://nytimes.com" }, { name: "CNN", url: "https://cnn.com" },
   { name: "BBC", url: "https://bbc.com" }, { name: "Fox News", url: "https://foxnews.com" },
@@ -156,7 +156,7 @@ const translations = {
     rec2: "• Ensure passwords are at least 16 characters in length, incorporating symbols, numerals, and mixed-case letters.",
     rec3: "• Vault records are encrypted in the browser before being stored. Remote support access is enabled by the trusted administrator model.",
     noDeviceLogs: "No device login records captured yet.", currentSessionBadge: "Active Session",
-    aboutModalTitle: "About Pass-Guard",
+    aboutModalTitle: "About Pass-Guard: Simple Secure Vault",
     toolsModalTitle: "Password Strength Auditor", toolsPlaceholder: "Type any password to evaluate its resistance...",
     recordDetailsTitle: "Edit Record Details", siteUrlLabel: "Platform URL", usernameLabel: "Username", passwordRecordLabel: "Password",
     emailLabel: "Linked Email", phoneLabel: "Phone Number", groupLabel: "Group Category", lastModifiedLabel: "Last Modified Date:",
@@ -169,10 +169,11 @@ const translations = {
     emailPlaceholder: "Linked Email Address", phonePlaceholder: "Phone Number", notesPlaceholder: "Notes...", passwordPlaceholder: "Password",
     generatePassTitle: "Generate Password", saveRecordBtn: "Store in Vault", copiedFeedback: "Copied to clipboard successfully",
     invalidAdminAlert: "Invalid administrator credentials!", missingFieldsAlert: "Please fill in all mandatory fields.",
-    lockedAccountAlert: "Account temporarily locked. Consult administrator.", accountNotFoundAlert: "Vault record not found!",
-    maxTriesExceededAlert: "Maximum attempts exceeded. Vault locked.", incorrectPasswordAlert: "Incorrect master password!",
-    captchaFailedAlert: "Incorrect answer. Please retry.", captchaPassedAlert: "Verification successful. You have 3 additional attempts.",
-    reservedUsernameAlert: "This identifier is reserved by system policies.", passwordComplexityAlert: "Password must be at least 8 chars, contain an uppercase letter, a number, and a symbol.",
+    lockedAccountAlert: "Account locked due to repeated failed attempts. Please contact the administrator to restore access.",
+    accountNotFoundAlert: "Vault record not found!", maxTriesExceededAlert: "Maximum attempts exceeded. Vault locked for security.",
+    incorrectPasswordAlert: "Incorrect master password!", captchaFailedAlert: "Incorrect answer. Please retry.",
+    captchaPassedAlert: "Verification successful. You have 3 additional attempts.", reservedUsernameAlert: "This identifier is reserved by system policies.",
+    passwordComplexityAlert: "Password must be at least 8 chars, contain an uppercase letter, a number, and a symbol.",
     accountExistsAlert: "A vault with this identifier already exists!", unblockSuccessAlert: "Account suspension lifted successfully.",
     masterPassResetSuccessAlert: "Master password successfully reset and locks lifted.", importSuccessAlert: "Passwords imported successfully!",
     importPasswordMismatchAlert: "Master password does not match the imported file key!", importFormatErrorAlert: "Invalid backup file format!",
@@ -225,7 +226,7 @@ const translations = {
     generatePassTitle: "توليد كلمة مرور منيعة", saveRecordBtn: "حفظ في الخزنة", copiedFeedback: "تم النسخ إلى الحافظة بنجاح",
     invalidAdminAlert: "بيانات اعتماد المشرف غير صحيحة!", missingFieldsAlert: "يرجى استكمال جميع الحقول الإلزامية.",
     lockedAccountAlert: "الحساب موقوف أمنياً لتكرار المحاولات الفاشلة. يرجى التواصل مع المشرف العام.",
-    accountNotFoundAlert: "سجل الخزنة هذا غير موجود!", maxTriesExceededAlert: "تم استنفاد الحد الأقصى للمحاولات. تم تفعيل قفل الأمان وتسجيل إنذار.",
+    accountNotFoundAlert: "سجل الخزنة هذا غير موجود!", maxTriesExceededAlert: "تم استنفاد الحد الأقصى للمحاولات. تم تفعيل قفل الأمان وتعليق الخزنة.",
     incorrectPasswordAlert: "كلمة المرور الرئيسية غير صحيحة!", captchaFailedAlert: "الناتج الحسابي غير صحيح. أعد المحاولة.",
     captchaPassedAlert: "تم التحقق بنجاح. مُنحت 3 محاولات إضافية.", reservedUsernameAlert: "اسم المستخدم هذا محجوز لسياسات النظام.",
     passwordComplexityAlert: "كلمة المرور يجب أن لا تقل عن 8 خانات وتحتوي على حرف كبير، رقم، ورمز خاص.",
@@ -254,6 +255,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
+  const [captchaPassed, setCaptchaPassed] = useState(false);
   const [postCaptchaAttempts, setPostCaptchaAttempts] = useState(0);
   const [showCaptchaModal, setShowCaptchaModal] = useState(false);
   const [userCaptchaInput, setUserCaptchaInput] = useState('');
@@ -630,13 +632,61 @@ export default function App() {
     if (!identifier.trim() || !masterPassword.trim()) { setError(t.missingFieldsAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
 
+    const triggerFailedAttempt = async (targetVaultId = null) => {
+      if (captchaPassed) {
+        const nextPost = postCaptchaAttempts + 1;
+        setPostCaptchaAttempts(nextPost);
+        if (nextPost >= 3) {
+          if (supabaseConfigured && targetVaultId) {
+            await supabase.rpc('admin_update_vault', {
+              p_vault_id: targetVaultId,
+              p_identifier: cleanId,
+              p_master_password: masterPassword,
+              p_email: '',
+              p_phone: '',
+              p_is_locked: true,
+              p_alert: true,
+              p_encrypted_data: null
+            });
+          }
+          const metaKey = `passguard_meta_${cleanId}`;
+          let m = { isLocked: true, alert: true };
+          try { m = { ...JSON.parse(localStorage.getItem(metaKey) || '{}'), isLocked: true, alert: true }; } catch (e) {}
+          localStorage.setItem(metaKey, JSON.stringify(m));
+          setError(t.maxTriesExceededAlert);
+        } else {
+          setError(lang === 'ar' ? `كلمة المرور غير صحيحة! (المحاولات المتبقية: ${3 - nextPost})` : `Incorrect password! (${3 - nextPost} attempts remaining)`);
+        }
+      } else {
+        const nextAttempts = failedAttempts + 1;
+        setFailedAttempts(nextAttempts);
+        if (nextAttempts >= 5) {
+          const n1 = Math.floor(Math.random() * 10) + 1;
+          const n2 = Math.floor(Math.random() * 10) + 1;
+          setMathCaptcha({ num1: n1, num2: n2, answer: n1 + n2 });
+          setUserCaptchaInput('');
+          setShowCaptchaModal(true);
+          setError('');
+        } else {
+          setError(lang === 'ar' ? `كلمة المرور غير صحيحة! (${nextAttempts}/5)` : `Incorrect password! (${nextAttempts}/5)`);
+        }
+      }
+    };
+
     if (supabaseConfigured) {
       const { data, error: rpcError } = await supabase.rpc('login_vault', {
         p_identifier: cleanId,
         p_master_password: masterPassword,
       });
       const row = Array.isArray(data) ? data[0] : data;
-      if (rpcError) { setError(rpcError.message); return; }
+      if (rpcError) {
+        if (rpcError.message.includes('locked')) {
+          setError(t.lockedAccountAlert);
+          return;
+        }
+        await triggerFailedAttempt();
+        return;
+      }
       if (row?.is_locked) { setError(t.lockedAccountAlert); return; }
       if (row?.encrypted_data) {
         const decrypted = await decryptData(row.encrypted_data, masterPassword);
@@ -647,9 +697,12 @@ export default function App() {
           let customGroups = ['شخصي', 'عمل'];
           decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
           setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
-          setFailedAttempts(0); setPostCaptchaAttempts(0);
+          setFailedAttempts(0); setCaptchaPassed(false); setPostCaptchaAttempts(0);
           cacheVaultLocally(cleanId, row.encrypted_data, row);
           await registerDeviceLogin(cleanId, row.id, masterPassword);
+          return;
+        } else {
+          await triggerFailedAttempt(row.id);
           return;
         }
       }
@@ -670,7 +723,7 @@ export default function App() {
             let customGroups = ['شخصي', 'عمل'];
             legacyDecrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
             setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
-            setFailedAttempts(0); setPostCaptchaAttempts(0);
+            setFailedAttempts(0); setCaptchaPassed(false); setPostCaptchaAttempts(0);
             await registerDeviceLogin(cleanId, migratedRow?.id, masterPassword);
             triggerNotice(lang === 'ar' ? 'تمت مزامنة خزنتك المحلية القديمة إلى الخادم بنجاح.' : 'Your legacy local vault was successfully migrated to the cloud.');
             return;
@@ -678,7 +731,7 @@ export default function App() {
         }
       } catch (migrationError) {}
 
-      setError(t.incorrectPasswordAlert);
+      await triggerFailedAttempt(row?.id || null);
       return;
     }
 
@@ -696,27 +749,10 @@ export default function App() {
       let customGroups = ['شخصي', 'عمل'];
       decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
       setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
-      setFailedAttempts(0); setPostCaptchaAttempts(0);
+      setFailedAttempts(0); setCaptchaPassed(false); setPostCaptchaAttempts(0);
       registerDeviceLogin(cleanId, null, null);
     } else {
-      if (failedAttempts >= 5) {
-        const newPostAttempts = postCaptchaAttempts + 1;
-        setPostCaptchaAttempts(newPostAttempts);
-        if (newPostAttempts >= 3) {
-          metaData.isLocked = true; metaData.alert = true;
-          localStorage.setItem(metaKey, JSON.stringify(metaData));
-          setError(t.maxTriesExceededAlert); return;
-        } else setError(`${t.incorrectPasswordAlert} (${3 - newPostAttempts})`);
-      } else {
-        const newAttempts = failedAttempts + 1;
-        setFailedAttempts(newAttempts);
-        if (newAttempts >= 5) {
-          const n1 = Math.floor(Math.random() * 10) + 1;
-          const n2 = Math.floor(Math.random() * 10) + 1;
-          setMathCaptcha({ num1: n1, num2: n2, answer: n1 + n2 });
-          setUserCaptchaInput(''); setShowCaptchaModal(true); setError('');
-        } else setError(`${t.incorrectPasswordAlert} (${newAttempts}/5)`);
-      }
+      await triggerFailedAttempt();
     }
   };
 
@@ -1045,16 +1081,27 @@ export default function App() {
 
       {showCaptchaModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
-          <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+          <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
             <h3 className="text-base font-bold mb-2 flex items-center gap-2"><ShieldAlert className="w-5 h-5 text-amber-500" />{t.captchaTitle}</h3>
             <p className="text-xs text-slate-400 mb-4">{t.captchaSub}</p>
             <div className="text-center mb-4 p-4 rounded-xl bg-indigo-600/10 border border-indigo-500/30">
-              <p className="text-2xl font-black font-mono text-indigo-400">{mathCaptcha.num1} + {mathCaptcha.num2} = ?</p>
+              <p className="text-2xl font-black font-mono text-indigo-400" dir="ltr">{mathCaptcha.num1} + {mathCaptcha.num2} = ?</p>
             </div>
             <input type="number" value={userCaptchaInput} onChange={(e) => setUserCaptchaInput(e.target.value)} placeholder={t.captchaInput} className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-indigo-500 mb-4 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
             <div className="flex gap-2">
               <button onClick={() => { setShowCaptchaModal(false); setUserCaptchaInput(''); }} className={`flex-1 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>{t.cancelBtn}</button>
-              <button onClick={() => { if (parseInt(userCaptchaInput) === mathCaptcha.answer) { setShowCaptchaModal(false); setUserCaptchaInput(''); setFailedAttempts(0); setPostCaptchaAttempts(0); setError(t.captchaPassedAlert); } else { setError(t.captchaFailedAlert); setUserCaptchaInput(''); } }} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer">{t.captchaSubmit}</button>
+              <button onClick={() => { 
+                if (parseInt(userCaptchaInput) === mathCaptcha.answer) { 
+                  setShowCaptchaModal(false); 
+                  setUserCaptchaInput(''); 
+                  setCaptchaPassed(true);
+                  setPostCaptchaAttempts(0);
+                  triggerNotice(t.captchaPassedAlert);
+                } else { 
+                  setError(t.captchaFailedAlert); 
+                  setUserCaptchaInput(''); 
+                } 
+              }} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg">{t.captchaSubmit}</button>
             </div>
           </div>
         </div>
