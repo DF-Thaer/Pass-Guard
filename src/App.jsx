@@ -337,7 +337,7 @@ export default function App() {
     
     if (/android/i.test(ua)) {
       os = "Android Mobile";
-      const match = ua.match(/\b(SM-[A-Za-z0-9]+|X(7[Cc]|6[Cc]|8[Cc])|Honor\s[A-Za-z0-9\s]+|Pixel\s[0-9a-zA-Z\s]+|Redmi\s[A-Za-z0-9\s]+|POCO\s[A-Za-z0-9\s]+|V2[0-9]{3}[A-Za-z]*|CPH[0-9]{4}|M2[0-9]{3}[A-Za-z0-9]+)\b/i);
+      const match = ua.match(/\b(SM-[A-Za-z0-9]+|X(7[Cc]|6[Cc]|8[Cc])|Honor\s[A-Za-z0-9\s]+|Pixel\s[0-9a-zA-Z\s]+|Redmi\s[A-Za-z0-9\s]+|POCO\s[A-Za-z0-9]+|V2[0-9]{3}[A-Za-z]*|CPH[0-9]{4}|M2[0-9]{3}[A-Za-z0-9]+)\b/i);
       if (match && match[0]) model = match[0].trim();
       else {
         const altMatch = ua.match(/;\s([^;)]+)\sBuild\//);
@@ -403,32 +403,42 @@ export default function App() {
       isCurrent: true
     };
 
-    if (supabaseConfigured && vaultId && loginPassword) {
+    if (supabaseConfigured && vaultId) {
       try {
-        const { data, error } = await supabase.rpc('record_device_log', {
-          p_vault_id: vaultId,
-          p_master_password: loginPassword,
-          p_device_id: device.deviceId,
-          p_os: device.os,
-          p_browser: device.browser,
-          p_screen_res: device.screenRes,
-          p_ip: netInfo.ip,
-          p_isp: netInfo.isp,
-          p_location: netInfo.location,
-          p_last_login: nowISO,
-        });
-        if (!error && Array.isArray(data) && data.length > 0) {
-          const formatted = data.map(d => ({
+        await supabase.from('vault_device_logs').update({ is_current: false }).eq('vault_id', vaultId);
+        await supabase.from('vault_device_logs').upsert({
+          vault_id: vaultId,
+          device_id: device.deviceId,
+          os: device.os,
+          browser: device.browser,
+          screen_res: device.screenRes,
+          ip: netInfo.ip,
+          isp: netInfo.isp,
+          location: netInfo.location,
+          last_login: nowISO,
+          is_current: true
+        }, { onConflict: 'vault_id,device_id' });
+
+        const { data: cloudLogs } = await supabase
+          .from('vault_device_logs')
+          .select('*')
+          .eq('vault_id', vaultId)
+          .order('last_login', { ascending: false });
+
+        if (cloudLogs && cloudLogs.length > 0) {
+          const formatted = cloudLogs.map(d => ({
             ...d,
-            deviceId: d.device_id || d.deviceId,
-            screenRes: d.screen_res || d.screenRes,
-            lastLogin: d.last_login || d.lastLogin,
-            isCurrent: (d.device_id || d.deviceId) === device.deviceId
+            deviceId: d.device_id,
+            screenRes: d.screen_res,
+            lastLogin: d.last_login,
+            isCurrent: d.device_id === device.deviceId
           }));
           setVaultDeviceLogs(formatted);
           return;
         }
-      } catch (err) {}
+      } catch (err) {
+        console.error('Cloud device sync error:', err);
+      }
     }
 
     const logKey = `passguard_devices_${cleanId}`;
@@ -1582,7 +1592,24 @@ export default function App() {
                   <button onClick={() => setVaultSubView('items')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${vaultSubView === 'items' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
                     <Users className={`w-3.5 h-3.5 ${vaultSubView === 'items' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultItemsBtn}</span>
                   </button>
-                  <button onClick={() => setVaultSubView('audit')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
+                  <button onClick={async () => {
+                    setVaultSubView('audit');
+                    if (supabaseConfigured && currentVaultId) {
+                      try {
+                        const { data } = await supabase.from('vault_device_logs').select('*').eq('vault_id', currentVaultId).order('last_login', { ascending: false });
+                        if (data && data.length > 0) {
+                          const curDev = parseDeviceInfo();
+                          setVaultDeviceLogs(data.map(d => ({
+                            ...d,
+                            deviceId: d.device_id,
+                            screenRes: d.screen_res,
+                            lastLogin: d.last_login,
+                            isCurrent: d.device_id === curDev.deviceId
+                          })));
+                        }
+                      } catch (e) {}
+                    }
+                  }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
                     <Activity className={`w-3.5 h-3.5 ${vaultSubView === 'audit' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultDossierBtn}</span>
                   </button>
                   <button onClick={() => setVaultSubView('add')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${vaultSubView === 'add' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
