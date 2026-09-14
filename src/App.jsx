@@ -334,19 +334,32 @@ export default function App() {
   const parseDeviceInfo = () => {
     const ua = navigator.userAgent;
     let os = lang === 'ar' ? "نظام غير معروف" : "Unknown OS";
-    if (ua.indexOf("Win") !== -1) os = "Windows PC";
-    else if (ua.indexOf("Mac") !== -1) os = "Apple macOS";
-    else if (ua.indexOf("Linux") !== -1) os = "Linux";
-    else if (ua.indexOf("Android") !== -1) os = "Android";
-    else if (ua.indexOf("like Mac") !== -1) os = "Apple iOS";
+    let model = "";
+    if (/android/i.test(ua)) {
+      os = "Android OS";
+      const match = ua.match(/;\s([^;]+)\sBuild\//);
+      if (match && match[1]) model = match[1].trim();
+    } else if (/iphone|ipad|ipod/i.test(ua)) {
+      os = "Apple iOS";
+      if (/iphone/i.test(ua)) model = "iPhone";
+      else if (/ipad/i.test(ua)) model = "iPad";
+    } else if (/win/i.test(ua)) {
+      os = "Windows PC";
+      if (/windows nt 10.0/i.test(ua)) model = "Windows 10/11";
+    } else if (/mac/i.test(ua)) {
+      os = "Apple macOS";
+      model = "MacBook / iMac";
+    } else if (/linux/i.test(ua)) {
+      os = "Linux PC";
+    }
     let browser = lang === 'ar' ? "متصفح غير معروف" : "Unknown Browser";
     if (ua.indexOf("Chrome") !== -1 && ua.indexOf("Edg") === -1) browser = "Google Chrome";
     else if (ua.indexOf("Safari") !== -1 && ua.indexOf("Chrome") === -1) browser = "Apple Safari";
     else if (ua.indexOf("Firefox") !== -1) browser = "Mozilla Firefox";
     else if (ua.indexOf("Edg") !== -1) browser = "Microsoft Edge";
     const screenRes = `${window.screen.width}x${window.screen.height}`;
-    const deviceId = `DEV-${Math.abs(screenRes.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(16).toUpperCase()}`;
-    return { os, browser, screenRes, deviceId };
+    const deviceId = `DEV-${Math.abs((model + os + browser + screenRes).split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(16).toUpperCase()}`;
+    return { os: model ? `${model} (${os})` : os, browser, screenRes, deviceId };
   };
 
   const registerDeviceLogin = async (cleanId, vaultId, loginPassword) => {
@@ -401,7 +414,7 @@ export default function App() {
             deviceId: d.device_id || d.deviceId,
             screenRes: d.screen_res || d.screenRes,
             lastLogin: d.last_login || d.lastLogin,
-            isCurrent: d.is_current !== undefined ? d.is_current : d.isCurrent
+            isCurrent: (d.device_id || d.deviceId) === device.deviceId
           }));
           setVaultDeviceLogs(formatted);
           return;
@@ -415,10 +428,15 @@ export default function App() {
       const saved = localStorage.getItem(logKey);
       if (saved) logs = JSON.parse(saved);
     } catch (e) {}
-    const existingIndex = logs.findIndex(l => (l.device_id || l.deviceId) === device.deviceId && l.ip === netInfo.ip);
-    if (existingIndex !== -1) logs[existingIndex] = localEntry;
-    else logs.unshift(localEntry);
-    const updated = logs.slice(0, 10);
+    
+    logs.forEach(l => { l.is_current = false; l.isCurrent = false; });
+    const existingIndex = logs.findIndex(l => (l.device_id || l.deviceId) === device.deviceId);
+    if (existingIndex !== -1) {
+      logs[existingIndex] = { ...localEntry, is_current: true, isCurrent: true };
+    } else {
+      logs.unshift(localEntry);
+    }
+    const updated = logs.slice(0, 15);
     try { localStorage.setItem(logKey, JSON.stringify(updated)); } catch (e) {}
     setVaultDeviceLogs(updated);
   };
@@ -1837,7 +1855,7 @@ export default function App() {
                           <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                             <div className="flex items-start gap-3">
                               <div className={`p-2.5 rounded-xl border shrink-0 ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400' : 'bg-white border-slate-300 text-indigo-600'}`}>
-                                {(dev.os || '').includes("Android") || (dev.os || '').includes("iOS") ? <Smartphone className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
+                                {(dev.os || '').includes("Android") || (dev.os || '').includes("iOS") || (dev.os || '').includes("iPhone") || (dev.os || '').includes("Samsung") ? <Smartphone className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
                               </div>
                               <div className="space-y-0.5 text-xs">
                                 <h4 className="font-bold flex items-center gap-2">
@@ -1877,7 +1895,7 @@ export default function App() {
                       </div>
                       <div>
                         <label className="block mb-1 text-slate-400">{t.passwordLabel}</label>
-                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 font-mono ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-slate-50 border-slate-300 text-amber-600'}`} required />
+                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-slate-50 border-slate-300 text-amber-600'}`} required />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
