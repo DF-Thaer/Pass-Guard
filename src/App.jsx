@@ -225,7 +225,7 @@ const translations = {
     generatePassTitle: "توليد كلمة مرور منيعة", saveRecordBtn: "حفظ في الخزنة", copiedFeedback: "تم النسخ إلى الحافظة بنجاح",
     invalidAdminAlert: "بيانات اعتماد المشرف غير صحيحة!", missingFieldsAlert: "يرجى استكمال جميع الحقول الإلزامية.",
     lockedAccountAlert: "الحساب موقوف أمنياً لتكرار المحاولات الفاشلة. يرجى التواصل مع المشرف العام.",
-    accountNotFoundAlert: "سجل الخزنة هذا غير موجود!", maxTriesExceededAlert: "تم استنفاد الحد الأقص للمحاولات. تم تفعيل قفل الأمان وتعليق الخزنة.",
+    accountNotFoundAlert: "سجل الخزنة هذا غير موجود!", maxTriesExceededAlert: "تم استنفاد الحد الأقصى للمحاولات. تم تفعيل قفل الأمان وتعليق الخزنة.",
     incorrectPasswordAlert: "كلمة المرور الرئيسية غير صحيحة!", captchaFailedAlert: "الناتج الحسابي غير صحيح. أعد المحاولة.",
     captchaPassedAlert: "تم التحقق بنجاح. مُنحت 3 محاولات إضافية.", reservedUsernameAlert: "اسم المستخدم هذا محجوز لسياسات النظام.",
     passwordComplexityAlert: "كلمة المرور يجب أن لا تقل عن 8 خانات وتحتوي على حرف كبير، رقم، ورمز خاص.",
@@ -1491,7 +1491,7 @@ export default function App() {
                             <button onClick={() => openAdminManageUser(u)} className="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
                               <Edit3 className="w-3.5 h-3.5" /> <span>{t.manageUserBtn}</span>
                             </button>
-                            <button onClick={() => { askConfirm(t.deleteAccountConfirm, async () => { const { error } = await supabase.rpc('admin_delete_vault', { p_vault_id: u.id }); if (error) triggerNotice(error.message); else { await loadAdminUsersData(); triggerNotice(lang === 'ar' ? 'تم حذف الخزنة بنجاح.' : 'Vault deleted successfully.'); } }); }} className="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
+                            <button onClick={() => { askConfirm(t.deleteAccountConfirm, async () => { const { error } = await supabase.rpc('admin_delete_vault', { p_vault_id: String(u.id) }); if (error) triggerNotice(error.message); else { await loadAdminUsersData(); triggerNotice(lang === 'ar' ? 'تم حذف الخزنة بنجاح.' : 'Vault deleted successfully.'); } }); }} className="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
                               <Trash2 className="w-3.5 h-3.5" /> {t.deleteAccountBtn}
                             </button>
                           </div>
@@ -1893,7 +1893,7 @@ export default function App() {
               {vaultSubView === 'settings' && (
                 <div className="flex-1 flex flex-col p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                    <h3 className="text-base font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-amber-500" />{t.vaultSettingsTitle}</h3>
+                    <h3 className="text-base font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-indigo-500" />{t.vaultSettingsTitle}</h3>
                   </div>
                   <p className="text-[11px] text-slate-400 mb-4">{t.vaultSettingsSub}</p>
                   <form onSubmit={handleSaveSettings} className="space-y-3 text-xs">
