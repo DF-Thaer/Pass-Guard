@@ -235,7 +235,7 @@ const translations = {
     importPasswordMismatchAlert: "كلمة المرور الرئيسية الحالية لا تتطابق مع مفتاح تشفير الملف المستورد!", importFormatErrorAlert: "صيغة ملف النسخة الاحتياطية غير صالحة!",
     importReadErrorAlert: "حدث خطأ أثناء قراءة ملف النسخة الاحتياطية!", vaultActionsTitle: "إجراءات الخزنة", passLength: "طول كلمة المرور",
     includeSymbols: "تضمين الرموز الخاصة", includeNumbers: "تضمين الأرقام", toggleGenOptions: "خيارات المولد الحي والتحكم",
-    vaultSettingsTitle: "إدارة إعدادات الخزنة الشاملة", vaultSettingsSub: "تحديث بيانات الاعتماد ومعلومات الطوارئ",
+    vaultSettingsTitle: "Vault Security Management", vaultSettingsSub: "Update master credentials and recovery details",
     adminManageUserTitle: "إدارة بيانات المستخدم والخزنة", adminManageUserSub: "تعديل معلومات الطوارئ وتحديث بيانات الدخول",
     creationDateLabel: "تاريخ إنشاء الخزنة:", saveSettingsBtn: "تحديث وحفظ التغييرات", updateSuccessNotice: "تم تحديث البيانات بنجاح!",
     confirmDeleteGroup: "هل أنت متأكد من حذف المجموعة '{group}'؟ سيتم نقل حساباتها إلى '{all}'.",
@@ -337,8 +337,13 @@ export default function App() {
     let model = "";
     if (/android/i.test(ua)) {
       os = "Android OS";
-      const match = ua.match(/;\s([^;]+)\sBuild\//);
-      if (match && match[1]) model = match[1].trim();
+      const match = ua.match(/\b(SM-[A-Za-z0-9]+|X(7[Cc]|6[Cc]|8[Cc])|Honor\s[A-Za-z0-9]+|Pixel\s[0-9a-zA-Z\s]+|Redmi\s[A-Za-z0-9\s]+|POCO\s[A-Za-z0-9]+|V2[0-9]{3}[A-Za-z]*|CPH[0-9]{4}|M2[0-9]{3}[A-Za-z0-9]+)\b/i);
+      if (match && match[0]) model = match[0].trim();
+      else {
+        const altMatch = ua.match(/;\s([^;]+)\sBuild\//);
+        if (altMatch && altMatch[1]) model = altMatch[1].trim();
+        else model = "Android Device";
+      }
     } else if (/iphone|ipad|ipod/i.test(ua)) {
       os = "Apple iOS";
       if (/iphone/i.test(ua)) model = "iPhone";
@@ -358,7 +363,8 @@ export default function App() {
     else if (ua.indexOf("Firefox") !== -1) browser = "Mozilla Firefox";
     else if (ua.indexOf("Edg") !== -1) browser = "Microsoft Edge";
     const screenRes = `${window.screen.width}x${window.screen.height}`;
-    const deviceId = `DEV-${Math.abs((model + os + browser + screenRes).split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(16).toUpperCase()}`;
+    const uniqueToken = `${model}-${os}-${browser}-${screenRes}-${navigator.hardwareConcurrency || 4}`;
+    const deviceId = `DEV-${Math.abs(uniqueToken.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(16).toUpperCase()}`;
     return { os: model ? `${model} (${os})` : os, browser, screenRes, deviceId };
   };
 
@@ -378,7 +384,7 @@ export default function App() {
     } catch (e) {}
 
     const localEntry = {
-      id: `dev_${Date.now()}`,
+      id: `dev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       device_id: device.deviceId,
       deviceId: device.deviceId,
       os: device.os,
@@ -432,7 +438,7 @@ export default function App() {
     logs.forEach(l => { l.is_current = false; l.isCurrent = false; });
     const existingIndex = logs.findIndex(l => (l.device_id || l.deviceId) === device.deviceId);
     if (existingIndex !== -1) {
-      logs[existingIndex] = { ...localEntry, is_current: true, isCurrent: true };
+      logs[existingIndex] = { ...logs[existingIndex], ...localEntry, last_login: nowISO, lastLogin: nowISO, is_current: true, isCurrent: true };
     } else {
       logs.unshift(localEntry);
     }
@@ -1855,7 +1861,7 @@ export default function App() {
                           <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                             <div className="flex items-start gap-3">
                               <div className={`p-2.5 rounded-xl border shrink-0 ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400' : 'bg-white border-slate-300 text-indigo-600'}`}>
-                                {(dev.os || '').includes("Android") || (dev.os || '').includes("iOS") || (dev.os || '').includes("iPhone") || (dev.os || '').includes("Samsung") ? <Smartphone className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
+                                {(dev.os || '').includes("Android") || (dev.os || '').includes("iOS") || (dev.os || '').includes("iPhone") || (dev.os || '').includes("Samsung") || (dev.os || '').includes("Honor") ? <Smartphone className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
                               </div>
                               <div className="space-y-0.5 text-xs">
                                 <h4 className="font-bold flex items-center gap-2">
