@@ -120,7 +120,7 @@ const POPULAR_SITES = [
   { name: "IGN", url: "https://ign.com" }, { name: "GameSpot", url: "https://gamespot.com" },
   { name: "PC Gamer", url: "https://pcgamer.com" }, { name: "The Verge", url: "https://theverge.com" },
   { name: "TechCrunch", url: "https://techcrunch.com" }, { name: "Wired", url: "https://wired.com" },
-  { name: "CNET", url: "https://cnet.com" }, { name: "Forbes", url: "https://forbes.com" },
+  { name: "CNET", url: "https://query.cnet.com" }, { name: "Forbes", url: "https://forbes.com" },
   { name: "Bloomberg", url: "https://bloomberg.com" }, { name: "Wall Street Journal", url: "https://wsj.com" },
   { name: "New York Times", url: "https://nytimes.com" }, { name: "CNN", url: "https://cnn.com" },
   { name: "BBC", url: "https://bbc.com" }, { name: "Fox News", url: "https://foxnews.com" },
@@ -632,22 +632,17 @@ export default function App() {
     if (!identifier.trim() || !masterPassword.trim()) { setError(t.missingFieldsAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
 
-    const triggerFailedAttempt = async (targetVaultId = null) => {
+    const triggerFailedAttempt = async () => {
       if (captchaPassed) {
         const nextPost = postCaptchaAttempts + 1;
         setPostCaptchaAttempts(nextPost);
         if (nextPost >= 3) {
-          if (supabaseConfigured && targetVaultId) {
-            await supabase.rpc('admin_update_vault', {
-              p_vault_id: targetVaultId,
-              p_identifier: cleanId,
-              p_master_password: masterPassword,
-              p_email: '',
-              p_phone: '',
-              p_is_locked: true,
-              p_alert: true,
-              p_encrypted_data: null
-            });
+          if (supabaseConfigured) {
+            try {
+              await supabase.rpc('lock_vault_security_alert', { p_identifier: cleanId });
+            } catch (err) {
+              console.error('Failed to trigger lock alert:', err);
+            }
           }
           const metaKey = `passguard_meta_${cleanId}`;
           let m = { isLocked: true, alert: true };
@@ -702,7 +697,7 @@ export default function App() {
           await registerDeviceLogin(cleanId, row.id, masterPassword);
           return;
         } else {
-          await triggerFailedAttempt(row.id);
+          await triggerFailedAttempt();
           return;
         }
       }
@@ -731,7 +726,7 @@ export default function App() {
         }
       } catch (migrationError) {}
 
-      await triggerFailedAttempt(row?.id || null);
+      await triggerFailedAttempt();
       return;
     }
 
