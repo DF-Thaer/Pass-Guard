@@ -225,7 +225,7 @@ const translations = {
     generatePassTitle: "توليد كلمة مرور منيعة", saveRecordBtn: "حفظ في الخزنة", copiedFeedback: "تم النسخ إلى الحافظة بنجاح",
     invalidAdminAlert: "بيانات اعتماد المشرف غير صحيحة!", missingFieldsAlert: "يرجى استكمال جميع الحقول الإلزامية.",
     lockedAccountAlert: "الحساب موقوف أمنياً لتكرار المحاولات الفاشلة. يرجى التواصل مع المشرف العام.",
-    accountNotFoundAlert: "سجل الخزنة هذا غير موجود!", maxTriesExceededAlert: "تم استنفاد الحد الأقصى للمحاولات. تم تفعيل قفل الأمان وتعليق الخزنة.",
+    accountNotFoundAlert: "سجل الخزنة هذا غير موجود!", maxTriesExceededAlert: "تم استنفاد الحد الأقص للمحاولات. تم تفعيل قفل الأمان وتعليق الخزنة.",
     incorrectPasswordAlert: "كلمة المرور الرئيسية غير صحيحة!", captchaFailedAlert: "الناتج الحسابي غير صحيح. أعد المحاولة.",
     captchaPassedAlert: "تم التحقق بنجاح. مُنحت 3 محاولات إضافية.", reservedUsernameAlert: "اسم المستخدم هذا محجوز لسياسات النظام.",
     passwordComplexityAlert: "كلمة المرور يجب أن لا تقل عن 8 خانات وتحتوي على حرف كبير، رقم، ورمز خاص.",
@@ -238,7 +238,7 @@ const translations = {
     adminManageUserTitle: "إدارة بيانات المستخدم والخزنة", adminManageUserSub: "تعديل معلومات الطوارئ وتحديث بيانات الدخول",
     creationDateLabel: "تاريخ إنشاء الخزنة:", saveSettingsBtn: "تحديث وحفظ التغييرات", updateSuccessNotice: "تم تحديث البيانات بنجاح!",
     confirmDeleteGroup: "هل أنت متأكد من حذف المجموعة '{group}'؟ سيتم نقل حساباتها إلى '{all}'.",
-    groupDeletedNotice: "تم حذف المجموعة ونقل حساباتها بنجاح."
+    groupDeletedNotice: "Group deleted successfully."
   }
 };
 
@@ -334,14 +334,15 @@ export default function App() {
     const ua = navigator.userAgent;
     let os = lang === 'ar' ? "نظام غير معروف" : "Unknown OS";
     let model = "";
+    
     if (/android/i.test(ua)) {
-      os = "Android OS";
-      const match = ua.match(/\b(SM-[A-Za-z0-9]+|X(7[Cc]|6[Cc]|8[Cc])|Honor\s[A-Za-z0-9]+|Pixel\s[0-9a-zA-Z\s]+|Redmi\s[A-Za-z0-9\s]+|POCO\s[A-Za-z0-9]+|V2[0-9]{3}[A-Za-z]*|CPH[0-9]{4}|M2[0-9]{3}[A-Za-z0-9]+)\b/i);
+      os = "Android Mobile";
+      const match = ua.match(/\b(SM-[A-Za-z0-9]+|X(7[Cc]|6[Cc]|8[Cc])|Honor\s[A-Za-z0-9\s]+|Pixel\s[0-9a-zA-Z\s]+|Redmi\s[A-Za-z0-9\s]+|POCO\s[A-Za-z0-9\s]+|V2[0-9]{3}[A-Za-z]*|CPH[0-9]{4}|M2[0-9]{3}[A-Za-z0-9]+)\b/i);
       if (match && match[0]) model = match[0].trim();
       else {
-        const altMatch = ua.match(/;\s([^;]+)\sBuild\//);
+        const altMatch = ua.match(/;\s([^;)]+)\sBuild\//);
         if (altMatch && altMatch[1]) model = altMatch[1].trim();
-        else model = "Android Device";
+        else model = "Android Phone";
       }
     } else if (/iphone|ipad|ipod/i.test(ua)) {
       os = "Apple iOS";
@@ -349,20 +350,23 @@ export default function App() {
       else if (/ipad/i.test(ua)) model = "iPad";
     } else if (/win/i.test(ua)) {
       os = "Windows PC";
-      if (/windows nt 10.0/i.test(ua)) model = "Windows 10/11";
+      model = "Windows Desktop";
     } else if (/mac/i.test(ua)) {
       os = "Apple macOS";
       model = "MacBook / iMac";
     } else if (/linux/i.test(ua)) {
       os = "Linux PC";
+      model = "Linux System";
     }
-    let browser = lang === 'ar' ? "متصفح غير معروف" : "Unknown Browser";
+
+    let browser = "Browser";
     if (ua.indexOf("Chrome") !== -1 && ua.indexOf("Edg") === -1) browser = "Google Chrome";
     else if (ua.indexOf("Safari") !== -1 && ua.indexOf("Chrome") === -1) browser = "Apple Safari";
     else if (ua.indexOf("Firefox") !== -1) browser = "Mozilla Firefox";
     else if (ua.indexOf("Edg") !== -1) browser = "Microsoft Edge";
+
     const screenRes = `${window.screen.width}x${window.screen.height}`;
-    const uniqueToken = `${model}-${os}-${browser}-${screenRes}-${navigator.hardwareConcurrency || 4}`;
+    const uniqueToken = `${model}-${os}-${browser}-${screenRes}-${window.navigator.maxTouchPoints || 0}`;
     const deviceId = `DEV-${Math.abs(uniqueToken.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(16).toUpperCase()}`;
     return { os: model ? `${model} (${os})` : os, browser, screenRes, deviceId };
   };
@@ -1889,7 +1893,7 @@ export default function App() {
               {vaultSubView === 'settings' && (
                 <div className="flex-1 flex flex-col p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                    <h3 className="text-base font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-indigo-500" />{t.vaultSettingsTitle}</h3>
+                    <h3 className="text-base font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-amber-500" />{t.vaultSettingsTitle}</h3>
                   </div>
                   <p className="text-[11px] text-slate-400 mb-4">{t.vaultSettingsSub}</p>
                   <form onSubmit={handleSaveSettings} className="space-y-3 text-xs">
