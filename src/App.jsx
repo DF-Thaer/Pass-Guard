@@ -1916,7 +1916,7 @@ export default function App() {
                     </div>
                     <div className={`p-3 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                       <span className="text-slate-400">{t.creationDateLabel}</span>
-                      <span className="font-mono text-indigo-400">{formatDate(manageData.createdAt)}</span>
+                      <span className="font-mono text-indigo-400">{formatDate(manageData.createdAt)}</li>
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
                       <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.saveSettingsBtn}</button>
@@ -1932,7 +1932,7 @@ export default function App() {
       <footer className={`w-full px-8 py-4 border-t z-20 flex flex-col sm:flex-row items-center justify-between text-xs transition-colors duration-500 shrink-0 ${isDark ? 'bg-slate-950/70 border-slate-800/80 text-slate-500 backdrop-blur-md' : 'bg-white/80 border-slate-200 text-slate-500 backdrop-blur-md'}`}>
         <span>© 2026 Pass-Guard. Open-Source & Secure.</span>
         <div className="flex items-center gap-4 mt-2 sm:mt-0">
-          <span className="flex items-center gap-1 font-mono text-indigo-400" dir="ltr"><Shield className="w-3.5 h-3.5" /> AES-GCM 256-bit</span>
+          <span className="flex items-center gap-1 font-mono text-indigo-400" dir="ltr"><Shield className="w-3.5 h-3.5" -> AES-GCM 256-bit</span>
           <span>Zero-Knowledge Architecture</span>
         </div>
       </footer>
