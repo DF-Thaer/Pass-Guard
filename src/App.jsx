@@ -134,14 +134,14 @@ const translations = {
     openVaultBtn: "Open Vault (Sign In)", createVaultBtn: "Create New Vault", adminPortalBtn: "Administration Portal",
     statVisits: "Total Visits", statLocal: "Encrypted Vault", statEncryption: "AES-GCM Encryption", statProtection: "Active Protection",
     loginHeading: "Sign In", registerHeading: "Create New Vault", adminHeading: "Administrator Portal",
-    loginSub: "Enter credentials to decrypt your vault and access saved records", registerSub: "Create a local encrypted vault secured by a master password", adminSub: "Exclusive global administrative access for system auditing, support, and security alerts",
-    identifierLabel: "Username, Email, or Phone", adminIdentifierLabel: "Administrator Identifier", passwordLabel: "Master Password", adminPasswordLabel: "Administrator Secret Key",
+    loginSub: "Enter credentials to decrypt your vault and access saved records", registerSub: "Create a secure encrypted vault secured by a master password", adminSub: "Exclusive global administrative access for system auditing, support, and security alerts",
+    identifierLabel: "Username, Email, or Phone", adminIdentifierLabel: "Administrator Identifier", passwordLabel: "Master Password", confirmPasswordLabel: "Confirm Master Password", adminPasswordLabel: "Administrator Secret Key",
     submitLogin: "Decrypt Vault", submitRegister: "Create & Initialize Vault", submitAdmin: "Access Admin Dashboard",
     backToHome: "Return to Home & Choose Another Action", adminPanelTitle: "Advanced Administrative Control Panel", adminBadge: "Root Admin",
-    adminPanelSub: "Encrypted system auditing metrics and local storage health monitoring", registeredUsersCount: "Total Registered Users",
+    adminPanelSub: "Global encrypted system auditing metrics and cloud sync monitoring", registeredUsersCount: "Total Registered Users",
     visitsCounter: "Visits Counter", resetVisitsConfirm: "Are you sure you want to reset the visits counter to 0?",
     securityScore: "Overall Security Rating", activeAlerts: "Active Security Alerts", userRecordsTitle: "Registered Vaults & Security Alerts",
-    noUsers: "No registered vaults found locally.", accountSuspended: "Security Locked", securityAlertBadge: "Security Warning",
+    noUsers: "No registered vaults found.", accountSuspended: "Security Locked", securityAlertBadge: "Security Warning",
     localCryptoNote: "Cloud-Synced Encrypted Vault", unblockBtn: "Lift Suspension", manageUserBtn: "Manage Account",
     deleteAccountBtn: "Delete Vault", deleteAccountConfirm: "Are you sure you want to permanently delete this vault?",
     vaultTitlePrefix: "Encrypted Password Vault:", vaultDossierBtn: "Vault Security Audit", vaultItemsBtn: "Accounts View",
@@ -173,6 +173,7 @@ const translations = {
     incorrectPasswordAlert: "Incorrect master password!", captchaFailedAlert: "Incorrect answer. Please retry.",
     captchaPassedAlert: "Verification successful. You have 3 additional attempts.", reservedUsernameAlert: "This identifier is reserved by system policies.",
     passwordComplexityAlert: "Password must be at least 8 chars, contain an uppercase letter, a number, and a symbol.",
+    passwordsMismatchAlert: "Master passwords do not match!", englishOnlyAlert: "Password must only contain English letters, numbers, and symbols.",
     accountExistsAlert: "A vault with this identifier already exists!", unblockSuccessAlert: "Account suspension lifted successfully.",
     masterPassResetSuccessAlert: "Master password successfully reset and locks lifted.", importSuccessAlert: "Passwords imported successfully!",
     importPasswordMismatchAlert: "Master password does not match the imported file key!", importFormatErrorAlert: "Invalid backup file format!",
@@ -190,16 +191,16 @@ const translations = {
     openVaultBtn: "فتح الخزنة (تسجيل الدخول)", createVaultBtn: "إنشاء خزنة جديدة", adminPortalBtn: "بوابة المشرف العام",
     statVisits: "إجمالي الزيارات", statLocal: "خزنة مشفرة", statEncryption: "AES-GCM تشفير", statProtection: "حماية مستمرة",
     loginHeading: "تسجيل الدخول", registerHeading: "إنشاء خزنة جديدة", adminHeading: "بوابة المشرف العام",
-    loginSub: "أدخل بياناتك لفك تشفير الخزنة والوصول إلى حساباتك المحفوظة", registerSub: "أنشئ خزنتك المشفرة محلياً والمحمية بكلمة مرورك الرئيسية", adminSub: "وصول إداري عالمي حصري لتدقيق الخزنات والدعم الفني ومتابعة الإنذارات الأمنية",
-    identifierLabel: "اسم المستخدم، البريد، أو رقم الهاتف", adminIdentifierLabel: "معرّف المشرف", passwordLabel: "كلمة المرور الرئيسية", adminPasswordLabel: "المفتاح السري للمشرف",
+    loginSub: "أدخل بياناتك لفك تشفير الخزنة والوصول إلى حساباتك المحفوظة", registerSub: "أنشئ خزنتك المشفرة والمحمية بكلمة مرورك الرئيسية", adminSub: "وصول إداري عالمي حصري لتدقيق الخزنات والدعم الفني ومتابعة الإنذارات الأمنية",
+    identifierLabel: "اسم المستخدم، البريد، أو رقم الهاتف", adminIdentifierLabel: "معرّف المشرف", passwordLabel: "كلمة المرور الرئيسية", confirmPasswordLabel: "تأكيد كلمة المرور الرئيسية", adminPasswordLabel: "المفتاح السري للمشرف",
     submitLogin: "فك تشفير الخزنة", submitRegister: "إنشاء الخزنة وبدء الاستخدام", submitAdmin: "دخول لوحة التحكم",
     backToHome: "العودة للرئيسية واختيار مسار آخر", adminPanelTitle: "لوحة القيادة والتحكم الإداري المتقدم", adminBadge: "مشرف النظام",
-    adminPanelSub: "نظام تدقيق العمليات الأمنية ومراقبة سلامة وسائط التخزين المحلية", registeredUsersCount: "إجمالي المستخدمين المسجلين",
+    adminPanelSub: "نظام تدقيق العمليات الأمنية ومراقبة سلامة المزامنة السحابية العالمية", registeredUsersCount: "إجمالي المستخدمين المسجلين",
     visitsCounter: "عداد الزيارات", resetVisitsConfirm: "هل أنت متأكد من تصفير عداد الزيارات بالكامل إلى 0؟",
     securityScore: "مؤشر الأمان العام", activeAlerts: "التنبيهات الأمنية النشطة", userRecordsTitle: "قائمة الخزنات المسجلة والتنبيهات الأمنية",
-    noUsers: "لا توجد أي خزنة مسجلة محلياً.", accountSuspended: "موقوف أمنياً", securityAlertBadge: "إنذار أمني",
+    noUsers: "لا توجد أي خزنة مسجلة.", accountSuspended: "موقوف أمنياً", securityAlertBadge: "إنذار أمني",
     localCryptoNote: "خزنة مشفرة ومتزامنة سحابياً", unblockBtn: "فك الحظر", manageUserBtn: "إدارة الخزنة",
-    deleteAccountBtn: "حذف الخزنة", deleteAccountConfirm: "هل أنت متأكد من حذف هذه الخزنة نهائياً من وسيط التخزين؟",
+    deleteAccountBtn: "حذف الخزنة", deleteAccountConfirm: "هل أنت متأكد من حذف هذه الخزنة نهائياً؟",
     vaultTitlePrefix: "خزنة كلمات المرور المشفرة:", vaultDossierBtn: "معلومات وأمان الخزنة", vaultItemsBtn: "عرض الحسابات",
     manageVaultBtn: "إدارة الخزنة", exportBtn: "تصدير كلمات المرور", importBtn: "استيراد كلمات المرور", addAccountBtn: "إضافة حساب جديد",
     logoutBtn: "تسجيل الخروج", searchPlaceholder: "بحث في الحسابات المحفوظة...", showHidePass: "إظهار/إخفاء", copyBtn: "نسخ",
@@ -229,6 +230,7 @@ const translations = {
     incorrectPasswordAlert: "كلمة المرور الرئيسية غير صحيحة!", captchaFailedAlert: "الناتج الحسابي غير صحيح. أعد المحاولة.",
     captchaPassedAlert: "تم التحقق بنجاح. مُنحت 3 محاولات إضافية.", reservedUsernameAlert: "اسم المستخدم هذا محجوز لسياسات النظام.",
     passwordComplexityAlert: "كلمة المرور يجب أن لا تقل عن 8 خانات وتحتوي على حرف كبير، رقم، ورمز خاص.",
+    passwordsMismatchAlert: "كلمتا المرور غير متطابقتين!", englishOnlyAlert: "كلمة المرور يجب أن تحتوي على أحرف إنجليزية وأرقام ورموز فقط.",
     accountExistsAlert: "توجد خزنة مسجلة مسبقاً بهذا المعرّف!", unblockSuccessAlert: "تم فك الحظر الأمني عن الحساب بنجاح.",
     masterPassResetSuccessAlert: "تمت إعادة تعيين كلمة المرور الرئيسية وإلغاء القفل بنجاح.", importSuccessAlert: "تم استيراد كلمات المرور بنجاح!",
     importPasswordMismatchAlert: "كلمة المرور الرئيسية الحالية لا تتطابق مع مفتاح تشفير الملف المستورد!", importFormatErrorAlert: "صيغة ملف النسخة الاحتياطية غير صالحة!",
@@ -238,7 +240,7 @@ const translations = {
     adminManageUserTitle: "إدارة بيانات المستخدم والخزنة", adminManageUserSub: "تعديل معلومات الطوارئ وتحديث بيانات الدخول",
     creationDateLabel: "تاريخ إنشاء الخزنة:", saveSettingsBtn: "تحديث وحفظ التغييرات", updateSuccessNotice: "تم تحديث البيانات بنجاح!",
     confirmDeleteGroup: "هل أنت متأكد من حذف المجموعة '{group}'؟ سيتم نقل حساباتها إلى '{all}'.",
-    groupDeletedNotice: "Group deleted successfully."
+    groupDeletedNotice: "تم حذف المجموعة ونقل حساباتها بنجاح."
   }
 };
 
@@ -250,6 +252,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login');
   const [identifier, setIdentifier] = useState('');
   const [masterPassword, setMasterPassword] = useState('');
+  const [confirmMasterPassword, setConfirmMasterPassword] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState('');
@@ -757,7 +760,7 @@ export default function App() {
             setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
             setFailedAttempts(0); setCaptchaPassed(false); setPostCaptchaAttempts(0);
             await registerDeviceLogin(cleanId, migratedRow?.id, masterPassword);
-            triggerNotice(lang === 'ar' ? 'تمت مزامنة خزنتك المحلية القديمة إلى الخادم بنجاح.' : 'Your legacy local vault was successfully migrated to the cloud.');
+            triggerNotice(lang === 'ar' ? 'تمت مزامنة خزنتك القديمة إلى الخادم بنجاح.' : 'Your legacy vault was successfully migrated to the cloud.');
             return;
           }
         }
@@ -791,8 +794,10 @@ export default function App() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
-    if (!identifier.trim() || !masterPassword.trim()) { setError(t.missingFieldsAlert); return; }
+    if (!identifier.trim() || !masterPassword.trim() || !confirmMasterPassword.trim()) { setError(t.missingFieldsAlert); return; }
     if (normalizeIdentifier(identifier) === 'admin') { setError(t.reservedUsernameAlert); return; }
+    if (masterPassword !== confirmMasterPassword) { setError(t.passwordsMismatchAlert); return; }
+    if (/[^\x00-\x7F]/.test(masterPassword)) { setError(t.englishOnlyAlert); return; }
     if (!isValidPassword(masterPassword)) { setError(t.passwordComplexityAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
     const initialItems = [];
@@ -813,6 +818,7 @@ export default function App() {
       cacheVaultLocally(cleanId, encrypted, row);
       setGroups(['شخصي', 'عمل']); setVaultItems(initialItems);
       setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
+      setConfirmMasterPassword('');
       await registerDeviceLogin(cleanId, row.id, masterPassword);
       return;
     }
@@ -824,13 +830,14 @@ export default function App() {
     setCurrentVaultId(null); setCurrentEncryptedVault(encrypted);
     setGroups(['شخصي', 'عمل']); setVaultItems(initialItems);
     setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
+    setConfirmMasterPassword('');
     registerDeviceLogin(cleanId, null, null);
   };
 
   const openDirectAction = (mode) => {
     setAuthMode(mode);
     setIdentifier(mode === 'admin' ? 'admin' : '');
-    setMasterPassword(''); setError('');
+    setMasterPassword(''); setConfirmMasterPassword(''); setError('');
     setCurrentView('auth');
   };
 
@@ -1389,8 +1396,30 @@ export default function App() {
               </div>
               <div>
                 <label className={`text-xs block mb-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{authMode === 'admin' ? t.adminPasswordLabel : t.passwordLabel}</label>
-                <input type="password" placeholder="••••••••••••" value={masterPassword} onChange={(e) => setMasterPassword(e.target.value)} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                <input 
+                  type="password" 
+                  placeholder="••••••••••••" 
+                  value={masterPassword} 
+                  dir="ltr"
+                  onChange={(e) => setMasterPassword(e.target.value.replace(/[^\x00-\x7F]/g, ''))} 
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} 
+                  required 
+                />
               </div>
+              {authMode === 'register' && (
+                <div>
+                  <label className={`text-xs block mb-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.confirmPasswordLabel}</label>
+                  <input 
+                    type="password" 
+                    placeholder="••••••••••••" 
+                    value={confirmMasterPassword} 
+                    dir="ltr"
+                    onChange={(e) => setConfirmMasterPassword(e.target.value.replace(/[^\x00-\x7F]/g, ''))} 
+                    className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} 
+                    required 
+                  />
+                </div>
+              )}
               {error && <p className="text-rose-500 text-xs font-semibold">{error}</p>}
               <button type="submit" className={`w-full py-2.5 text-white font-bold rounded-xl text-sm cursor-pointer shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] ${authMode === 'admin' ? 'bg-gradient-to-r from-amber-600 to-orange-600' : 'bg-gradient-to-r from-indigo-600 to-blue-600'}`}>
                 {authMode === 'login' && <><Unlock className="w-4 h-4" /> {t.submitLogin}</>}
@@ -1501,7 +1530,7 @@ export default function App() {
                             <button onClick={() => openAdminManageUser(u)} className="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
                               <Edit3 className="w-3.5 h-3.5" /> <span>{t.manageUserBtn}</span>
                             </button>
-                             <button onClick={() => { askConfirm(t.deleteAccountConfirm, async () => { const { error } = await supabase.rpc('admin_delete_vault', { p_vault_id: String(u.id) }); if (error) triggerNotice(error.message); else { localStorage.removeItem(`passguard_devices_${u.username}`); localStorage.removeItem(`passguard_vault_${u.username}`); localStorage.removeItem(`passguard_meta_${u.username}`); await loadAdminUsersData(); triggerNotice(lang === 'ar' ? 'تم حذف الخزنة بنجاح.' : 'Vault deleted successfully.'); } }); }} className="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
+                            <button onClick={() => { askConfirm(t.deleteAccountConfirm, async () => { const { error } = await supabase.rpc('admin_delete_vault', { p_vault_id: String(u.id) }); if (error) triggerNotice(error.message); else { localStorage.removeItem(`passguard_devices_${u.username}`); localStorage.removeItem(`passguard_vault_${u.username}`); localStorage.removeItem(`passguard_meta_${u.username}`); await loadAdminUsersData(); triggerNotice(lang === 'ar' ? 'تم حذف الخزنة بنجاح.' : 'Vault deleted successfully.'); } }); }} className="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
                               <Trash2 className="w-3.5 h-3.5" /> {t.deleteAccountBtn}
                             </button>
                           </div>
