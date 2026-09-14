@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
-import { ShieldCheck, Lock, Copy, Check, Plus, Search, LogOut, Trash2, KeyRound, User, AlertTriangle, ShieldAlert, Users, Globe, Sun, Moon, Key, Unlock, Info, Shield, Zap, Download, Upload, Sliders, Eye, EyeOff, ExternalLink, BarChart3, Activity, ArrowRight, RotateCcw, Laptop, Smartphone, Wifi, Clock, Server, ArrowLeft, Save, CheckSquare, Square, Scissors, Clipboard, FolderPlus, Folder, Edit3, Settings } from 'lucide-react';
+import { ShieldCheck, Lock, Copy, Check, Plus, Search, LogOut, Trash2, KeyRound, User, AlertTriangle, ShieldAlert, Users, Globe, Sun, Moon, Key, Unlock, Info, Shield, Zap, Download, Upload, Sliders, Eye, EyeOff, ExternalLink, BarChart3, Activity, ArrowRight, RotateCcw, Laptop, Smartphone, Wifi, Clock, Server, ArrowLeft, Save, CheckSquare, Square, Scissors, Clipboard, FolderPlus, Folder, Edit3, Settings, MessageSquare, Send, Phone, Mail } from 'lucide-react';
 
 const importCryptoKey = async (password, salt) => {
   const enc = new TextEncoder();
@@ -129,7 +129,7 @@ const POPULAR_SITES = [
 
 const translations = {
   en: {
-    appName: "Pass-Guard", toolsBtn: "Password Auditor", aboutBtn: "About Website", toggleTheme: "Toggle Appearance",
+    appName: "Pass-Guard", toolsBtn: "Password Auditor", contactBtn: "Contact Admin", aboutBtn: "About Website", toggleTheme: "Toggle Appearance",
     welcomeTitle: "Welcome to", welcomeDesc: "An AES-GCM 256-bit encrypted password vault with secure cloud sync and remote administrative support.",
     openVaultBtn: "Open Vault (Sign In)", createVaultBtn: "Create New Vault", adminPortalBtn: "Administration Portal",
     statVisits: "Total Visits", statLocal: "Encrypted Vault", statEncryption: "AES-GCM Encryption", statProtection: "Active Protection",
@@ -183,10 +183,15 @@ const translations = {
     adminManageUserTitle: "Manage User Vault Data", adminManageUserSub: "Emergency recovery and record adjustments",
     creationDateLabel: "Creation Date:", saveSettingsBtn: "Save Updates", updateSuccessNotice: "Updates applied successfully!",
     confirmDeleteGroup: "Are you sure you want to delete group '{group}'? Accounts will be moved to '{all}'.",
-    groupDeletedNotice: "Group deleted successfully."
+    groupDeletedNotice: "Group deleted successfully.",
+    contactModalTitle: "Contact System Administrator", contactNameLabel: "Full Name", contactPhoneLabel: "Phone Number",
+    contactEmailLabel: "Email Address", contactMsgLabel: "Your Message", contactPrefLabel: "Preferred Reply Channel",
+    prefEmail: "Email", prefWhatsapp: "WhatsApp", prefOther: "Other Location / Method", prefOtherPlaceholder: "Specify method or location...",
+    contactSubmitBtn: "Send Message to Admin", contactSuccessNotice: "Your message has been sent successfully and will be answered ASAP!",
+    adminMessagesBtn: "Incoming Messages", noContactMessages: "No incoming messages found."
   },
   ar: {
-    appName: "Pass-Guard", toolsBtn: "فاحص كلمة السر", aboutBtn: "عن الموقع", toggleTheme: "تبديل المظهر",
+    appName: "Pass-Guard", toolsBtn: "فاحص كلمة السر", contactBtn: "تواصل مع المشرف", aboutBtn: "عن الموقع", toggleTheme: "تبديل المظهر",
     welcomeTitle: "مرحباً بك في", welcomeDesc: "خزنة كلمات مرور مشفرة بتقنية AES-GCM 256-bit مع مزامنة سحابية ودعم إداري عن بُعد للخزنات.",
     openVaultBtn: "فتح الخزنة (تسجيل الدخول)", createVaultBtn: "إنشاء خزنة جديدة", adminPortalBtn: "بوابة المشرف العام",
     statVisits: "إجمالي الزيارات", statLocal: "خزنة مشفرة", statEncryption: "AES-GCM تشفير", statProtection: "حماية مستمرة",
@@ -240,7 +245,12 @@ const translations = {
     adminManageUserTitle: "إدارة بيانات المستخدم والخزنة", adminManageUserSub: "تعديل معلومات الطوارئ وتحديث بيانات الدخول",
     creationDateLabel: "تاريخ إنشاء الخزنة:", saveSettingsBtn: "تحديث وحفظ التغييرات", updateSuccessNotice: "تم تحديث البيانات بنجاح!",
     confirmDeleteGroup: "هل أنت متأكد من حذف المجموعة '{group}'؟ سيتم نقل حساباتها إلى '{all}'.",
-    groupDeletedNotice: "تم حذف المجموعة ونقل حساباتها بنجاح."
+    groupDeletedNotice: "تم حذف المجموعة ونقل حساباتها بنجاح.",
+    contactModalTitle: "رسالة إلى المشرف العام", contactNameLabel: "الاسم الكامل", contactPhoneLabel: "رقم الهاتف",
+    contactEmailLabel: "البريد الإلكتروني", contactMsgLabel: "نص الرسالة المطلوبة", contactPrefLabel: "أفضلية وسيلة الرد",
+    prefEmail: "البريد الإلكتروني", prefWhatsapp: "الواتساب", prefOther: "غير ذلك (حدد المكان)", prefOtherPlaceholder: "اكتب المكان أو الطريقة المفضلة...",
+    contactSubmitBtn: "إرسال الرسالة إلى المشرف", contactSuccessNotice: "تم إرسال رسالتك إلى المشرف بنجاح وسيتم الرد عليك في أقرب وقت ممكن!",
+    adminMessagesBtn: "رسائل التواصل الواردة", noContactMessages: "لا توجد أي رسائل تواصل واردة حالياً."
   }
 };
 
@@ -303,6 +313,14 @@ export default function App() {
   const [testPassword, setTestPassword] = useState('');
   const [showToolsModal, setShowToolsModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactPref, setContactPref] = useState('email');
+  const [contactOtherText, setContactOtherText] = useState('');
+  const [contactMessagesList, setContactMessagesList] = useState([]);
   const [adminPassword, setAdminPassword] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
@@ -547,6 +565,17 @@ export default function App() {
       } else {
         triggerNotice(error.message);
       }
+
+      try {
+        const { data: msgData, error: msgErr } = await supabase
+          .from('contact_messages')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!msgErr && msgData) {
+          setContactMessagesList(msgData);
+        }
+      } catch (e) {}
+
     } else if (!supabaseConfigured) {
       const users = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -834,6 +863,39 @@ export default function App() {
     registerDeviceLogin(cleanId, null, null);
   };
 
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    if (!contactName.trim() || !contactEmail.trim() || !contactMessage.trim()) {
+      triggerNotice(t.missingFieldsAlert);
+      return;
+    }
+    const messageData = {
+      name: contactName.trim(),
+      phone: contactPhone.trim(),
+      email: contactEmail.trim(),
+      message: contactMessage.trim(),
+      preference: contactPref,
+      other_pref: contactPref === 'other' ? contactOtherText.trim() : null
+    };
+
+    if (supabaseConfigured) {
+      const { error } = await supabase.from('contact_messages').insert([messageData]);
+      if (error) {
+        triggerNotice(error.message);
+        return;
+      }
+    } else {
+      let localMsgs = [];
+      try { localMsgs = JSON.parse(localStorage.getItem('passguard_contact_msgs') || '[]'); } catch (e) {}
+      localMsgs.unshift({ ...messageData, id: Date.now(), created_at: new Date().toISOString() });
+      localStorage.setItem('passguard_contact_msgs', JSON.stringify(localMsgs));
+    }
+
+    triggerNotice(t.contactSuccessNotice);
+    setContactName(''); setContactPhone(''); setContactEmail(''); setContactMessage(''); setContactOtherText('');
+    setShowContactModal(false);
+  };
+
   const openDirectAction = (mode) => {
     setAuthMode(mode);
     setIdentifier(mode === 'admin' ? 'admin' : '');
@@ -1118,6 +1180,59 @@ export default function App() {
         </div>
       )}
 
+      {showContactModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
+          <div className={`border p-6 sm:p-7 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base sm:text-lg font-black flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-indigo-500" />
+                <span>{t.contactModalTitle}</span>
+              </h3>
+              <button onClick={() => setShowContactModal(false)} className="text-slate-400 hover:text-white cursor-pointer font-bold px-2 py-1">✕</button>
+            </div>
+            <form onSubmit={handleContactSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block mb-1 font-semibold text-slate-300">{t.contactNameLabel} *</label>
+                <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Full Name" className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-300">{t.contactEmailLabel} *</label>
+                  <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="name@domain.com" className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                </div>
+                <div>
+                  <label className="block mb-1 font-semibold text-slate-300">{t.contactPhoneLabel}</label>
+                  <input type="tel" value={contactPhone} onChange={(e) => handlePhoneChange(e, setContactPhone)} placeholder="+962..." className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                </div>
+              </div>
+              <div>
+                <label className="block mb-1 font-semibold text-slate-300">{t.contactPrefLabel}</label>
+                <select value={contactPref} onChange={(e) => setContactPref(e.target.value)} className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}>
+                  <option value="email">{t.prefEmail}</option>
+                  <option value="whatsapp">{t.prefWhatsapp}</option>
+                  <option value="other">{t.prefOther}</option>
+                </select>
+              </div>
+              {contactPref === 'other' && (
+                <div>
+                  <input type="text" value={contactOtherText} onChange={(e) => setContactOtherText(e.target.value)} placeholder={t.prefOtherPlaceholder} className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                </div>
+              )}
+              <div>
+                <label className="block mb-1 font-semibold text-slate-300">{t.contactMsgLabel} *</label>
+                <textarea value={contactMessage} onChange={(e) => setContactMessage(e.target.value)} placeholder="Write your message here..." className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 h-24 resize-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowContactModal(false)} className={`px-5 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300'}`}>{t.cancelBtn}</button>
+                <button type="submit" className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg flex items-center gap-2">
+                  <Send className="w-3.5 h-3.5" /><span>{t.contactSubmitBtn}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showCaptchaModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
           <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
@@ -1315,6 +1430,9 @@ export default function App() {
           <button onClick={() => setShowToolsModal(true)} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-amber-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-amber-700 hover:bg-slate-50'}`} title={t.toolsBtn}>
             <Zap className="w-3.5 h-3.5 text-amber-400" /><span className="hidden sm:inline">{t.toolsBtn}</span>
           </button>
+          <button onClick={() => setShowContactModal(true)} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-sky-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-sky-700 hover:bg-slate-50'}`} title={t.contactBtn}>
+            <MessageSquare className="w-3.5 h-3.5 text-sky-400" /><span className="hidden sm:inline">{t.contactBtn}</span>
+          </button>
           <button onClick={() => setShowAboutModal(true)} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-indigo-700 hover:bg-slate-50'}`} title={t.aboutBtn}>
             <Info className="w-3.5 h-3.5 text-indigo-400" /><span className="hidden sm:inline">{t.aboutBtn}</span>
           </button>
@@ -1333,33 +1451,36 @@ export default function App() {
         )}
 
         {!isUnlocked && currentView === 'welcome' && (
-          <div className="flex flex-col items-center justify-center px-4 max-w-4xl mx-auto text-center my-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold mb-4 shadow-inner animate-pulse">
-              <Shield className="w-3.5 h-3.5 text-indigo-400" />
-              <span>
-                {lang === 'ar' ? (
-                  <>تشفير <span dir="ltr" className="inline-block font-mono">AES-GCM 256-bit</span> مع مزامنة سحابية آمنة</>
-                ) : (
-                  'AES-GCM 256-bit encryption with secure cloud sync'
-                )}
-              </span>
+          <div className="flex flex-col items-center justify-center px-4 max-w-4xl mx-auto text-center my-auto space-y-12 py-8">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold mb-2 shadow-inner animate-pulse">
+                <Shield className="w-3.5 h-3.5 text-indigo-400" />
+                <span>
+                  {lang === 'ar' ? (
+                    <>تشفير <span dir="ltr" className="inline-block font-mono">AES-GCM 256-bit</span> مع مزامنة سحابية آمنة</>
+                  ) : (
+                    'AES-GCM 256-bit encryption with secure cloud sync'
+                  )}
+                </span>
+              </div>
+              <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
+                {t.welcomeTitle} <span className="bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
+              </h1>
+              <p className="text-xs md:text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed opacity-90">{t.welcomeDesc}</p>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button onClick={() => openDirectAction('login')} className="px-7 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs transition-all duration-300 shadow-xl shadow-indigo-600/30 hover:scale-105 cursor-pointer flex items-center gap-2 border border-indigo-400/30">
+                  <Unlock className="w-4 h-4" />{t.openVaultBtn}
+                </button>
+                <button onClick={() => openDirectAction('register')} className="px-7 py-3 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 backdrop-blur-xl text-slate-200 font-bold text-xs transition-all duration-300 hover:scale-105 cursor-pointer flex items-center gap-2 shadow-lg">
+                  <Plus className="w-4 h-4 text-sky-400" />{t.createVaultBtn}
+                </button>
+                <button onClick={() => openDirectAction('admin')} className="px-6 py-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold text-xs transition-all duration-300 hover:scale-105 cursor-pointer flex items-center gap-2 shadow-lg">
+                  <ShieldAlert className="w-4 h-4 text-amber-400" />{t.adminPortalBtn}
+                </button>
+              </div>
             </div>
-            <h1 className="text-3xl md:text-5xl font-black mb-3 tracking-tight leading-tight">
-              {t.welcomeTitle} <span className="bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
-            </h1>
-            <p className="text-xs md:text-sm text-slate-300 max-w-2xl leading-relaxed mb-6 opacity-90">{t.welcomeDesc}</p>
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-              <button onClick={() => openDirectAction('login')} className="px-7 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs transition-all duration-300 shadow-xl shadow-indigo-600/30 hover:scale-105 cursor-pointer flex items-center gap-2 border border-indigo-400/30">
-                <Unlock className="w-4 h-4" />{t.openVaultBtn}
-              </button>
-              <button onClick={() => openDirectAction('register')} className="px-7 py-3 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 backdrop-blur-xl text-slate-200 font-bold text-xs transition-all duration-300 hover:scale-105 cursor-pointer flex items-center gap-2 shadow-lg">
-                <Plus className="w-4 h-4 text-sky-400" />{t.createVaultBtn}
-              </button>
-              <button onClick={() => openDirectAction('admin')} className="px-6 py-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold text-xs transition-all duration-300 hover:scale-105 cursor-pointer flex items-center gap-2 shadow-lg">
-                <ShieldAlert className="w-4 h-4 text-amber-400" />{t.adminPortalBtn}
-              </button>
-            </div>
-            <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-3 border-t border-slate-800/80 pt-6 text-center">
+
+            <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-slate-800/80">
               <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
                 <h3 className="text-lg md:text-xl font-black font-mono text-indigo-400" dir="ltr">+{visitCount}</h3>
                 <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statVisits}</p>
@@ -1377,11 +1498,40 @@ export default function App() {
                 <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statProtection}</p>
               </div>
             </div>
+
+            {/* Smooth Scroll Competitive Project Section */}
+            <div className="w-full py-8 space-y-6">
+              <div className="text-center space-y-2">
+                <h2 className="text-xl md:text-2xl font-black bg-gradient-to-r from-indigo-400 to-sky-400 bg-clip-text text-transparent">
+                  {lang === 'ar' ? 'لماذا يعد Pass-Guard الخيار الأول عالمياً؟' : 'Why Pass-Guard is the Global Standard?'}
+                </h2>
+                <p className="text-xs text-slate-400 max-w-lg mx-auto">
+                  {lang === 'ar' ? 'مصمم بعناية فائقة ليوفر أعلى درجات المناعة الرقمية والراحة المطلقة.' : 'Engineered with absolute precision to provide unmatched digital resilience and ultimate convenience.'}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-start">
+                <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isDark ? 'bg-slate-900/60 border-slate-800 hover:border-indigo-500/50' : 'bg-white border-slate-200'}`}>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold mb-3 border border-indigo-500/30">🔒</div>
+                  <h3 className="text-sm font-bold mb-1">{lang === 'ar' ? 'معمارية المعرفة الصفرية' : 'Zero-Knowledge Security'}</h3>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">{lang === 'ar' ? 'بياناتك تُشفر على جهازك حصرياً. لا يمكن لأي كائن كان —حتى خوادمنا— الاطلاع على كلمات مرورك.' : 'Your data is encrypted strictly on your device. Absolutely no one—not even our servers—can read your master keys.'}</p>
+                </div>
+                <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isDark ? 'bg-slate-900/60 border-slate-800 hover:border-sky-500/50' : 'bg-white border-slate-200'}`}>
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold mb-3 border border-sky-500/30">⚡</div>
+                  <h3 className="text-sm font-bold mb-1">{lang === 'ar' ? 'مزامنة سحابية فورية' : 'Lightning Cloud Sync'}</h3>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">{lang === 'ar' ? 'تنقل بسلاسة بين حاسوبك وهاتفك المحمول مع تحديث لحظي وجلسات مؤمنة بالكامل وموثقة بالشبكة.' : 'Transition effortlessly between your desktop and mobile devices with instant updates and verified secure sessions.'}</p>
+                </div>
+                <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isDark ? 'bg-slate-900/60 border-slate-800 hover:border-emerald-500/50' : 'bg-white border-slate-200'}`}>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold mb-3 border border-emerald-500/30">🛡️</div>
+                  <h3 className="text-sm font-bold mb-1">{lang === 'ar' ? 'دعم فني استباقي وموثوق' : 'Proactive Trusted Support'}</h3>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">{lang === 'ar' ? 'نظام استرجاع ذكي ونماذج حماية متطورة تضمن عدم ضياع حساباتك أبداً مع توفر فريق دعم دائم.' : 'Smart recovery systems and advanced security models ensure you never lose your records, backed 24/7.'}</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
         {!isUnlocked && currentView === 'auth' && (
-          <div className={`w-full max-w-md border p-7 rounded-3xl shadow-2xl backdrop-blur-2xl transition-all duration-500 my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
+          <div className={`w-full max-w-md border p-6 sm:p-7 rounded-3xl shadow-2xl backdrop-blur-2xl transition-all duration-500 my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
             <div className="text-center mb-5">
               <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl border mb-3 shadow-xl ${authMode === 'admin' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-indigo-600/20 border-indigo-500/40 text-indigo-400'}`}>
                 {authMode === 'admin' ? <ShieldAlert className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />}
@@ -1436,8 +1586,8 @@ export default function App() {
         )}
 
         {isUnlocked && isAdmin && (
-          <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col h-[78vh] max-h-[78vh] overflow-hidden my-auto ${isDark ? 'bg-slate-900/90 border-amber-500/30' : 'bg-white/90 border-amber-300'}`}>
-            <div className={`p-5 border-b flex flex-wrap items-center justify-between gap-4 shrink-0 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+          <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col h-[85vh] max-h-[85vh] overflow-hidden my-auto ${isDark ? 'bg-slate-900/90 border-amber-500/30' : 'bg-white/90 border-amber-300'}`}>
+            <div className={`p-4 sm:p-5 border-b flex flex-wrap items-center justify-between gap-4 shrink-0 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500"><BarChart3 className="w-6 h-6" /></div>
                 <div>
@@ -1445,18 +1595,24 @@ export default function App() {
                   <p className="text-xs text-slate-400">{t.adminPanelSub}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setAdminSubView('adminSettings')} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer flex items-center gap-1.5 text-xs font-bold ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600'}`}>
-                  <Settings className="w-4 h-4" /><span>{lang === 'ar' ? 'إعدادات المشرف' : 'Admin Settings'}</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => setAdminSubView('dashboard')} className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-bold ${adminSubView === 'dashboard' ? 'bg-amber-500 text-slate-950 border-amber-500' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                  {lang === 'ar' ? 'الخزنات المسجلة' : 'Registered Vaults'}
                 </button>
-                <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer flex items-center gap-1.5 text-xs font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
-                  <LogOut className="w-4 h-4" /><span>{t.logoutBtn}</span>
+                <button onClick={() => setAdminSubView('messages')} className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-bold flex items-center gap-1.5 ${adminSubView === 'messages' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                  <MessageSquare className="w-3.5 h-3.5" /><span>{t.adminMessagesBtn} ({contactMessagesList.length})</span>
+                </button>
+                <button onClick={() => setAdminSubView('adminSettings')} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600'}`}>
+                  <Settings className="w-4 h-4 inline me-1" /><span>{lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
+                </button>
+                <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
+                  <LogOut className="w-4 h-4 inline me-1" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col">
               {adminSubView === 'dashboard' ? (
-                <div className="p-6 overflow-y-auto space-y-6 animate-fadeIn">
+                <div className="p-4 sm:p-6 overflow-y-auto space-y-6 animate-fadeIn">
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                     <div className={`p-4 rounded-2xl border flex items-center gap-4 shadow-lg ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
                       <div className="p-3 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"><Users className="w-5 h-5" /></div>
@@ -1539,6 +1695,58 @@ export default function App() {
                     )}
                   </div>
                 </div>
+              ) : adminSubView === 'messages' ? (
+                <div className="p-4 sm:p-6 overflow-y-auto space-y-4 animate-fadeIn">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 className="text-sm font-bold flex items-center gap-2"><MessageSquare className="w-4 h-4 text-indigo-400" />{t.adminMessagesBtn}</h3>
+                    <span className="text-xs text-slate-400 font-mono">Total: {contactMessagesList.length}</span>
+                  </div>
+                  {contactMessagesList.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-12">{t.noContactMessages}</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {contactMessagesList.map((msg) => (
+                        <div key={msg.id || msg.created_at} className={`p-4 border rounded-2xl space-y-2.5 shadow-md ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/60 pb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs"><User className="w-4 h-4" /></div>
+                              <div>
+                                <h4 className="text-xs font-bold">{msg.name}</h4>
+                                <p className="text-[10px] text-slate-400 font-mono">{formatDate(msg.created_at)}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs">
+                              <span className="px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono">
+                                Preferred: {msg.preference} {msg.other_pref ? `(${msg.other_pref})` : ''}
+                              </span>
+                              <button onClick={async () => {
+                                askConfirm(lang === 'ar' ? 'هل تريد حذف هذه الرسالة؟' : 'Delete this message?', async () => {
+                                  if (supabaseConfigured && msg.id) {
+                                    await supabase.from('contact_messages').delete().eq('id', msg.id);
+                                  } else {
+                                    let localMsgs = [];
+                                    try { localMsgs = JSON.parse(localStorage.getItem('passguard_contact_msgs') || '[]'); } catch (e) {}
+                                    localMsgs = localMsgs.filter(m => m.created_at !== msg.created_at);
+                                    localStorage.setItem('passguard_contact_msgs', JSON.stringify(localMsgs));
+                                  }
+                                  setContactMessagesList(prev => prev.filter(m => m.created_at !== msg.created_at));
+                                  triggerNotice(lang === 'ar' ? 'تم حذف الرسالة بنجاح.' : 'Message deleted successfully.');
+                                });
+                              }} className="p-1.5 text-rose-400 hover:bg-rose-500/20 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono text-slate-300 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80">
+                            <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-indigo-400" /> <span>{msg.email}</span></div>
+                            <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-emerald-400" /> <span>{msg.phone || 'N/A'}</span></div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/20 text-xs leading-relaxed text-slate-200">
+                            {msg.message}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ) : adminSubView === 'manageUser' ? (
                 <div className="flex-1 flex flex-col p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
@@ -1606,7 +1814,7 @@ export default function App() {
         )}
 
         {isUnlocked && !isAdmin && (
-          <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col md:flex-row h-[78vh] max-h-[78vh] overflow-hidden my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
+          <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col md:flex-row h-[85vh] max-h-[85vh] overflow-hidden my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
             <aside className={`w-full md:w-64 border-b md:border-b-0 md:border-l p-4 flex flex-col justify-between shrink-0 ${isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-200'}`}>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-800/60">
@@ -1684,7 +1892,7 @@ export default function App() {
                         <FolderPlus className="w-3.5 h-3.5" /><span>{t.manageGroupsBtn}</span>
                       </button>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <button onClick={handleSelectAll} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-indigo-700'}`}>
                         <CheckSquare className="w-3.5 h-3.5" /><span>{t.selectBtn} ({selectedAccountIds.length})</span>
                       </button>
@@ -1699,32 +1907,32 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-5 space-y-2.5">
+                  <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-2.5">
                     {vaultItems
                       .filter(item => selectedGroup === 'ALL_GROUPS' || item.group === selectedGroup)
                       .filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase()) || item.username.toLowerCase().includes(searchTerm.toLowerCase()))
                       .map((item) => {
                         const isSelected = selectedAccountIds.includes(item.id);
                         return (
-                          <div key={item.id} className={`p-3.5 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isSelected ? (isDark ? 'bg-indigo-950/40 border-indigo-500/60' : 'bg-indigo-50 border-indigo-300') : (isDark ? 'bg-slate-950/50 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200')}`}>
-                            <div className="flex items-center gap-3">
-                              <button onClick={() => toggleSelectAccount(item.id)} className="text-indigo-400 cursor-pointer">
+                          <div key={item.id} className={`p-3.5 border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 ${isSelected ? (isDark ? 'bg-indigo-950/40 border-indigo-500/60' : 'bg-indigo-50 border-indigo-300') : (isDark ? 'bg-slate-950/50 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200')}`}>
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                              <button onClick={() => toggleSelectAccount(item.id)} className="text-indigo-400 cursor-pointer shrink-0">
                                 {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-400" /> : <Square className="w-4 h-4 text-slate-500" />}
                               </button>
-                              <div>
-                                <h3 className="text-xs font-bold flex items-center gap-2">
-                                  {item.title}
+                              <div className="overflow-hidden">
+                                <h3 className="text-xs font-bold flex flex-wrap items-center gap-2">
+                                  <span className="truncate">{item.title}</span>
                                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">{item.group || t.allGroups}</span>
                                   {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300"><ExternalLink className="w-3 h-3" /></a>}
                                 </h3>
-                                <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.username}</p>
+                                <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.username}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
-                              <span className={`px-2.5 py-1 border text-[11px] rounded-xl font-mono ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}>
+                            <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/40">
+                              <span className={`px-2.5 py-1 border text-[11px] rounded-xl font-mono truncate max-w-[120px] sm:max-w-none ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}>
                                 {visiblePasswords[item.id] ? item.password : '••••••••••••'}
                               </span>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 shrink-0">
                                 <button onClick={() => togglePasswordVisibility(item.id)} className={`p-1.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-300'}`}>
                                   {visiblePasswords[item.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                 </button>
@@ -1741,7 +1949,7 @@ export default function App() {
               )}
 
               {vaultSubView === 'add' && (
-                <div className="flex-1 flex flex-col p-6 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
+                <div className="flex-1 flex flex-col p-4 sm:p-7 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 shrink-0">
                     <h3 className="text-base font-bold">{t.addModalTitle}</h3>
                     <button type="button" onClick={() => { const ns = !showGenOptions; setShowGenOptions(ns); if (ns) triggerLiveGeneration(genLength, useSymbols, useNumbers); }} className={`text-[11px] px-3 py-1 rounded-xl border cursor-pointer flex items-center gap-1.5 ${showGenOptions ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : isDark ? 'bg-slate-800 border-slate-700 text-indigo-400' : 'bg-slate-100 border-slate-300 text-indigo-600'}`}>
@@ -1823,7 +2031,7 @@ export default function App() {
               )}
 
               {vaultSubView === 'details' && editableRecord && (
-                <div className="flex-1 flex flex-col p-6 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
+                <div className="flex-1 flex flex-col p-4 sm:p-7 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4 shrink-0">
                     <h3 className="text-base font-bold flex items-center gap-2"><Edit3 className="w-5 h-5 text-indigo-500" />{t.recordDetailsTitle}</h3>
                   </div>
@@ -1886,7 +2094,7 @@ export default function App() {
               )}
 
               {vaultSubView === 'audit' && (
-                <div className="flex-1 flex flex-col p-6 overflow-y-auto space-y-6 animate-fadeIn">
+                <div className="flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto space-y-6 animate-fadeIn">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 shrink-0">
                     <div className="flex items-center gap-3">
                       <div className="p-2.5 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30"><ShieldCheck className="w-6 h-6" /></div>
@@ -1947,13 +2155,13 @@ export default function App() {
               )}
 
               {vaultSubView === 'settings' && (
-                <div className="flex-1 flex flex-col p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
+                <div className="flex-1 flex flex-col p-4 sm:p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
                     <h3 className="text-base font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-indigo-500" />{t.vaultSettingsTitle}</h3>
                   </div>
                   <p className="text-[11px] text-slate-400 mb-4">{t.vaultSettingsSub}</p>
                   <form onSubmit={handleSaveSettings} className="space-y-3 text-xs">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block mb-1 text-slate-400">{t.usernameLabel}</label>
                         <input type="text" value={manageData.identifier} onChange={(e) => setManageData({ ...manageData, identifier: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
@@ -1963,7 +2171,7 @@ export default function App() {
                         <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-slate-50 border-slate-300 text-amber-600'}`} required />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block mb-1 text-slate-400">{t.emailLabel}</label>
                         <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
