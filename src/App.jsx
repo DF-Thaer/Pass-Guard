@@ -69,7 +69,7 @@ const generateSecurePassword = (length, includeSymbols, includeNumbers) => {
   const allChars = charSets.join("");
   const arr = [];
   charSets.forEach(set => arr.push(set[Math.floor(Math.random() * set.length)]));
-  for (let i = arr.length; i < length; i++) arr.push(allChars[Math.floor(Math.random() * allChars.length)]);
+  for (let i = 0; i < length; i++) arr.push(allChars[Math.floor(Math.random() * allChars.length)]);
   for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
   return arr.join("");
 };
@@ -612,6 +612,153 @@ export default function App() {
 
   useEffect(() => { if (showGenOptions) triggerLiveGeneration(genLength, useSymbols, useNumbers); }, [genLength, useSymbols, useNumbers, showGenOptions]);
 
+  // Ultra-Smooth Interactive Cyber-Canvas Background
+  const canvasRef = useRef(null);
+  const mouseRef = useRef({ x: -2000, y: -2000, targetX: -2000, targetY: -2000, radius: 220 });
+  const themeRef = useRef(theme);
+  useEffect(() => { themeRef.current = theme; }, [theme]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', handleResize);
+
+    const handleMouseMove = (e) => {
+      mouseRef.current.targetX = e.clientX;
+      mouseRef.current.targetY = e.clientY;
+    };
+    const handleMouseLeave = () => {
+      mouseRef.current.targetX = -2000;
+      mouseRef.current.targetY = -2000;
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseleave', handleMouseLeave);
+
+    const numNodes = Math.min(Math.floor((width * height) / 14000), 95);
+    const nodes = [];
+    for (let i = 0; i < numNodes; i++) {
+      nodes.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.45,
+        vy: (Math.random() - 0.5) * 0.45,
+        baseRadius: Math.random() * 1.8 + 1.2,
+        pulse: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.015 + Math.random() * 0.02
+      });
+    }
+
+    const render = () => {
+      const isDarkTheme = themeRef.current === 'dark';
+      const m = mouseRef.current;
+      m.x += (m.targetX - m.x) * 0.08;
+      m.y += (m.targetY - m.y) * 0.08;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Dynamic Interactive Aura under Cursor
+      if (m.x > -1000 && m.y > -1000) {
+        const aura = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 380);
+        if (isDarkTheme) {
+          aura.addColorStop(0, 'rgba(99, 102, 241, 0.18)');
+          aura.addColorStop(0.4, 'rgba(56, 189, 248, 0.06)');
+          aura.addColorStop(1, 'rgba(3, 7, 18, 0)');
+        } else {
+          aura.addColorStop(0, 'rgba(99, 102, 241, 0.12)');
+          aura.addColorStop(0.4, 'rgba(147, 197, 253, 0.06)');
+          aura.addColorStop(1, 'rgba(248, 250, 252, 0)');
+        }
+        ctx.fillStyle = aura;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        let node = nodes[i];
+        node.x += node.vx;
+        node.y += node.vy;
+        node.pulse += node.pulseSpeed;
+
+        if (node.x < 0) node.x = width;
+        if (node.x > width) node.x = 0;
+        if (node.y < 0) node.y = height;
+        if (node.y > height) node.y = 0;
+
+        const dx = m.x - node.x;
+        const dy = m.y - node.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        let pushX = 0;
+        let pushY = 0;
+        let isNear = false;
+
+        if (dist < m.radius && dist > 0) {
+          isNear = true;
+          const factor = (1 - dist / m.radius) * 14;
+          pushX = -(dx / dist) * factor;
+          pushY = -(dy / dist) * factor;
+        }
+
+        const renderX = node.x + pushX;
+        const renderY = node.y + pushY;
+        const currentR = node.baseRadius + Math.sin(node.pulse) * 0.5 + (isNear ? 1.5 : 0);
+
+        ctx.beginPath();
+        ctx.arc(renderX, renderY, Math.max(currentR, 0.8), 0, Math.PI * 2);
+        if (isDarkTheme) {
+          ctx.fillStyle = isNear ? 'rgba(56, 189, 248, 0.95)' : 'rgba(129, 140, 248, 0.65)';
+          ctx.shadowColor = isNear ? '#38bdf8' : '#6366f1';
+          ctx.shadowBlur = isNear ? 14 : 6;
+        } else {
+          ctx.fillStyle = isNear ? 'rgba(79, 70, 229, 0.9)' : 'rgba(99, 102, 241, 0.55)';
+          ctx.shadowColor = '#4f46e5';
+          ctx.shadowBlur = isNear ? 10 : 4;
+        }
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        for (let j = i + 1; j < nodes.length; j++) {
+          let node2 = nodes[j];
+          const ndx = renderX - node2.x;
+          const ndy = renderY - node2.y;
+          const ndist = Math.sqrt(ndx * ndx + ndy * ndy);
+          const maxDist = isNear ? 150 : 100;
+
+          if (ndist < maxDist) {
+            const opacity = (1 - ndist / maxDist) * (isNear ? 0.35 : 0.16);
+            ctx.beginPath();
+            ctx.moveTo(renderX, renderY);
+            ctx.lineTo(node2.x, node2.y);
+            ctx.strokeStyle = isDarkTheme
+              ? `rgba(99, 102, 241, ${opacity})`
+              : `rgba(79, 70, 229, ${opacity * 0.85})`;
+            ctx.lineWidth = isNear ? 1.1 : 0.7;
+            ctx.stroke();
+          }
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseleave', handleMouseLeave);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -1145,25 +1292,24 @@ export default function App() {
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
       `}</style>
 
-      {/* Modern Cyber-Vault Ambient Background */}
+      {/* Modern High-End Interactive Layer */}
       <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden select-none">
-        <div className={`absolute inset-0 transition-colors duration-700 ${isDark ? 'bg-[#030712]' : 'bg-[#f8fafc]'}`} />
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
         
-        {/* Subtle Cyber Grid Pattern */}
+        {/* Subtle Cyber Grid Accent */}
         <div 
-          className="absolute inset-0 opacity-[0.035] dark:opacity-[0.055]"
+          className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
           style={{
             backgroundImage: isDark 
               ? 'radial-gradient(circle at 1px 1px, #818cf8 1px, transparent 0)' 
               : 'radial-gradient(circle at 1px 1px, #4f46e5 1px, transparent 0)',
-            backgroundSize: '28px 28px'
+            backgroundSize: '32px 32px'
           }}
         />
 
-        {/* Ambient Aurora Glows */}
-        <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[110px] transition-all duration-700 ${isDark ? 'bg-indigo-600/20' : 'bg-indigo-300/35'}`} />
-        <div className={`absolute top-1/4 -right-32 w-[28rem] h-[28rem] rounded-full blur-[120px] transition-all duration-700 ${isDark ? 'bg-blue-600/15' : 'bg-sky-300/35'}`} />
-        <div className={`absolute -bottom-32 left-1/3 w-[30rem] h-[30rem] rounded-full blur-[130px] transition-all duration-700 ${isDark ? 'bg-violet-600/15' : 'bg-indigo-200/40'}`} />
+        {/* Ambient Corner Glows */}
+        <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[120px] transition-all duration-700 ${isDark ? 'bg-indigo-600/15' : 'bg-indigo-300/30'}`} />
+        <div className={`absolute -bottom-32 -right-32 w-[28rem] h-[28rem] rounded-full blur-[130px] transition-all duration-700 ${isDark ? 'bg-blue-600/15' : 'bg-sky-300/30'}`} />
       </div>
 
       {confirmDialog.isOpen && (
@@ -2070,7 +2216,7 @@ export default function App() {
                       <label className="block mb-1 text-slate-400">{t.passwordRecordLabel}</label>
                       <div className="relative flex items-center gap-2">
                         <input type={visiblePasswords[editableRecord.id] ? "text" : "password"} value={editableRecord.password} onChange={(e) => setEditableRecord({ ...editableRecord, password: e.target.value })} className={`flex-1 px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
-                        <button type="button" onClick={() => togglePasswordVisibility(editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-300'}`}>
+                        <button type="button" onClick={() => togglePasswordVisibility(editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}>
                           {visiblePasswords[editableRecord.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                         <button type="button" onClick={() => copyToClipboard(editableRecord.password, editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}><Copy className="w-4 h-4 text-emerald-400" /></button>
