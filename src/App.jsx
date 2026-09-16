@@ -160,7 +160,7 @@ const translations = {
     recordDetailsTitle: "Edit Record Details", siteUrlLabel: "Platform URL", usernameLabel: "Username", passwordRecordLabel: "Password",
     emailLabel: "Linked Email", phoneLabel: "Phone Number", groupLabel: "Group Category", lastModifiedLabel: "Last Modified Date:",
     notesLabel: "Notes", saveNotesBtn: "Save Changes", closeBtn: "Close", selectBtn: "Select", cutBtn: "Cut", copyBtnAction: "Copy",
-    pasteBtn: "Paste", selectAllBtn: "Select All", manageGroupsBtn: "Manage Groups", manageGroupsTitle: "Manage Groups",
+    pasteBtn: "Paste", bulkDeleteBtn: "Delete", selectAllBtn: "Select All", manageGroupsBtn: "Manage Groups", manageGroupsTitle: "Manage Groups",
     allGroups: "All", groupPlaceholder: "Group name...", captchaTitle: "Automated Access Verification",
     captchaSub: "5 failed attempts detected. Solve the arithmetic problem to resume.", captchaInput: "Enter Solution",
     captchaSubmit: "Verify & Proceed", cancelBtn: "Cancel", confirmBtn: "Confirm", addModalTitle: "Add New Vault Record",
@@ -222,7 +222,7 @@ const translations = {
     recordDetailsTitle: "تعديل بيانات الحساب:", siteUrlLabel: "عنوان المنصة الإلكترونية", usernameLabel: "اسم المستخدم", passwordRecordLabel: "كلمة المرور",
     emailLabel: "البريد الإلكتروني المقترن", phoneLabel: "رقم الهاتف", groupLabel: "المجموعة", lastModifiedLabel: "تاريخ آخر تعديل:",
     notesLabel: "الملاحظات", saveNotesBtn: "حفظ التعديلات", closeBtn: "إغلاق", selectBtn: "تحديد", cutBtn: "قص", copyBtnAction: "نسخ",
-    pasteBtn: "لصق", selectAllBtn: "تحديد الكل", manageGroupsBtn: "إدارة المجموعات", manageGroupsTitle: "إدارة مجموعات الحسابات",
+    pasteBtn: "لصق", bulkDeleteBtn: "حذف", selectAllBtn: "تحديد الكل", manageGroupsBtn: "إدارة المجموعات", manageGroupsTitle: "إدارة مجموعات الحسابات",
     allGroups: "الكل", groupPlaceholder: "اسم المجموعة الجديدة...", captchaTitle: "التحقق من الدخول الآلي",
     captchaSub: "تم رصد 5 محاولات خاطئة. يرجى حل المسألة الحسابية للمتابعة.", captchaInput: "أدخل الناتج",
     captchaSubmit: "تحقق ومتابعة", cancelBtn: "إلغاء", confirmBtn: "تأكيد", addModalTitle: "إضافة حساب جديد إلى الخزنة",
@@ -1040,6 +1040,42 @@ export default function App() {
     else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
     setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
     triggerNotice(lang === 'ar' ? `تم لصق ${pastedItems.length} حساب بنجاح.` : `Pasted ${pastedItems.length} accounts successfully.`);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedAccountIds.length === 0) {
+      triggerNotice(lang === 'ar' ? 'يرجى تحديد حساب واحد على الأقل أولاً.' : 'Please select at least one account.');
+      return;
+    }
+    askConfirm(
+      lang === 'ar' 
+        ? `هل أنت متأكد من حذف ${selectedAccountIds.length} حساب نهائياً؟` 
+        : `Are you sure you want to delete ${selectedAccountIds.length} accounts?`,
+      async () => {
+        const remaining = vaultItems.filter(i => !selectedAccountIds.includes(i.id));
+        setVaultItems(remaining);
+        setSelectedAccountIds([]);
+
+        const enc = await encryptData(remaining, masterPassword);
+        if (supabaseConfigured && currentVaultId) {
+          const { error: saveError } = await cloudSaveVault({
+            vaultId: currentVaultId,
+            identifier: normalizeIdentifier(identifier),
+            masterPassword,
+            encryptedData: enc
+          });
+          if (saveError) {
+            triggerNotice(saveError.message);
+            return;
+          }
+        } else {
+          localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc));
+        }
+        setCurrentEncryptedVault(enc);
+        cacheVaultLocally(identifier, enc);
+        triggerNotice(lang === 'ar' ? 'تم حذف الحسابات المحددة بنجاح.' : 'Selected accounts deleted successfully.');
+      }
+    );
   };
 
   const calculateVaultMetrics = () => {
@@ -1902,6 +1938,9 @@ export default function App() {
                       </button>
                       <button onClick={handleBulkPaste} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-emerald-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-emerald-700'}`}>
                         <Clipboard className="w-3.5 h-3.5" /><span>{t.pasteBtn} ({clipboardBuffer.length})</span>
+                      </button>
+                      <button onClick={handleBulkDelete} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-rose-400 hover:bg-rose-500/10' : 'bg-white border-slate-300 text-rose-600 hover:bg-rose-50'}`}>
+                        <Trash2 className="w-3.5 h-3.5" /><span>{t.bulkDeleteBtn}</span>
                       </button>
                     </div>
                   </div>
