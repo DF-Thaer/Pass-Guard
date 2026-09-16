@@ -612,62 +612,6 @@ export default function App() {
 
   useEffect(() => { if (showGenOptions) triggerLiveGeneration(genLength, useSymbols, useNumbers); }, [genLength, useSymbols, useNumbers, showGenOptions]);
 
-  const canvasRef = useRef(null);
-  const themeRef = useRef(theme);
-  useEffect(() => { themeRef.current = theme; }, [theme]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let animationFrameId;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
-    const handleResize = () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; };
-    window.addEventListener('resize', handleResize);
-    let mouse = { x: width / 2, y: height / 2 };
-    const handleMouseMove = (e) => { mouse.x = e.clientX; mouse.y = e.clientY; };
-    window.addEventListener('mousemove', handleMouseMove);
-    const particles = [];
-    const particleCount = Math.floor((width * height) / 10000);
-    for (let i = 0; i < particleCount; i++) particles.push({ x: Math.random() * width, y: Math.random() * height, vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5, radius: Math.random() * 3 + 1.5 });
-    const draw = () => {
-      const ct = themeRef.current;
-      ctx.fillStyle = ct === 'dark' ? '#030712' : '#f8fafc';
-      ctx.fillRect(0, 0, width, height);
-      for (let i = 0; i < particles.length; i++) {
-        let p = particles[i];
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > width) p.vx *= -1;
-        if (p.y < 0 || p.y > height) p.vy *= -1;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = ct === 'dark' ? 'rgba(99, 102, 241, 0.8)' : 'rgba(79, 70, 229, 0.7)';
-        ctx.shadowColor = ct === 'dark' ? '#6366f1' : '#4f46e5';
-        ctx.shadowBlur = 8;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        const dx = mouse.x - p.x, dy = mouse.y - p.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 150) {
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(mouse.x, mouse.y);
-          ctx.strokeStyle = ct === 'dark' ? `rgba(99, 102, 241, ${1.1 - dist / 150})` : `rgba(79, 70, 229, ${1.1 - dist / 150})`;
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        }
-      }
-      animationFrameId = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, []);
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -1188,7 +1132,7 @@ export default function App() {
   const isDark = theme === 'dark';
 
   return (
-    <div className={`min-h-screen font-sans flex flex-col justify-between relative overflow-x-hidden overflow-y-auto transition-colors duration-500 ${isDark ? 'text-slate-100' : 'text-slate-900'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen font-sans flex flex-col justify-between relative overflow-x-hidden overflow-y-auto transition-colors duration-500 ${isDark ? 'bg-[#030712] text-slate-100' : 'bg-[#f8fafc] text-slate-900'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <style>{`
         ::-webkit-scrollbar { display: none; }
         * { -ms-overflow-style: none; scrollbar-width: none; }
@@ -1201,7 +1145,26 @@ export default function App() {
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
       `}</style>
 
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full -z-10 pointer-events-none" />
+      {/* Modern Cyber-Vault Ambient Background */}
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden select-none">
+        <div className={`absolute inset-0 transition-colors duration-700 ${isDark ? 'bg-[#030712]' : 'bg-[#f8fafc]'}`} />
+        
+        {/* Subtle Cyber Grid Pattern */}
+        <div 
+          className="absolute inset-0 opacity-[0.035] dark:opacity-[0.055]"
+          style={{
+            backgroundImage: isDark 
+              ? 'radial-gradient(circle at 1px 1px, #818cf8 1px, transparent 0)' 
+              : 'radial-gradient(circle at 1px 1px, #4f46e5 1px, transparent 0)',
+            backgroundSize: '28px 28px'
+          }}
+        />
+
+        {/* Ambient Aurora Glows */}
+        <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[110px] transition-all duration-700 ${isDark ? 'bg-indigo-600/20' : 'bg-indigo-300/35'}`} />
+        <div className={`absolute top-1/4 -right-32 w-[28rem] h-[28rem] rounded-full blur-[120px] transition-all duration-700 ${isDark ? 'bg-blue-600/15' : 'bg-sky-300/35'}`} />
+        <div className={`absolute -bottom-32 left-1/3 w-[30rem] h-[30rem] rounded-full blur-[130px] transition-all duration-700 ${isDark ? 'bg-violet-600/15' : 'bg-indigo-200/40'}`} />
+      </div>
 
       {confirmDialog.isOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
@@ -2107,7 +2070,7 @@ export default function App() {
                       <label className="block mb-1 text-slate-400">{t.passwordRecordLabel}</label>
                       <div className="relative flex items-center gap-2">
                         <input type={visiblePasswords[editableRecord.id] ? "text" : "password"} value={editableRecord.password} onChange={(e) => setEditableRecord({ ...editableRecord, password: e.target.value })} className={`flex-1 px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
-                        <button type="button" onClick={() => togglePasswordVisibility(editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}>
+                        <button type="button" onClick={() => togglePasswordVisibility(editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-300'}`}>
                           {visiblePasswords[editableRecord.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                         <button type="button" onClick={() => copyToClipboard(editableRecord.password, editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}><Copy className="w-4 h-4 text-emerald-400" /></button>
