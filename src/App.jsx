@@ -241,7 +241,7 @@ const translations = {
     importPasswordMismatchAlert: "كلمة المرور الرئيسية الحالية لا تتطابق مع مفتاح تشفير الملف المستورد!", importFormatErrorAlert: "صيغة ملف النسخة الاحتياطية غير صالحة!",
     importReadErrorAlert: "حدث خطأ أثناء قراءة ملف النسخة الاحتياطية!", vaultActionsTitle: "إجراءات الخزنة", passLength: "طول كلمة المرور",
     includeSymbols: "تضمين الرموز الخاصة", includeNumbers: "تضمين الأرقام", toggleGenOptions: "خيارات المولد الحي والتحكم",
-    vaultSettingsTitle: "Vault Security Management", vaultSettingsSub: "Update master credentials and recovery details",
+    vaultSettingsTitle: "إدارة أمان الخزنة", vaultSettingsSub: "تحديث بيانات الدخول الرئيسية وتفاصيل الاسترجاع",
     adminManageUserTitle: "إدارة بيانات المستخدم والخزنة", adminManageUserSub: "تعديل معلومات الطوارئ وتحديث بيانات الدخول",
     creationDateLabel: "تاريخ إنشاء الخزنة:", saveSettingsBtn: "تحديث وحفظ التغييرات", updateSuccessNotice: "تم تحديث البيانات بنجاح!",
     confirmDeleteGroup: "هل أنت متأكد من حذف المجموعة '{group}'؟ سيتم نقل حساباتها إلى '{all}'.",
@@ -944,7 +944,6 @@ export default function App() {
 
   const handleSaveRecordChanges = async (e) => {
     e.preventDefault();
-    if (!isValidPassword(editableRecord.password)) { triggerNotice(t.passwordComplexityAlert); return; }
     const updatedRecord = { ...editableRecord, lastUpdated: new Date().toISOString() };
     const updatedItems = vaultItems.map(item => item.id === editableRecord.id ? updatedRecord : item);
     setVaultItems(updatedItems); setEditableRecord(updatedRecord);
@@ -1193,7 +1192,7 @@ export default function App() {
             <form onSubmit={handleContactSubmit} className="space-y-3.5 text-xs">
               <div>
                 <label className="block mb-1 font-semibold text-slate-300">{t.contactNameLabel} *</label>
-                <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Full Name" className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder={lang === 'ar' ? 'الاسم الكامل' : 'Full Name'} className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1220,7 +1219,7 @@ export default function App() {
               )}
               <div>
                 <label className="block mb-1 font-semibold text-slate-300">{t.contactMsgLabel} *</label>
-                <textarea value={contactMessage} onChange={(e) => setContactMessage(e.target.value)} placeholder="Write your message here..." className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 h-24 resize-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                <textarea value={contactMessage} onChange={(e) => setContactMessage(e.target.value)} placeholder={lang === 'ar' ? 'اكتب رسالتك هنا...' : 'Write your message here...'} className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 h-24 resize-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowContactModal(false)} className={`px-5 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300'}`}>{t.cancelBtn}</button>
@@ -1499,7 +1498,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Smooth Scroll Competitive Project Section */}
             <div className="w-full py-8 space-y-6">
               <div className="text-center space-y-2">
                 <h2 className="text-xl md:text-2xl font-black bg-gradient-to-r from-indigo-400 to-sky-400 bg-clip-text text-transparent">
@@ -1699,7 +1697,7 @@ export default function App() {
                 <div className="p-4 sm:p-6 overflow-y-auto space-y-4 animate-fadeIn">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                     <h3 className="text-sm font-bold flex items-center gap-2"><MessageSquare className="w-4 h-4 text-indigo-400" />{t.adminMessagesBtn}</h3>
-                    <span className="text-xs text-slate-400 font-mono">Total: {contactMessagesList.length}</span>
+                    <span className="text-xs text-slate-400 font-mono">{lang === 'ar' ? 'الإجمالي:' : 'Total:'} {contactMessagesList.length}</span>
                   </div>
                   {contactMessagesList.length === 0 ? (
                     <p className="text-xs text-slate-400 text-center py-12">{t.noContactMessages}</p>
@@ -1717,7 +1715,7 @@ export default function App() {
                             </div>
                             <div className="flex items-center gap-3 text-xs">
                               <span className="px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono">
-                                Preferred: {msg.preference} {msg.other_pref ? `(${msg.other_pref})` : ''}
+                                {lang === 'ar' ? 'المفضل:' : 'Preferred:'} {msg.preference} {msg.other_pref ? `(${msg.other_pref})` : ''}
                               </span>
                               <button onClick={async () => {
                                 askConfirm(lang === 'ar' ? 'هل تريد حذف هذه الرسالة؟' : 'Delete this message?', async () => {
@@ -1737,7 +1735,7 @@ export default function App() {
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono text-slate-300 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80">
                             <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-indigo-400" /> <span>{msg.email}</span></div>
-                            <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-emerald-400" /> <span>{msg.phone || 'N/A'}</span></div>
+                            <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-emerald-400" /> <span>{msg.phone || (lang === 'ar' ? 'غير متوفر' : 'N/A')}</span></div>
                           </div>
                           <div className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/20 text-xs leading-relaxed text-slate-200">
                             {msg.message}
@@ -1959,7 +1957,6 @@ export default function App() {
                   <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (!newTitle || !newPassword) return;
-                    if (!isValidPassword(newPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
                     const newItem = { id: crypto.randomUUID ? crypto.randomUUID() : Date.now(), title: newTitle, username: newUsername, password: newPassword, url: newUrl || `https://${newTitle.toLowerCase().replace(/\s+/g, '')}.com`, email: newEmail || '', phone: newPhone || '', lastUpdated: new Date().toISOString(), notes: newNotes || '', group: newGroupSelection || '' };
                     const updatedItems = [...vaultItems, newItem];
                     setVaultItems(updatedItems);
@@ -1969,7 +1966,7 @@ export default function App() {
                     setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted, { email: newEmail, phone: newPhone });
                     setNewTitle(''); setNewUsername(''); setNewPassword(''); setNewUrl(''); setNewEmail(''); setNewPhone(''); setNewNotes(''); setNewGroupSelection('');
                     setShowGenOptions(false); setVaultSubView('items');
-                    triggerNotice('تم حفظ الحساب في الخزنة بنجاح');
+                    triggerNotice(lang === 'ar' ? 'تم حفظ الحساب في الخزنة بنجاح' : 'Account saved in vault successfully');
                   }} className="space-y-3 text-xs">
                     <div>
                       <input type="text" placeholder={t.siteTitlePlaceholder} value={newTitle} onChange={(e) => handleTitleChange(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
