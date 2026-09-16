@@ -69,7 +69,7 @@ const generateSecurePassword = (length, includeSymbols, includeNumbers) => {
   const allChars = charSets.join("");
   const arr = [];
   charSets.forEach(set => arr.push(set[Math.floor(Math.random() * set.length)]));
-  for (let i = 0; i < length; i++) arr.push(allChars[Math.floor(Math.random() * allChars.length)]);
+  for (let i = arr.length; i < length; i++) arr.push(allChars[Math.floor(Math.random() * allChars.length)]);
   for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
   return arr.join("");
 };
@@ -612,9 +612,8 @@ export default function App() {
 
   useEffect(() => { if (showGenOptions) triggerLiveGeneration(genLength, useSymbols, useNumbers); }, [genLength, useSymbols, useNumbers, showGenOptions]);
 
-  // Ultra-Smooth Interactive Cyber-Canvas Background
+  // Ultra-Smooth Interactive Cyber-Network Background
   const canvasRef = useRef(null);
-  const mouseRef = useRef({ x: -2000, y: -2000, targetX: -2000, targetY: -2000, radius: 220 });
   const themeRef = useRef(theme);
   useEffect(() => { themeRef.current = theme; }, [theme]);
 
@@ -627,123 +626,118 @@ export default function App() {
     let height = (canvas.height = window.innerHeight);
 
     const handleResize = () => {
-      if (!canvas) return;
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
     };
     window.addEventListener('resize', handleResize);
 
+    let mouse = { x: -1000, y: -1000, targetX: -1000, targetY: -1000 };
+
     const handleMouseMove = (e) => {
-      mouseRef.current.targetX = e.clientX;
-      mouseRef.current.targetY = e.clientY;
+      mouse.targetX = e.clientX;
+      mouse.targetY = e.clientY;
     };
     const handleMouseLeave = () => {
-      mouseRef.current.targetX = -2000;
-      mouseRef.current.targetY = -2000;
+      mouse.targetX = -1000;
+      mouse.targetY = -1000;
     };
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseleave', handleMouseLeave);
 
-    const numNodes = Math.min(Math.floor((width * height) / 14000), 95);
-    const nodes = [];
-    for (let i = 0; i < numNodes; i++) {
-      nodes.push({
+    const particles = [];
+    const particleCount = Math.min(Math.floor((width * height) / 10000), 120);
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.45,
-        vy: (Math.random() - 0.5) * 0.45,
-        baseRadius: Math.random() * 1.8 + 1.2,
-        pulse: Math.random() * Math.PI * 2,
-        pulseSpeed: 0.015 + Math.random() * 0.02
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: (Math.random() - 0.5) * 1.2,
+        baseRadius: Math.random() * 1.5 + 1,
       });
     }
 
     const render = () => {
       const isDarkTheme = themeRef.current === 'dark';
-      const m = mouseRef.current;
-      m.x += (m.targetX - m.x) * 0.08;
-      m.y += (m.targetY - m.y) * 0.08;
+      
+      // Smooth mouse lerp
+      mouse.x += (mouse.targetX - mouse.x) * 0.12;
+      mouse.y += (mouse.targetY - mouse.y) * 0.12;
 
       ctx.clearRect(0, 0, width, height);
 
-      // Dynamic Interactive Aura under Cursor
-      if (m.x > -1000 && m.y > -1000) {
-        const aura = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 380);
+      // Draw Mouse Aura
+      if (mouse.x > -500) {
+        const grad = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 250);
         if (isDarkTheme) {
-          aura.addColorStop(0, 'rgba(99, 102, 241, 0.18)');
-          aura.addColorStop(0.4, 'rgba(56, 189, 248, 0.06)');
-          aura.addColorStop(1, 'rgba(3, 7, 18, 0)');
+          grad.addColorStop(0, 'rgba(99, 102, 241, 0.15)');
+          grad.addColorStop(1, 'rgba(3, 7, 18, 0)');
         } else {
-          aura.addColorStop(0, 'rgba(99, 102, 241, 0.12)');
-          aura.addColorStop(0.4, 'rgba(147, 197, 253, 0.06)');
-          aura.addColorStop(1, 'rgba(248, 250, 252, 0)');
+          grad.addColorStop(0, 'rgba(99, 102, 241, 0.08)');
+          grad.addColorStop(1, 'rgba(248, 250, 252, 0)');
         }
-        ctx.fillStyle = aura;
-        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 250, 0, Math.PI * 2);
+        ctx.fill();
       }
 
-      for (let i = 0; i < nodes.length; i++) {
-        let node = nodes[i];
-        node.x += node.vx;
-        node.y += node.vy;
-        node.pulse += node.pulseSpeed;
+      for (let i = 0; i < particles.length; i++) {
+        let p = particles[i];
 
-        if (node.x < 0) node.x = width;
-        if (node.x > width) node.x = 0;
-        if (node.y < 0) node.y = height;
-        if (node.y > height) node.y = 0;
+        p.x += p.vx;
+        p.y += p.vy;
 
-        const dx = m.x - node.x;
-        const dy = m.y - node.y;
+        // Bounce
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+
+        // Mouse Physics
+        const dx = mouse.x - p.x;
+        const dy = mouse.y - p.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        let pushX = 0;
-        let pushY = 0;
-        let isNear = false;
+        
+        if (dist < 180) {
+          // Connecting lines to mouse
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(mouse.x, mouse.y);
+          ctx.strokeStyle = isDarkTheme 
+            ? `rgba(99, 102, 241, ${(1 - dist/180) * 0.7})` 
+            : `rgba(79, 70, 229, ${(1 - dist/180) * 0.5})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
 
-        if (dist < m.radius && dist > 0) {
-          isNear = true;
-          const factor = (1 - dist / m.radius) * 14;
-          pushX = -(dx / dist) * factor;
-          pushY = -(dy / dist) * factor;
+          // Repel force
+          const force = (180 - dist) / 180;
+          p.x -= (dx / dist) * force * 1.5;
+          p.y -= (dy / dist) * force * 1.5;
         }
 
-        const renderX = node.x + pushX;
-        const renderY = node.y + pushY;
-        const currentR = node.baseRadius + Math.sin(node.pulse) * 0.5 + (isNear ? 1.5 : 0);
-
-        ctx.beginPath();
-        ctx.arc(renderX, renderY, Math.max(currentR, 0.8), 0, Math.PI * 2);
-        if (isDarkTheme) {
-          ctx.fillStyle = isNear ? 'rgba(56, 189, 248, 0.95)' : 'rgba(129, 140, 248, 0.65)';
-          ctx.shadowColor = isNear ? '#38bdf8' : '#6366f1';
-          ctx.shadowBlur = isNear ? 14 : 6;
-        } else {
-          ctx.fillStyle = isNear ? 'rgba(79, 70, 229, 0.9)' : 'rgba(99, 102, 241, 0.55)';
-          ctx.shadowColor = '#4f46e5';
-          ctx.shadowBlur = isNear ? 10 : 4;
-        }
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        for (let j = i + 1; j < nodes.length; j++) {
-          let node2 = nodes[j];
-          const ndx = renderX - node2.x;
-          const ndy = renderY - node2.y;
-          const ndist = Math.sqrt(ndx * ndx + ndy * ndy);
-          const maxDist = isNear ? 150 : 100;
-
-          if (ndist < maxDist) {
-            const opacity = (1 - ndist / maxDist) * (isNear ? 0.35 : 0.16);
+        // Connect particles to each other
+        for (let j = i + 1; j < particles.length; j++) {
+          let p2 = particles[j];
+          const dx2 = p.x - p2.x;
+          const dy2 = p.y - p2.y;
+          const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+          
+          if (dist2 < 120) {
             ctx.beginPath();
-            ctx.moveTo(renderX, renderY);
-            ctx.lineTo(node2.x, node2.y);
-            ctx.strokeStyle = isDarkTheme
-              ? `rgba(99, 102, 241, ${opacity})`
-              : `rgba(79, 70, 229, ${opacity * 0.85})`;
-            ctx.lineWidth = isNear ? 1.1 : 0.7;
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = isDarkTheme 
+              ? `rgba(148, 163, 184, ${(1 - dist2/120) * 0.25})` 
+              : `rgba(148, 163, 184, ${(1 - dist2/120) * 0.4})`;
+            ctx.lineWidth = 0.6;
             ctx.stroke();
           }
         }
+
+        // Draw particle node
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.baseRadius, 0, Math.PI * 2);
+        ctx.fillStyle = isDarkTheme ? 'rgba(99, 102, 241, 0.9)' : 'rgba(79, 70, 229, 0.7)';
+        ctx.fill();
       }
 
       animationFrameId = requestAnimationFrame(render);
@@ -1279,7 +1273,7 @@ export default function App() {
   const isDark = theme === 'dark';
 
   return (
-    <div className={`min-h-screen font-sans flex flex-col justify-between relative overflow-x-hidden overflow-y-auto transition-colors duration-500 ${isDark ? 'bg-[#030712] text-slate-100' : 'bg-[#f8fafc] text-slate-900'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen font-sans flex flex-col justify-between relative overflow-x-hidden overflow-y-auto transition-colors duration-500 ${isDark ? 'text-slate-100' : 'text-slate-900'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <style>{`
         ::-webkit-scrollbar { display: none; }
         * { -ms-overflow-style: none; scrollbar-width: none; }
@@ -1292,24 +1286,10 @@ export default function App() {
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
       `}</style>
 
-      {/* Modern High-End Interactive Layer */}
-      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden select-none">
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
-        
-        {/* Subtle Cyber Grid Accent */}
-        <div 
-          className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
-          style={{
-            backgroundImage: isDark 
-              ? 'radial-gradient(circle at 1px 1px, #818cf8 1px, transparent 0)' 
-              : 'radial-gradient(circle at 1px 1px, #4f46e5 1px, transparent 0)',
-            backgroundSize: '32px 32px'
-          }}
-        />
-
-        {/* Ambient Corner Glows */}
-        <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[120px] transition-all duration-700 ${isDark ? 'bg-indigo-600/15' : 'bg-indigo-300/30'}`} />
-        <div className={`absolute -bottom-32 -right-32 w-[28rem] h-[28rem] rounded-full blur-[130px] transition-all duration-700 ${isDark ? 'bg-blue-600/15' : 'bg-sky-300/30'}`} />
+      {/* Cyber-Network Interactive Canvas Background */}
+      <div className="fixed inset-0 -z-10 pointer-events-none">
+        <div className={`absolute inset-0 transition-colors duration-700 ${isDark ? 'bg-[#030712]' : 'bg-[#f8fafc]'}`} />
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       </div>
 
       {confirmDialog.isOpen && (
