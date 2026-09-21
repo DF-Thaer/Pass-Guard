@@ -300,6 +300,8 @@ export default function App() {
   const [newPassword, setNewPassword] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newGroupSelection, setNewGroupSelection] = useState('');
@@ -1559,7 +1561,65 @@ export default function App() {
           </div>
         </div>
       )}
+{/* نافذة سياسة الخصوصية */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
+          <div className={`border p-6 sm:p-7 rounded-3xl w-full max-w-xl max-h-[88vh] overflow-y-auto space-y-4 shadow-2xl transition-all ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <h3 className="text-base sm:text-lg font-black flex items-center gap-2">
+                <Shield className="w-5 h-5 text-indigo-500" />
+                <span>{lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</span>
+              </h3>
+              <button onClick={() => setShowPrivacyModal(false)} className={`cursor-pointer font-bold px-2 py-1 transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
+            </div>
+            <div className={`space-y-4 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <div className={`p-4 rounded-2xl border space-y-1.5 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                <h5 className="font-bold text-indigo-400 text-sm">{lang === 'ar' ? '1. معمارية المعرفة الصفرية (Zero-Knowledge)' : '1. Zero-Knowledge Architecture'}</h5>
+                <p>{lang === 'ar' ? 'نحن لا نقوم بجمع، تخزين، أو الاطلاع على كلمات المرور الخاصة بك بصيغتها المقروءة. يتم تشفير كافة بياناتك محلياً على جهازك قبل إرسالها للسحابة، مما يعني استحالة اطلاع أي كائن عليها.' : 'We do not collect, store, or view your passwords in plaintext. All your data is encrypted locally on your device before reaching our cloud, meaning no one can access it.'}</p>
+              </div>
+              <div className={`p-4 rounded-2xl border space-y-1.5 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                <h5 className="font-bold text-sky-400 text-sm">{lang === 'ar' ? '2. التشفير المتقدم والبيانات السحابية' : '2. Advanced Cloud Encryption'}</h5>
+                <p>{lang === 'ar' ? 'نستخدم خوارزمية AES-GCM 256-bit المعيارية والعسكرية. مفتاح التشفير مشتق بالكامل من "كلمة المرور الرئيسية" الخاصة بك، والتي لا يتم إرسالها أو تخزينها في خوادمنا أبداً.' : 'We use military-grade AES-GCM 256-bit encryption. The encryption key is derived entirely from your Master Password, which is never transmitted or stored on our servers.'}</p>
+              </div>
+              <div className={`p-4 rounded-2xl border space-y-1.5 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                <h5 className="font-bold text-emerald-400 text-sm">{lang === 'ar' ? '3. مشاركة البيانات' : '3. Data Sharing'}</h5>
+                <p>{lang === 'ar' ? 'أمانك وخصوصيتك هما أساس عملنا. نحن لا نبيع، ولا نؤجر، ولا نشارك أي بيانات مشفرة أو معلومات اتصال مع أي جهة خارجية أو أطراف ثالثة تحت أي ظرف من الظروف.' : 'Your security and privacy are our foundation. We do not sell, rent, or share any encrypted data or contact information with third parties under any circumstances.'}</p>
+              </div>
+            </div>
+            <button onClick={() => setShowPrivacyModal(false)} className="w-full mt-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.closeBtn}</button>
+          </div>
+        </div>
+      )}
 
+      {/* نافذة شروط الاستخدام */}
+      {showTermsModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
+          <div className={`border p-6 sm:p-7 rounded-3xl w-full max-w-xl max-h-[88vh] overflow-y-auto space-y-4 shadow-2xl transition-all ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <h3 className="text-base sm:text-lg font-black flex items-center gap-2">
+                <CheckSquare className="w-5 h-5 text-indigo-500" />
+                <span>{lang === 'ar' ? 'شروط الاستخدام' : 'Terms of Service'}</span>
+              </h3>
+              <button onClick={() => setShowTermsModal(false)} className={`cursor-pointer font-bold px-2 py-1 transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
+            </div>
+            <div className={`space-y-4 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <div className={`p-4 rounded-2xl border space-y-1.5 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                <h5 className="font-bold text-rose-400 text-sm">{lang === 'ar' ? '1. مسؤولية كلمة المرور الرئيسية' : '1. Master Password Responsibility'}</h5>
+                <p>{lang === 'ar' ? 'أنت المسؤول الوحيد عن تذكر وحفظ "كلمة المرور الرئيسية". نظراً لطبيعة التشفير من طرف إلى طرف، لا يمكن للنظام استعادة بياناتك إذا فقدت كلمة المرور ما لم تتواصل مع المشرف بشكل مباشر.' : 'You are solely responsible for remembering your Master Password. Due to end-to-end encryption, the system cannot recover your data if the password is lost, unless you contact the admin directly.'}</p>
+              </div>
+              <div className={`p-4 rounded-2xl border space-y-1.5 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                <h5 className="font-bold text-amber-400 text-sm">{lang === 'ar' ? '2. الاستخدام العادل والمشروع' : '2. Fair & Lawful Use'}</h5>
+                <p>{lang === 'ar' ? 'تُقدم هذه الخدمة لإدارة وتأمين الحسابات الشخصية والمهنية. يُمنع منعاً باتاً استخدام المنصة لتخزين أي روابط أو بيانات تخالف القوانين المحلية أو الدولية.' : 'This service is provided to secure personal and professional accounts. It is strictly prohibited to use the platform to store any links or data that violate local or international laws.'}</p>
+              </div>
+              <div className={`p-4 rounded-2xl border space-y-1.5 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                <h5 className="font-bold text-emerald-400 text-sm">{lang === 'ar' ? '3. إخلاء المسؤولية' : '3. Disclaimer'}</h5>
+                <p>{lang === 'ar' ? 'نحن نبذل قصارى جهدنا لضمان أقصى درجات الأمان واستقرار الخوادم السحابية، لكننا لا نتحمل المسؤولية عن أي فقدان للبيانات ناتج عن أخطاء المستخدم أو اختراق جهازه الشخصي ببرمجيات خبيثة.' : 'We do our best to ensure maximum security and cloud server stability, but we are not liable for any data loss caused by user errors or personal device compromises via malware.'}</p>
+              </div>
+            </div>
+            <button onClick={() => setShowTermsModal(false)} className="w-full mt-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.closeBtn}</button>
+          </div>
+        </div>
+      )}
       <header className={`w-full px-3 sm:px-8 py-3 sm:py-4 border-b z-20 flex items-center justify-between shadow-xl transition-all duration-500 ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-2xl' : 'bg-white/80 border-slate-200/80 backdrop-blur-2xl'}`}>
         <div className="flex items-center gap-2 sm:gap-3.5 cursor-pointer group shrink-0" onClick={() => { if (!isUnlocked) setCurrentView('welcome'); }}>
           <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden border-2 shrink-0 flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300 ${isDark ? 'neon-logo-dark border-indigo-600 bg-gradient-to-br from-indigo-900 to-slate-950' : 'neon-logo-light border-indigo-200 bg-white shadow-md'}`}>
@@ -2364,80 +2424,86 @@ export default function App() {
         )}
       </main>
 
-      {/* بداية التذييل الجديد المنسق (3 أعمدة) */}
-      <footer className={`w-full border-t z-20 shrink-0 transition-colors duration-500 font-sans py-10 ${isDark ? 'bg-slate-950/80 border-slate-800/80 text-slate-300 backdrop-blur-2xl' : 'bg-white/80 border-slate-200 text-slate-600 backdrop-blur-2xl'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-        <div className="w-full max-w-7xl mx-auto px-6 sm:px-8 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-8 text-start">
+      {/* بداية التذييل الاحترافي الجديد (Modern Footer) */}
+      <footer className={`w-full relative border-t z-20 shrink-0 transition-colors duration-500 font-sans py-12 ${isDark ? 'bg-slate-950/60 border-slate-800/50 text-slate-300 backdrop-blur-3xl' : 'bg-white/70 border-slate-200/80 text-slate-600 backdrop-blur-3xl'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+        {/* خط علوي مضيء يعطي طابع حديث */}
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
+
+        <div className="w-full max-w-7xl mx-auto px-6 sm:px-8 grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 mb-10 text-start relative z-10">
           
           {/* العمود الأول: الشعار ونبذة */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-               <div className={`w-10 h-10 rounded-xl overflow-hidden border-2 flex items-center justify-center p-0.5 ${isDark ? 'neon-logo-dark border-indigo-600 bg-gradient-to-br from-indigo-900 to-slate-950' : 'neon-logo-light border-indigo-200 bg-white shadow-md'}`}>
-                 <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-contain drop-shadow-sm" />
+          <div className="space-y-5">
+            <div className="flex items-center gap-3">
+               <div className={`w-12 h-12 rounded-2xl overflow-hidden border flex items-center justify-center p-1 shadow-lg transition-transform hover:scale-105 ${isDark ? 'neon-logo-dark border-indigo-500/30 bg-gradient-to-br from-indigo-900/50 to-slate-900' : 'neon-logo-light border-indigo-200 bg-white'}`}>
+                 <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-contain drop-shadow-md" />
                </div>
-               <span className={`font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r ${isDark ? 'from-indigo-400 via-sky-400 to-blue-500' : 'from-indigo-600 via-sky-600 to-blue-700'}`}>Pass-Guard</span>
+               <span className={`font-black text-2xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r ${isDark ? 'from-indigo-400 via-sky-400 to-blue-500' : 'from-indigo-600 via-sky-600 to-blue-700'}`}>Pass-Guard</span>
             </div>
-            <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              {lang === 'ar' ? 'خزنة كلمات مرور مشفرة وآمنة، توفر لك حماية متقدمة ومزامنة سحابية لجميع حساباتك بسهولة وموثوقية.' : 'An AES-GCM 256-bit encrypted password vault providing advanced protection and secure cloud sync for all your accounts.'}
+            <p className={`text-[13px] leading-relaxed font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              {lang === 'ar' ? 'خزنة كلمات مرور مشفرة وآمنة، توفر لك حماية متقدمة ومزامنة سحابية لجميع حساباتك بسهولة وموثوقية عالية.' : 'An AES-GCM 256-bit encrypted password vault providing advanced protection and secure cloud sync for all your accounts.'}
             </p>
           </div>
 
           {/* العمود الثاني: روابط سريعة */}
-          <div className="space-y-4">
-            <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{lang === 'ar' ? 'روابط سريعة' : 'Quick Links'}</h3>
-            <ul className={`space-y-3 text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              <li><button onClick={() => setCurrentView('welcome')} className="hover:text-indigo-500 transition-colors cursor-pointer">{lang === 'ar' ? 'الرئيسية' : 'Home'}</button></li>
-              <li><button onClick={() => setShowToolsModal(true)} className="hover:text-indigo-500 transition-colors cursor-pointer">{t.toolsBtn}</button></li>
-              <li><button onClick={() => setShowAboutModal(true)} className="hover:text-indigo-500 transition-colors cursor-pointer">{t.aboutBtn}</button></li>
-              <li><button onClick={() => setShowContactModal(true)} className="hover:text-indigo-500 transition-colors cursor-pointer">{t.contactBtn}</button></li>
+          <div className="space-y-5">
+            <h3 className={`text-base font-black tracking-wide ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{lang === 'ar' ? 'روابط سريعة' : 'Quick Links'}</h3>
+            <ul className={`space-y-3.5 text-[13px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <li><button onClick={() => setCurrentView('welcome')} className="hover:text-indigo-400 flex items-center gap-2 transition-all hover:-translate-x-1 cursor-pointer"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500/50"></span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</button></li>
+              <li><button onClick={() => setShowToolsModal(true)} className="hover:text-indigo-400 flex items-center gap-2 transition-all hover:-translate-x-1 cursor-pointer"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500/50"></span>{t.toolsBtn}</button></li>
+              <li><button onClick={() => setShowAboutModal(true)} className="hover:text-indigo-400 flex items-center gap-2 transition-all hover:-translate-x-1 cursor-pointer"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500/50"></span>{t.aboutBtn}</button></li>
+              <li><button onClick={() => setShowContactModal(true)} className="hover:text-indigo-400 flex items-center gap-2 transition-all hover:-translate-x-1 cursor-pointer"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500/50"></span>{t.contactBtn}</button></li>
             </ul>
           </div>
 
-          {/* العمود الثالث: تواصل معنا (مدمج مع الأيقونات) */}
-          <div className="space-y-4">
-            <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{lang === 'ar' ? 'تواصل معنا' : 'Contact Us'}</h3>
-            <div className="flex flex-wrap items-center justify-start gap-2.5">
+          {/* العمود الثالث: تواصل معنا */}
+          <div className="space-y-5">
+            <h3 className={`text-base font-black tracking-wide ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{lang === 'ar' ? 'تواصل معنا' : 'Contact Us'}</h3>
+            <div className="flex flex-wrap items-center justify-start gap-3">
               
-              {/* Email (Gmail) */}
-              <a href="mailto:thaeraladom@gmail.com" title="Email" className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-sm ${isDark ? 'border-slate-700 bg-slate-900/50 hover:bg-[#EA4335] hover:border-[#EA4335] hover:text-white' : 'border-slate-300 bg-white hover:bg-[#EA4335] hover:border-[#EA4335] hover:text-white'}`}>
+              {/* Email */}
+              <a href="mailto:thaeraladom@gmail.com" title="Email" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#EA4335]/10 hover:border-[#EA4335]/50 hover:text-[#EA4335] hover:shadow-[0_0_15px_rgba(234,67,53,0.3)]' : 'border-slate-300 bg-white hover:bg-[#EA4335]/10 hover:border-[#EA4335]/50 hover:text-[#EA4335]'}`}>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>
               </a>
 
               {/* Phone */}
-              <a href="tel:+962792315565" title="Call" className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-sm ${isDark ? 'border-slate-700 bg-slate-900/50 hover:bg-[#059669] hover:border-[#059669] hover:text-white' : 'border-slate-300 bg-white hover:bg-[#059669] hover:border-[#059669] hover:text-white'}`}>
+              <a href="tel:+962792315565" title="Call" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#059669]/10 hover:border-[#059669]/50 hover:text-[#059669] hover:shadow-[0_0_15px_rgba(5,150,105,0.3)]' : 'border-slate-300 bg-white hover:bg-[#059669]/10 hover:border-[#059669]/50 hover:text-[#059669]'}`}>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
               </a>
 
               {/* WhatsApp */}
-              <a href="https://api.whatsapp.com/qr/NB2CLFJI6A6KP1?autoload=1&app_absent=0" target="_blank" rel="noopener noreferrer" title="WhatsApp" className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-sm ${isDark ? 'border-slate-700 bg-slate-900/50 hover:bg-[#25D366] hover:border-[#25D366] hover:text-white' : 'border-slate-300 bg-white hover:bg-[#25D366] hover:border-[#25D366] hover:text-white'}`}>
+              <a href="https://wa.me/962792315565" target="_blank" rel="noopener noreferrer" title="WhatsApp" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#25D366]/10 hover:border-[#25D366]/50 hover:text-[#25D366] hover:shadow-[0_0_15px_rgba(37,211,102,0.3)]' : 'border-slate-300 bg-white hover:bg-[#25D366]/10 hover:border-[#25D366]/50 hover:text-[#25D366]'}`}>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-              </a>
-              
-              {/* Telegram */}
-              <a href="https://t.me/t30902007" target="_blank" rel="noopener noreferrer" title="Telegram" className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-sm ${isDark ? 'border-slate-700 bg-slate-900/50 hover:bg-[#0088cc] hover:border-[#0088cc] hover:text-white' : 'border-slate-300 bg-white hover:bg-[#0088cc] hover:border-[#0088cc] hover:text-white'}`}>
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.09l-6.4 4.024-2.76-.86c-.6-.185-.61-.6.125-.89l10.736-4.136c.5-.18.91.105.74.887z"/></svg>
-              </a>
+                  </a>
+                  
+                  {/* Telegram */}
+                  <a href="https://t.me/t30902007" target="_blank" rel="noopener noreferrer" title="Telegram" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc] hover:shadow-[0_0_15px_rgba(0,136,204,0.3)]' : 'border-slate-300 bg-white hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc]'}`}>
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.09l-6.4 4.024-2.76-.86c-.6-.185-.61-.6.125-.89l10.736-4.136c.5-.18.91.105.74.887z"/></svg>
+                  </a>
 
-              {/* Facebook */}
-              <a href="https://www.facebook.com/t30902007" target="_blank" rel="noopener noreferrer" title="Facebook" className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-sm ${isDark ? 'border-slate-700 bg-slate-900/50 hover:bg-[#1877F2] hover:border-[#1877F2] hover:text-white' : 'border-slate-300 bg-white hover:bg-[#1877F2] hover:border-[#1877F2] hover:text-white'}`}>
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z"/></svg>
-              </a>
+                  {/* Facebook */}
+                  <a href="https://www.facebook.com/t30902007" target="_blank" rel="noopener noreferrer" title="Facebook" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2] hover:shadow-[0_0_15px_rgba(24,119,242,0.3)]' : 'border-slate-300 bg-white hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2]'}`}>
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z"/></svg>
+                  </a>
+                </div>
+                
+                <div className={`pt-2 text-[13px] font-bold flex items-center gap-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+                  <span>{lang === 'ar' ? 'الزرقاء - الأردن' : 'Zarqa - Jordan'}</span>
+                </div>
+              </div>
             </div>
-            
-            <div className={`pt-2 text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              <span>{lang === 'ar' ? 'الزرقاء - الأردن' : 'Zarqa - Jordan'}</span>
-            </div>
-          </div>
-        </div>
 
-        {/* الشريط السفلي */}
-        <div className={`w-full max-w-7xl mx-auto px-6 pt-6 border-t flex flex-col sm:flex-row items-center justify-between text-[11px] ${isDark ? 'border-slate-800/80 text-slate-500' : 'border-slate-300 text-slate-500'}`}>
-          <div className="flex items-center gap-4 mb-3 sm:mb-0">
-            <button className={`font-bold transition-colors cursor-pointer ${isDark ? 'hover:text-slate-300' : 'hover:text-slate-700'}`}>{lang === 'ar' ? 'حقوق الملكية والخصوصية' : 'Privacy & Copyright'}</button>
-          </div>
-          <span className="font-mono">© 2026 Pass-Guard. {lang === 'ar' ? 'جميع الحقوق محفوظة.' : 'All Rights Reserved.'}</span>
-        </div>
-      </footer>
-      {/* نهاية التذييل الجديد المنسق (3 أعمدة) */}
+            {/* الشريط السفلي */}
+            <div className={`relative z-10 w-full max-w-7xl mx-auto px-6 pt-6 border-t flex flex-col sm:flex-row items-center justify-between text-[12px] font-semibold ${isDark ? 'border-slate-800/60 text-slate-500' : 'border-slate-300 text-slate-500'}`}>
+              <div className="flex items-center gap-4 mb-3 sm:mb-0">
+                <button onClick={() => setShowPrivacyModal(true)} className={`transition-colors cursor-pointer ${isDark ? 'hover:text-indigo-400' : 'hover:text-indigo-600'}`}>{lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</button>
+                <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+                <button onClick={() => setShowTermsModal(true)} className={`transition-colors cursor-pointer ${isDark ? 'hover:text-indigo-400' : 'hover:text-indigo-600'}`}>{lang === 'ar' ? 'شروط الاستخدام' : 'Terms of Service'}</button>
+              </div>
+              <span className="font-mono tracking-tight">© 2026 Pass-Guard. {lang === 'ar' ? 'جميع الحقوق محفوظة.' : 'All Rights Reserved.'}</span>
+            </div>
+          </footer>
+          {/* نهاية التذييل الاحترافي الجديد (Modern Footer) */}
     </div>
   );
 }
