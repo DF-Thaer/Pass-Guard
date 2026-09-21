@@ -159,7 +159,7 @@ const translations = {
     toolsModalTitle: "Password Strength Auditor", toolsPlaceholder: "Type any password to evaluate its resistance...",
     recordDetailsTitle: "Edit Record Details", siteUrlLabel: "Platform URL", usernameLabel: "Username", passwordRecordLabel: "Password",
     emailLabel: "Linked Email", phoneLabel: "Phone Number", groupLabel: "Group Category", lastModifiedLabel: "Last Modified Date:",
-    notesLabel: "Notes", saveNotesBtn: "Save Changes", closeBtn: "Close", selectBtn: "Select", cutBtn: "Cut", copyBtnAction: "Copy",
+    notesLabel: "Notes", saveNotesBtn: "Save Changes", closeBtn: "Close", exitBtn: "Exit", selectBtn: "Select", cutBtn: "Cut", copyBtnAction: "Copy",
     pasteBtn: "Paste", bulkDeleteBtn: "Delete", selectAllBtn: "Select All", manageGroupsBtn: "Manage Groups", manageGroupsTitle: "Manage Groups",
     allGroups: "All", groupPlaceholder: "Group name...", captchaTitle: "Automated Access Verification",
     captchaSub: "5 failed attempts detected. Solve the arithmetic problem to resume.", captchaInput: "Enter Solution",
@@ -221,7 +221,7 @@ const translations = {
     toolsModalTitle: "فاحص متانة كلمات المرور", toolsPlaceholder: "اكتب أي كلمة مرور لفحص مدى صمودها...",
     recordDetailsTitle: "تعديل بيانات الحساب:", siteUrlLabel: "عنوان المنصة الإلكترونية", usernameLabel: "اسم المستخدم", passwordRecordLabel: "كلمة المرور",
     emailLabel: "البريد الإلكتروني المقترن", phoneLabel: "رقم الهاتف", groupLabel: "المجموعة", lastModifiedLabel: "تاريخ آخر تعديل:",
-    notesLabel: "الملاحظات", saveNotesBtn: "حفظ التعديلات", closeBtn: "إغلاق", selectBtn: "تحديد", cutBtn: "قص", copyBtnAction: "نسخ",
+    notesLabel: "الملاحظات", saveNotesBtn: "حفظ التعديلات", closeBtn: "إغلاق", exitBtn: "خروج", selectBtn: "تحديد", cutBtn: "قص", copyBtnAction: "نسخ",
     pasteBtn: "لصق", bulkDeleteBtn: "حذف", selectAllBtn: "تحديد الكل", manageGroupsBtn: "إدارة المجموعات", manageGroupsTitle: "إدارة مجموعات الحسابات",
     allGroups: "الكل", groupPlaceholder: "اسم المجموعة الجديدة...", captchaTitle: "التحقق من الدخول الآلي",
     captchaSub: "تم رصد 5 محاولات خاطئة. يرجى حل المسألة الحسابية للمتابعة.", captchaInput: "أدخل الناتج",
@@ -329,6 +329,18 @@ export default function App() {
 
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
+
+  const originalRecord = editableRecord ? vaultItems.find(i => i.id === editableRecord.id) : null;
+  const isRecordModified = originalRecord ? (
+    editableRecord.title !== originalRecord.title ||
+    editableRecord.username !== originalRecord.username ||
+    editableRecord.password !== originalRecord.password ||
+    editableRecord.url !== originalRecord.url ||
+    editableRecord.email !== originalRecord.email ||
+    editableRecord.phone !== originalRecord.phone ||
+    editableRecord.group !== originalRecord.group ||
+    editableRecord.notes !== originalRecord.notes
+  ) : false;
 
   useEffect(() => {
     if (clipboardBuffer.length > 0) {
@@ -1277,11 +1289,16 @@ export default function App() {
       <style>{`
         ::-webkit-scrollbar { display: none; }
         * { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes neonPulse {
+        @keyframes neonPulseDark {
           0%, 100% { box-shadow: 0 0 6px #4f46e5, 0 0 12px #6366f1, 0 0 24px #4f46e5, 0 0 40px #4338ca; }
           50% { box-shadow: 0 0 10px #6366f1, 0 0 20px #4f46e5, 0 0 40px #4338ca, 0 0 70px #3730a3; }
         }
-        .neon-logo { animation: neonPulse 2s ease-in-out infinite; }
+        @keyframes neonPulseLight {
+          0%, 100% { box-shadow: 0 0 4px rgba(79, 70, 229, 0.2), 0 0 10px rgba(99, 102, 241, 0.1); }
+          50% { box-shadow: 0 0 8px rgba(79, 70, 229, 0.4), 0 0 16px rgba(99, 102, 241, 0.2); }
+        }
+        .neon-logo-dark { animation: neonPulseDark 2s ease-in-out infinite; }
+        .neon-logo-light { animation: neonPulseLight 2s ease-in-out infinite; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
       `}</style>
@@ -1295,9 +1312,9 @@ export default function App() {
       {confirmDialog.isOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
           <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <h3 className="text-lg font-bold mb-6 text-center leading-relaxed">{confirmDialog.message}</h3>
+            <h3 className={`text-lg font-bold mb-6 text-center leading-relaxed ${isDark ? 'text-white' : 'text-slate-900'}`}>{confirmDialog.message}</h3>
             <div className="flex justify-center gap-3">
-              <button onClick={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null })} className={`px-6 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>{t.cancelBtn}</button>
+              <button onClick={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null })} className={`px-6 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>{t.cancelBtn}</button>
               <button onClick={() => { if (confirmDialog.onConfirm) confirmDialog.onConfirm(); setConfirmDialog({ isOpen: false, message: '', onConfirm: null }); }} className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold cursor-pointer">{t.confirmBtn}</button>
             </div>
           </div>
@@ -1312,26 +1329,26 @@ export default function App() {
                 <MessageSquare className="w-5 h-5 text-indigo-500" />
                 <span>{t.contactModalTitle}</span>
               </h3>
-              <button onClick={() => setShowContactModal(false)} className="text-slate-400 hover:text-white cursor-pointer font-bold px-2 py-1">✕</button>
+              <button onClick={() => setShowContactModal(false)} className={`cursor-pointer font-bold px-2 py-1 transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
             </div>
             <form onSubmit={handleContactSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block mb-1 font-semibold text-slate-300">{t.contactNameLabel} *</label>
-                <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder={lang === 'ar' ? 'الاسم الكامل' : 'Full Name'} className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.contactNameLabel} *</label>
+                <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder={lang === 'ar' ? 'الاسم الكامل' : 'Full Name'} className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block mb-1 font-semibold text-slate-300">{t.contactEmailLabel} *</label>
-                  <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="name@domain.com" className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.contactEmailLabel} *</label>
+                  <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="name@domain.com" className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
                 </div>
                 <div>
-                  <label className="block mb-1 font-semibold text-slate-300">{t.contactPhoneLabel}</label>
-                  <input type="tel" value={contactPhone} onChange={(e) => handlePhoneChange(e, setContactPhone)} placeholder="+962..." className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.contactPhoneLabel}</label>
+                  <input type="tel" value={contactPhone} onChange={(e) => handlePhoneChange(e, setContactPhone)} placeholder="+962..." className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                 </div>
               </div>
               <div>
-                <label className="block mb-1 font-semibold text-slate-300">{t.contactPrefLabel}</label>
-                <select value={contactPref} onChange={(e) => setContactPref(e.target.value)} className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}>
+                <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.contactPrefLabel}</label>
+                <select value={contactPref} onChange={(e) => setContactPref(e.target.value)} className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
                   <option value="email">{t.prefEmail}</option>
                   <option value="whatsapp">{t.prefWhatsapp}</option>
                   <option value="other">{t.prefOther}</option>
@@ -1339,15 +1356,15 @@ export default function App() {
               </div>
               {contactPref === 'other' && (
                 <div>
-                  <input type="text" value={contactOtherText} onChange={(e) => setContactOtherText(e.target.value)} placeholder={t.prefOtherPlaceholder} className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                  <input type="text" value={contactOtherText} onChange={(e) => setContactOtherText(e.target.value)} placeholder={t.prefOtherPlaceholder} className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
                 </div>
               )}
               <div>
-                <label className="block mb-1 font-semibold text-slate-300">{t.contactMsgLabel} *</label>
-                <textarea value={contactMessage} onChange={(e) => setContactMessage(e.target.value)} placeholder={lang === 'ar' ? 'اكتب رسالتك هنا...' : 'Write your message here...'} className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 h-24 resize-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.contactMsgLabel} *</label>
+                <textarea value={contactMessage} onChange={(e) => setContactMessage(e.target.value)} placeholder={lang === 'ar' ? 'اكتب رسالتك هنا...' : 'Write your message here...'} className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 h-24 resize-none transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowContactModal(false)} className={`px-5 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300'}`}>{t.cancelBtn}</button>
+                <button type="button" onClick={() => setShowContactModal(false)} className={`px-5 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-200 border-slate-300 text-slate-700 hover:bg-slate-300'}`}>{t.cancelBtn}</button>
                 <button type="submit" className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg flex items-center gap-2">
                   <Send className="w-3.5 h-3.5" /><span>{t.contactSubmitBtn}</span>
                 </button>
@@ -1361,13 +1378,13 @@ export default function App() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
           <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
             <h3 className="text-base font-bold mb-2 flex items-center gap-2"><ShieldAlert className="w-5 h-5 text-amber-500" />{t.captchaTitle}</h3>
-            <p className="text-xs text-slate-400 mb-4">{t.captchaSub}</p>
+            <p className={`text-xs mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.captchaSub}</p>
             <div className="text-center mb-4 p-4 rounded-xl bg-indigo-600/10 border border-indigo-500/30">
               <p className="text-2xl font-black font-mono text-indigo-400" dir="ltr">{mathCaptcha.num1} + {mathCaptcha.num2} = ?</p>
             </div>
-            <input type="number" value={userCaptchaInput} onChange={(e) => setUserCaptchaInput(e.target.value)} placeholder={t.captchaInput} className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-indigo-500 mb-4 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+            <input type="number" value={userCaptchaInput} onChange={(e) => setUserCaptchaInput(e.target.value)} placeholder={t.captchaInput} className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-indigo-500 mb-4 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
             <div className="flex gap-2">
-              <button onClick={() => { setShowCaptchaModal(false); setUserCaptchaInput(''); }} className={`flex-1 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>{t.cancelBtn}</button>
+              <button onClick={() => { setShowCaptchaModal(false); setUserCaptchaInput(''); }} className={`flex-1 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>{t.cancelBtn}</button>
               <button onClick={() => { 
                 if (parseInt(userCaptchaInput) === mathCaptcha.answer) { 
                   setShowCaptchaModal(false); 
@@ -1389,20 +1406,20 @@ export default function App() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
           <div className={`border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
             <div className="flex justify-between items-center border-b border-slate-800/60 pb-3">
-              <h3 className="font-bold text-base flex items-center gap-2"><FolderPlus className="w-5 h-5 text-indigo-500" /> {t.manageGroupsTitle}</h3>
-              <button onClick={() => setShowManageGroupsModal(false)} className="text-slate-400 hover:text-rose-400 font-bold">✕</button>
+              <h3 className={`font-bold text-base flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}><FolderPlus className="w-5 h-5 text-indigo-500" /> {t.manageGroupsTitle}</h3>
+              <button onClick={() => setShowManageGroupsModal(false)} className={`font-bold transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
             </div>
             <form onSubmit={submitNewGroup} className="flex gap-2 mb-4">
-              <input type="text" placeholder={t.groupPlaceholder} value={newGroupNameInput} onChange={(e) => setNewGroupNameInput(e.target.value)} className={`flex-1 px-4 py-3 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300'}`} required />
+              <input type="text" placeholder={t.groupPlaceholder} value={newGroupNameInput} onChange={(e) => setNewGroupNameInput(e.target.value)} className={`flex-1 px-4 py-3 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
               <button type="submit" className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold">+</button>
             </form>
             <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
               {groups.map(g => (
-                <div key={g} className={`flex items-center justify-between p-3.5 rounded-xl border ${isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <div key={g} className={`flex items-center justify-between p-3.5 rounded-xl border transition-colors ${isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                   {editingGroupOldName === g ? (
-                    <input type="text" value={editingGroupNewName} onChange={(e) => setEditingGroupNewName(e.target.value)} className={`flex-1 px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-black'}`} autoFocus />
+                    <input type="text" value={editingGroupNewName} onChange={(e) => setEditingGroupNewName(e.target.value)} className={`flex-1 px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:border-emerald-500 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-400 text-slate-900'}`} autoFocus />
                   ) : (
-                    <span className="text-xs font-bold flex items-center gap-2"><Folder className="w-4 h-4 text-indigo-400" /> {g}</span>
+                    <span className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-800'}`}><Folder className="w-4 h-4 text-indigo-400" /> {g}</span>
                   )}
                   <div className="flex gap-1.5 pl-2">
                     {editingGroupOldName === g ? (
@@ -1417,7 +1434,7 @@ export default function App() {
                 </div>
               ))}
             </div>
-            <button onClick={() => setShowManageGroupsModal(false)} className="w-full mt-2 py-2.5 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700">{t.closeBtn}</button>
+            <button onClick={() => setShowManageGroupsModal(false)} className={`w-full mt-2 py-2.5 rounded-xl text-xs font-bold transition-colors ${isDark ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-slate-200 text-slate-800 hover:bg-slate-300'}`}>{t.closeBtn}</button>
           </div>
         </div>
       )}
@@ -1430,80 +1447,80 @@ export default function App() {
                 <ShieldCheck className="w-5 h-5 text-indigo-500" />
                 <span>{t.aboutModalTitle}</span>
               </h3>
-              <button onClick={() => setShowAboutModal(false)} className="text-slate-400 hover:text-white cursor-pointer font-bold px-2 py-1">✕</button>
+              <button onClick={() => setShowAboutModal(false)} className={`cursor-pointer font-bold px-2 py-1 transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
             </div>
             
             {lang === 'ar' ? (
-              <div className="space-y-4 text-xs leading-relaxed text-slate-300">
-                <p className="font-semibold text-slate-200 bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 text-sm">
+              <div className={`space-y-4 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <p className={`font-semibold bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 text-sm ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                   في <span className="font-bold text-indigo-400">Pass-Guard</span>، نحمي كلمات مرورك بأعلى المعايير العالمية وبأبسط طريقة ممكنة.
                 </p>
 
                 <div className="space-y-2.5">
-                  <h4 className="font-bold text-slate-100 text-sm flex items-center gap-1.5">
+                  <h4 className={`font-bold text-sm flex items-center gap-1.5 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
                     <Zap className="w-4 h-4 text-amber-400" />
                     <span>مميزات النظام:</span>
                   </h4>
                   
-                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-indigo-400">🔒 تشفير فوري داخل متصفحك:</h5>
-                    <p className="text-slate-400">كلمات مرورك تُشفّر مباشرة على جهازك بتقنية <span dir="ltr" className="font-mono text-slate-300 font-bold">AES-GCM 256-bit</span> قبل حفظها في السحابة.</p>
+                    <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>كلمات مرورك تُشفّر مباشرة على جهازك بتقنية <span dir="ltr" className={`font-mono font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>AES-GCM 256-bit</span> قبل حفظها في السحابة.</p>
                   </div>
 
-                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-sky-400">☁️ مزامنة سحابية آمنة:</h5>
-                    <p className="text-slate-400">يمكنك الوصول إلى خزنتك من أي جهاز وفي أي وقت، مع بقاء بياناتك مشفرة بالكامل.</p>
+                    <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>يمكنك الوصول إلى خزنتك من أي جهاز وفي أي وقت، مع بقاء بياناتك مشفرة بالكامل.</p>
                   </div>
 
-                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-emerald-400">🛠️ دعم فني واسترجاع مضمون:</h5>
-                    <p className="text-slate-400">يتضمن النظام دعمًا إداريًا خاصًا. في حال نسيت كلمة المرور الرئيسية أو احتجت مساعدة، يمكن لفريقنا مساعدتك في استرجاع حسابك، مما يمنع فقدان بياناتك نهائيًا.</p>
+                    <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>يتضمن النظام دعمًا إداريًا خاصًا. في حال نسيت كلمة المرور الرئيسية أو احتجت مساعدة، يمكن لفريقنا مساعدتك في استرجاع حسابك، مما يمنع فقدان بياناتك نهائيًا.</p>
                   </div>
 
-                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-amber-400">⚡ أدوات ذكية:</h5>
-                    <p className="text-slate-400">نوفر مولد كلمات مرور قوية، وفاحص أمان لتقييم قوة كلماتك، مع إمكانية تنظيم حساباتك في مجموعات.</p>
+                    <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>نوفر مولد كلمات مرور قوية، وفاحص أمان لتقييم قوة كلماتك، مع إمكانية تنظيم حساباتك في مجموعات.</p>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800/80">
+                <p className={`text-[11px] italic pt-1 border-t border-slate-800/80 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   نلتزم بتوفير بيئة موثوقة تجمع بين الحماية القصوى والسهولة التامة، لأن أمانك وخصوصيتك هما أساس عملنا.
                 </p>
               </div>
             ) : (
-              <div className="space-y-4 text-xs leading-relaxed text-slate-300">
-                <p className="font-semibold text-slate-200 bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 text-sm">
+              <div className={`space-y-4 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <p className={`font-semibold bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 text-sm ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                   At <span className="font-bold text-indigo-400">Pass-Guard</span>, we safeguard your credentials using top industry security standards in the simplest way possible.
                 </p>
 
                 <div className="space-y-2.5">
-                  <h4 className="font-bold text-slate-100 text-sm flex items-center gap-1.5">
+                  <h4 className={`font-bold text-sm flex items-center gap-1.5 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
                     <Zap className="w-4 h-4 text-amber-400" />
                     <span>System Features:</span>
                   </h4>
                   
-                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-indigo-400">🔒 Client-Side Instant Encryption:</h5>
-                    <p className="text-slate-400">Your records are encrypted directly on your device via <span dir="ltr" className="font-mono text-slate-300 font-bold">AES-GCM 256-bit</span> before sync.</p>
+                    <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>Your records are encrypted directly on your device via <span dir="ltr" className={`font-mono font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>AES-GCM 256-bit</span> before sync.</p>
                   </div>
 
-                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-sky-400">☁️ Secure Cloud Sync:</h5>
-                    <p className="text-slate-400">Access your vault anywhere, anytime, across all devices with your vault data fully encrypted.</p>
+                    <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>Access your vault anywhere, anytime, across all devices with your vault data fully encrypted.</p>
                   </div>
 
-                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-emerald-400">🛠️ Dedicated Remote Support & Recovery:</h5>
-                    <p className="text-slate-400">Our trusted administrator assistance helps ensure you never lose access if you misplace your master key.</p>
+                    <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>Our trusted administrator assistance helps ensure you never lose access if you misplace your master key.</p>
                   </div>
 
-                  <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-amber-400">⚡ Smart Security Tools:</h5>
-                    <p className="text-slate-400">Built-in resilient password generator, strength auditor, and custom group categories.</p>
+                    <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>Built-in resilient password generator, strength auditor, and custom group categories.</p>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800/80">
+                <p className={`text-[11px] italic pt-1 border-t border-slate-800/80 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   We are committed to delivering a trusted, seamless experience pairing robust protection with daily ease.
                 </p>
               </div>
@@ -1519,18 +1536,18 @@ export default function App() {
           <div className={`border p-8 rounded-3xl w-full max-w-lg space-y-4 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-lg font-bold flex items-center gap-2"><Zap className="w-5 h-5 text-amber-400" /> {t.toolsModalTitle}</h3>
-              <button onClick={() => setShowToolsModal(false)} className="text-slate-400 hover:text-white cursor-pointer font-bold">✕</button>
+              <button onClick={() => setShowToolsModal(false)} className={`cursor-pointer font-bold transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
             </div>
-            <input type="text" placeholder={t.toolsPlaceholder} value={testPassword} onChange={(e) => setTestPassword(e.target.value)} className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`} />
+            <input type="text" placeholder={t.toolsPlaceholder} value={testPassword} onChange={(e) => setTestPassword(e.target.value)} className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
             {testPassword && (
               <div className="space-y-2">
-                <div className={`p-4 rounded-xl border text-xs space-y-1.5 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex justify-between items-center"><span className="text-slate-400">{lang === 'ar' ? 'الطول' : 'Length'}:</span><span className="font-mono font-bold text-indigo-400">{testPassword.length}</span></div>
-                  <div className="flex justify-between items-center"><span className="text-slate-400">{lang === 'ar' ? 'حروف كبيرة' : 'Uppercase'}:</span><span className="font-bold">{/[A-Z]/.test(testPassword) ? '✅' : '❌'}</span></div>
-                  <div className="flex justify-between items-center"><span className="text-slate-400">{lang === 'ar' ? 'أرقام' : 'Numbers'}:</span><span className="font-bold">{/[0-9]/.test(testPassword) ? '✅' : '❌'}</span></div>
-                  <div className="flex justify-between items-center"><span className="text-slate-400">{lang === 'ar' ? 'رموز' : 'Symbols'}:</span><span className="font-bold">{/[^A-Za-z0-9]/.test(testPassword) ? '✅' : '❌'}</span></div>
-                  <div className={`mt-2 pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} flex justify-between items-center`}>
-                    <span className="text-slate-400 font-bold">{lang === 'ar' ? 'التقييم' : 'Rating'}:</span>
+                <div className={`p-4 rounded-xl border text-xs space-y-1.5 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                  <div className="flex justify-between items-center"><span className={isDark ? 'text-slate-400' : 'text-slate-700'}>{lang === 'ar' ? 'الطول' : 'Length'}:</span><span className="font-mono font-bold text-indigo-400">{testPassword.length}</span></div>
+                  <div className="flex justify-between items-center"><span className={isDark ? 'text-slate-400' : 'text-slate-700'}>{lang === 'ar' ? 'حروف كبيرة' : 'Uppercase'}:</span><span className="font-bold">{/[A-Z]/.test(testPassword) ? '✅' : '❌'}</span></div>
+                  <div className="flex justify-between items-center"><span className={isDark ? 'text-slate-400' : 'text-slate-700'}>{lang === 'ar' ? 'أرقام' : 'Numbers'}:</span><span className="font-bold">{/[0-9]/.test(testPassword) ? '✅' : '❌'}</span></div>
+                  <div className="flex justify-between items-center"><span className={isDark ? 'text-slate-400' : 'text-slate-700'}>{lang === 'ar' ? 'رموز' : 'Symbols'}:</span><span className="font-bold">{/[^A-Za-z0-9]/.test(testPassword) ? '✅' : '❌'}</span></div>
+                  <div className={`mt-2 pt-2 border-t flex justify-between items-center ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+                    <span className={`font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>{lang === 'ar' ? 'التقييم' : 'Rating'}:</span>
                     <span className={`font-black ${isValidPassword(testPassword) && testPassword.length >= 14 ? 'text-emerald-400' : isValidPassword(testPassword) ? 'text-amber-400' : 'text-rose-400'}`}>
                       {isValidPassword(testPassword) && testPassword.length >= 14 ? (lang === 'ar' ? 'قوية جداً' : 'Very Strong') : isValidPassword(testPassword) ? (lang === 'ar' ? 'متوسطة' : 'Medium') : (lang === 'ar' ? 'ضعيفة' : 'Weak')}
                     </span>
@@ -1545,10 +1562,10 @@ export default function App() {
 
       <header className={`w-full px-3 sm:px-8 py-3 sm:py-4 border-b z-20 flex items-center justify-between shadow-xl transition-all duration-500 ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-2xl' : 'bg-white/80 border-slate-200/80 backdrop-blur-2xl'}`}>
         <div className="flex items-center gap-2 sm:gap-3.5 cursor-pointer group shrink-0" onClick={() => { if (!isUnlocked) setCurrentView('welcome'); }}>
-          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-indigo-600 shrink-0 bg-gradient-to-br from-indigo-900 to-slate-950 flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300 neon-logo">
-            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-cover" />
+          <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden border-2 shrink-0 flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300 ${isDark ? 'neon-logo-dark border-indigo-600 bg-gradient-to-br from-indigo-900 to-slate-950' : 'neon-logo-light border-indigo-200 bg-white shadow-md'}`}>
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-contain drop-shadow-sm" />
           </div>
-          <span className="font-black text-base sm:text-xl tracking-wider bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
+          <span className={`font-black text-base sm:text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r ${isDark ? 'from-indigo-400 via-sky-400 to-blue-500' : 'from-indigo-600 via-sky-600 to-blue-700'}`}>Pass-Guard</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-3">
           <button onClick={() => setShowToolsModal(true)} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-amber-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-amber-700 hover:bg-slate-50'}`} title={t.toolsBtn}>
@@ -1587,66 +1604,66 @@ export default function App() {
                   )}
                 </span>
               </div>
-              <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
-                {t.welcomeTitle} <span className="bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">Pass-Guard</span>
+              <h1 className={`text-3xl md:text-5xl font-black tracking-tight leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {t.welcomeTitle} <span className={`bg-clip-text text-transparent bg-gradient-to-r ${isDark ? 'from-indigo-400 via-sky-400 to-blue-500' : 'from-indigo-600 via-sky-600 to-blue-700'}`}>Pass-Guard</span>
               </h1>
-              <p className="text-xs md:text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed opacity-90">{t.welcomeDesc}</p>
+              <p className={`text-xs md:text-sm max-w-2xl mx-auto leading-relaxed opacity-90 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{t.welcomeDesc}</p>
               <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <button onClick={() => openDirectAction('login')} className="px-7 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs transition-all duration-300 shadow-xl shadow-indigo-600/30 hover:scale-105 cursor-pointer flex items-center gap-2 border border-indigo-400/30">
                   <Unlock className="w-4 h-4" />{t.openVaultBtn}
                 </button>
-                <button onClick={() => openDirectAction('register')} className="px-7 py-3 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 backdrop-blur-xl text-slate-200 font-bold text-xs transition-all duration-300 hover:scale-105 cursor-pointer flex items-center gap-2 shadow-lg">
-                  <Plus className="w-4 h-4 text-sky-400" />{t.createVaultBtn}
+                <button onClick={() => openDirectAction('register')} className={`px-7 py-3 rounded-2xl font-bold text-xs transition-all duration-300 hover:scale-105 cursor-pointer flex items-center gap-2 shadow-lg ${isDark ? 'bg-slate-900/80 hover:bg-slate-800 border-slate-700/80 text-slate-200' : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-800'}`}>
+                  <Plus className="w-4 h-4 text-sky-500" />{t.createVaultBtn}
                 </button>
-                <button onClick={() => openDirectAction('admin')} className="px-6 py-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold text-xs transition-all duration-300 hover:scale-105 cursor-pointer flex items-center gap-2 shadow-lg">
-                  <ShieldAlert className="w-4 h-4 text-amber-400" />{t.adminPortalBtn}
+                <button onClick={() => openDirectAction('admin')} className={`px-6 py-3 rounded-2xl font-bold text-xs transition-all duration-300 hover:scale-105 cursor-pointer flex items-center gap-2 shadow-lg ${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-300' : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700'}`}>
+                  <ShieldAlert className="w-4 h-4 text-amber-500" />{t.adminPortalBtn}
                 </button>
               </div>
             </div>
 
-            <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-slate-800/80">
-              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
-                <h3 className="text-lg md:text-xl font-black font-mono text-indigo-400" dir="ltr">+{visitCount}</h3>
-                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statVisits}</p>
+            <div className={`w-full grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
+              <div className={`p-3.5 rounded-2xl border backdrop-blur-md transition-colors ${isDark ? 'bg-slate-900/40 border-slate-800/60' : 'bg-white/60 border-slate-300'}`}>
+                <h3 className={`text-lg md:text-xl font-black font-mono ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} dir="ltr">+{visitCount}</h3>
+                <p className={`text-[11px] font-semibold mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.statVisits}</p>
               </div>
-              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
-                <h3 className="text-lg md:text-xl font-black font-mono text-emerald-400" dir="ltr">100%</h3>
-                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statLocal}</p>
+              <div className={`p-3.5 rounded-2xl border backdrop-blur-md transition-colors ${isDark ? 'bg-slate-900/40 border-slate-800/60' : 'bg-white/60 border-slate-300'}`}>
+                <h3 className={`text-lg md:text-xl font-black font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} dir="ltr">100%</h3>
+                <p className={`text-[11px] font-semibold mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.statLocal}</p>
               </div>
-              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
-                <h3 className="text-lg md:text-xl font-black font-mono text-sky-400" dir="ltr">256-bit</h3>
-                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statEncryption}</p>
+              <div className={`p-3.5 rounded-2xl border backdrop-blur-md transition-colors ${isDark ? 'bg-slate-900/40 border-slate-800/60' : 'bg-white/60 border-slate-300'}`}>
+                <h3 className={`text-lg md:text-xl font-black font-mono ${isDark ? 'text-sky-400' : 'text-sky-600'}`} dir="ltr">256-bit</h3>
+                <p className={`text-[11px] font-semibold mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.statEncryption}</p>
               </div>
-              <div className="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
-                <h3 className="text-lg md:text-xl font-black font-mono text-amber-400" dir="ltr">24/7</h3>
-                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{t.statProtection}</p>
+              <div className={`p-3.5 rounded-2xl border backdrop-blur-md transition-colors ${isDark ? 'bg-slate-900/40 border-slate-800/60' : 'bg-white/60 border-slate-300'}`}>
+                <h3 className={`text-lg md:text-xl font-black font-mono ${isDark ? 'text-amber-400' : 'text-amber-600'}`} dir="ltr">24/7</h3>
+                <p className={`text-[11px] font-semibold mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.statProtection}</p>
               </div>
             </div>
 
             <div className="w-full py-8 space-y-6">
               <div className="text-center space-y-2">
-                <h2 className="text-xl md:text-2xl font-black bg-gradient-to-r from-indigo-400 to-sky-400 bg-clip-text text-transparent">
+                <h2 className={`text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r ${isDark ? 'from-indigo-400 to-sky-400' : 'from-indigo-600 to-sky-600'}`}>
                   {lang === 'ar' ? 'لماذا يعد Pass-Guard الخيار الأول عالمياً؟' : 'Why Pass-Guard is the Global Standard?'}
                 </h2>
-                <p className="text-xs text-slate-400 max-w-lg mx-auto">
+                <p className={`text-xs max-w-lg mx-auto ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   {lang === 'ar' ? 'مصمم بعناية فائقة ليوفر أعلى درجات المناعة الرقمية والراحة المطلقة.' : 'Engineered with absolute precision to provide unmatched digital resilience and ultimate convenience.'}
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-start">
-                <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isDark ? 'bg-slate-900/60 border-slate-800 hover:border-indigo-500/50' : 'bg-white border-slate-200'}`}>
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold mb-3 border border-indigo-500/30">🔒</div>
-                  <h3 className="text-sm font-bold mb-1">{lang === 'ar' ? 'معمارية المعرفة الصفرية' : 'Zero-Knowledge Security'}</h3>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">{lang === 'ar' ? 'بياناتك تُشفر على جهازك حصرياً. لا يمكن لأي كائن كان —حتى خوادمنا— الاطلاع على كلمات مرورك.' : 'Your data is encrypted strictly on your device. Absolutely no one—not even our servers—can read your master keys.'}</p>
+                <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isDark ? 'bg-slate-900/60 border-slate-800 hover:border-indigo-500/50' : 'bg-white border-slate-200 hover:border-indigo-400'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold mb-3 border ${isDark ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-indigo-100 text-indigo-600 border-indigo-200'}`}>🔒</div>
+                  <h3 className={`text-sm font-bold mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{lang === 'ar' ? 'معمارية المعرفة الصفرية' : 'Zero-Knowledge Security'}</h3>
+                  <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{lang === 'ar' ? 'بياناتك تُشفر على جهازك حصرياً. لا يمكن لأي كائن كان —حتى خوادمنا— الاطلاع على كلمات مرورك.' : 'Your data is encrypted strictly on your device. Absolutely no one—not even our servers—can read your master keys.'}</p>
                 </div>
-                <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isDark ? 'bg-slate-900/60 border-slate-800 hover:border-sky-500/50' : 'bg-white border-slate-200'}`}>
-                  <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold mb-3 border border-sky-500/30">⚡</div>
-                  <h3 className="text-sm font-bold mb-1">{lang === 'ar' ? 'مزامنة سحابية فورية' : 'Lightning Cloud Sync'}</h3>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">{lang === 'ar' ? 'تنقل بسلاسة بين حاسوبك وهاتفك المحمول مع تحديث لحظي وجلسات مؤمنة بالكامل وموثقة بالشبكة.' : 'Transition effortlessly between your desktop and mobile devices with instant updates and verified secure sessions.'}</p>
+                <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isDark ? 'bg-slate-900/60 border-slate-800 hover:border-sky-500/50' : 'bg-white border-slate-200 hover:border-sky-400'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold mb-3 border ${isDark ? 'bg-sky-500/20 text-sky-400 border-sky-500/30' : 'bg-sky-100 text-sky-600 border-sky-200'}`}>⚡</div>
+                  <h3 className={`text-sm font-bold mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{lang === 'ar' ? 'مزامنة سحابية فورية' : 'Lightning Cloud Sync'}</h3>
+                  <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{lang === 'ar' ? 'تنقل بسلاسة بين حاسوبك وهاتفك المحمول مع تحديث لحظي وجلسات مؤمنة بالكامل وموثقة بالشبكة.' : 'Transition effortlessly between your desktop and mobile devices with instant updates and verified secure sessions.'}</p>
                 </div>
-                <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isDark ? 'bg-slate-900/60 border-slate-800 hover:border-emerald-500/50' : 'bg-white border-slate-200'}`}>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold mb-3 border border-emerald-500/30">🛡️</div>
-                  <h3 className="text-sm font-bold mb-1">{lang === 'ar' ? 'دعم فني استباقي وموثوق' : 'Proactive Trusted Support'}</h3>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">{lang === 'ar' ? 'نظام استرجاع ذكي ونماذج حماية متطورة تضمن عدم ضياع حساباتك أبداً مع توفر فريق دعم دائم.' : 'Smart recovery systems and advanced security models ensure you never lose your records, backed 24/7.'}</p>
+                <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isDark ? 'bg-slate-900/60 border-slate-800 hover:border-emerald-500/50' : 'bg-white border-slate-200 hover:border-emerald-400'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold mb-3 border ${isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-600 border-emerald-200'}`}>🛡️</div>
+                  <h3 className={`text-sm font-bold mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{lang === 'ar' ? 'دعم فني استباقي وموثوق' : 'Proactive Trusted Support'}</h3>
+                  <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{lang === 'ar' ? 'نظام استرجاع ذكي ونماذج حماية متطورة تضمن عدم ضياع حساباتك أبداً مع توفر فريق دعم دائم.' : 'Smart recovery systems and advanced security models ensure you never lose your records, backed 24/7.'}</p>
                 </div>
               </div>
             </div>
@@ -1656,16 +1673,16 @@ export default function App() {
         {!isUnlocked && currentView === 'auth' && (
           <div className={`w-full max-w-md border p-6 sm:p-7 rounded-3xl shadow-2xl backdrop-blur-2xl transition-all duration-500 my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
             <div className="text-center mb-5">
-              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl border mb-3 shadow-xl ${authMode === 'admin' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-indigo-600/20 border-indigo-500/40 text-indigo-400'}`}>
+              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl border mb-3 shadow-xl ${authMode === 'admin' ? (isDark ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-amber-100 border-amber-200 text-amber-600') : (isDark ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-400' : 'bg-indigo-100 border-indigo-200 text-indigo-600')}`}>
                 {authMode === 'admin' ? <ShieldAlert className="w-8 h-8" /> : <ShieldCheck className="w-8 h-8" />}
               </div>
-              <h1 className="text-xl font-bold">{authMode === 'login' && t.loginHeading}{authMode === 'register' && t.registerHeading}{authMode === 'admin' && t.adminHeading}</h1>
-              <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{authMode === 'login' && t.loginSub}{authMode === 'register' && t.registerSub}{authMode === 'admin' && t.adminSub}</p>
+              <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{authMode === 'login' && t.loginHeading}{authMode === 'register' && t.registerHeading}{authMode === 'admin' && t.adminHeading}</h1>
+              <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{authMode === 'login' && t.loginSub}{authMode === 'register' && t.registerSub}{authMode === 'admin' && t.adminSub}</p>
             </div>
             <form onSubmit={authMode === 'register' ? handleRegister : handleLogin} className="space-y-3.5">
               <div>
                 <label className={`text-xs block mb-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{authMode === 'admin' ? t.adminIdentifierLabel : t.identifierLabel}</label>
-                <input type="text" placeholder="user@domain.com" value={identifier} disabled={authMode === 'admin'} onChange={(e) => setIdentifier(e.target.value)} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                <input type="text" placeholder="user@domain.com" value={identifier} disabled={authMode === 'admin'} onChange={(e) => setIdentifier(e.target.value)} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
               </div>
               <div>
                 <label className={`text-xs block mb-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{authMode === 'admin' ? t.adminPasswordLabel : t.passwordLabel}</label>
@@ -1675,7 +1692,7 @@ export default function App() {
                   value={masterPassword} 
                   dir="ltr"
                   onChange={(e) => setMasterPassword(e.target.value.replace(/[^\x00-\x7F]/g, ''))} 
-                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} 
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
                   required 
                 />
               </div>
@@ -1688,7 +1705,7 @@ export default function App() {
                     value={confirmMasterPassword} 
                     dir="ltr"
                     onChange={(e) => setConfirmMasterPassword(e.target.value.replace(/[^\x00-\x7F]/g, ''))} 
-                    className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} 
+                    className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
                     required 
                   />
                 </div>
@@ -1700,7 +1717,7 @@ export default function App() {
                 {authMode === 'admin' && <><ShieldAlert className="w-4 h-4" /> {t.submitAdmin}</>}
               </button>
               <div className="pt-2 border-t border-slate-800/80">
-                <button type="button" onClick={() => setCurrentView('welcome')} className={`w-full py-2 px-4 rounded-xl border text-xs font-semibold cursor-pointer flex items-center justify-center gap-2 ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>
+                <button type="button" onClick={() => setCurrentView('welcome')} className={`w-full py-2 px-4 rounded-xl border text-xs font-semibold cursor-pointer flex items-center justify-center gap-2 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>
                   <ArrowRight className="w-3.5 h-3.5" /><span>{t.backToHome}</span>
                 </button>
               </div>
@@ -1709,26 +1726,26 @@ export default function App() {
         )}
 
         {isUnlocked && isAdmin && (
-          <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col h-[85vh] max-h-[85vh] overflow-hidden my-auto ${isDark ? 'bg-slate-900/90 border-amber-500/30' : 'bg-white/90 border-amber-300'}`}>
-            <div className={`p-4 sm:p-5 border-b flex flex-wrap items-center justify-between gap-4 shrink-0 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+          <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col h-[85vh] max-h-[85vh] overflow-hidden my-auto transition-colors ${isDark ? 'bg-slate-900/90 border-amber-500/30' : 'bg-white/90 border-amber-300'}`}>
+            <div className={`p-4 sm:p-5 border-b flex flex-wrap items-center justify-between gap-4 shrink-0 transition-colors ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500"><BarChart3 className="w-6 h-6" /></div>
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${isDark ? 'bg-amber-500/20 text-amber-500 border-amber-500/30' : 'bg-amber-100 text-amber-600 border-amber-200'}`}><BarChart3 className="w-6 h-6" /></div>
                 <div>
-                  <h2 className="font-extrabold text-base flex items-center gap-2">{t.adminPanelTitle}<span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full border border-amber-500/30">{t.adminBadge}</span></h2>
-                  <p className="text-xs text-slate-400">{t.adminPanelSub}</p>
+                  <h2 className={`font-extrabold text-base flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.adminPanelTitle}<span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDark ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-amber-100 text-amber-600 border-amber-200'}`}>{t.adminBadge}</span></h2>
+                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.adminPanelSub}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <button onClick={() => setAdminSubView('dashboard')} className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-bold ${adminSubView === 'dashboard' ? 'bg-amber-500 text-slate-950 border-amber-500' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                <button onClick={() => setAdminSubView('dashboard')} className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${adminSubView === 'dashboard' ? 'bg-amber-500 text-slate-950 border-amber-500' : isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}>
                   {lang === 'ar' ? 'الخزنات المسجلة' : 'Registered Vaults'}
                 </button>
-                <button onClick={() => setAdminSubView('messages')} className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-bold flex items-center gap-1.5 ${adminSubView === 'messages' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                <button onClick={() => setAdminSubView('messages')} className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-bold flex items-center gap-1.5 transition-colors ${adminSubView === 'messages' ? 'bg-indigo-600 text-white border-indigo-500' : isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}>
                   <MessageSquare className="w-3.5 h-3.5" /><span>{t.adminMessagesBtn} ({contactMessagesList.length})</span>
                 </button>
-                <button onClick={() => setAdminSubView('adminSettings')} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600'}`}>
+                <button onClick={() => setAdminSubView('adminSettings')} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'}`}>
                   <Settings className="w-4 h-4 inline me-1" /><span>{lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
                 </button>
-                <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
+                <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'}`}>
                   <LogOut className="w-4 h-4 inline me-1" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
@@ -1737,24 +1754,24 @@ export default function App() {
               {adminSubView === 'dashboard' ? (
                 <div className="p-4 sm:p-6 overflow-y-auto space-y-6 animate-fadeIn">
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                    <div className={`p-4 rounded-2xl border flex items-center gap-4 shadow-lg ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
-                      <div className="p-3 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"><Users className="w-5 h-5" /></div>
-                      <div><p className="text-xs text-slate-400">{t.registeredUsersCount}</p><h3 className="text-xl font-black font-mono mt-0.5 text-indigo-400">{registeredUsers.length}</h3></div>
+                    <div className={`p-4 rounded-2xl border flex items-center gap-4 shadow-lg transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}>
+                      <div className={`p-3 rounded-xl border ${isDark ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-indigo-100 text-indigo-600 border-indigo-200'}`}><Users className="w-5 h-5" /></div>
+                      <div><p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.registeredUsersCount}</p><h3 className={`text-xl font-black font-mono mt-0.5 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>{registeredUsers.length}</h3></div>
                     </div>
-                    <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-lg ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
+                    <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-lg transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}>
                       <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30"><BarChart3 className="w-5 h-5" /></div>
-                        <div><p className="text-xs text-slate-400">{t.visitsCounter}</p><h3 className="text-xl font-black font-mono mt-0.5 text-blue-400" dir="ltr">{visitCount}</h3></div>
+                        <div className={`p-3 rounded-xl border ${isDark ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-blue-100 text-blue-600 border-blue-200'}`}><BarChart3 className="w-5 h-5" /></div>
+                        <div><p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.visitsCounter}</p><h3 className={`text-xl font-black font-mono mt-0.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} dir="ltr">{visitCount}</h3></div>
                       </div>
-                      <button onClick={handleResetVisits} className="p-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 rounded-xl cursor-pointer hover:scale-105"><RotateCcw className="w-4 h-4" /></button>
+                      <button onClick={handleResetVisits} className={`p-2 rounded-xl cursor-pointer hover:scale-105 border ${isDark ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200'}`}><RotateCcw className="w-4 h-4" /></button>
                     </div>
-                    <div className={`p-4 rounded-2xl border flex items-center gap-4 shadow-lg ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
-                      <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"><ShieldCheck className="w-5 h-5" /></div>
-                      <div><p className="text-xs text-slate-400">{t.securityScore}</p><h3 className="text-xl font-black font-mono mt-0.5 text-emerald-400" dir="ltr">99.8%</h3></div>
+                    <div className={`p-4 rounded-2xl border flex items-center gap-4 shadow-lg transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}>
+                      <div className={`p-3 rounded-xl border ${isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-600 border-emerald-200'}`}><ShieldCheck className="w-5 h-5" /></div>
+                      <div><p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.securityScore}</p><h3 className={`text-xl font-black font-mono mt-0.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} dir="ltr">99.8%</h3></div>
                     </div>
-                    <div className={`p-4 rounded-2xl border flex items-center gap-4 shadow-lg ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
-                      <div className="p-3 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30"><Activity className="w-5 h-5" /></div>
-                      <div><p className="text-xs text-slate-400">{t.activeAlerts}</p><h3 className="text-xl font-black font-mono mt-0.5 text-red-400" dir="ltr">{registeredUsers.filter(u => u.isLocked || u.alert).length}</h3></div>
+                    <div className={`p-4 rounded-2xl border flex items-center gap-4 shadow-lg transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}>
+                      <div className={`p-3 rounded-xl border ${isDark ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-red-100 text-red-600 border-red-200'}`}><Activity className="w-5 h-5" /></div>
+                      <div><p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.activeAlerts}</p><h3 className={`text-xl font-black font-mono mt-0.5 ${isDark ? 'text-red-400' : 'text-red-600'}`} dir="ltr">{registeredUsers.filter(u => u.isLocked || u.alert).length}</h3></div>
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -1762,25 +1779,25 @@ export default function App() {
                       <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.userRecordsTitle}</h3>
                       <div className="relative w-full sm:max-w-sm">
                         <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                        <input type="text" value={adminSearchTerm} onChange={(e) => setAdminSearchTerm(e.target.value)} placeholder={lang === 'ar' ? 'ابحث باسم المستخدم أو البريد أو الهاتف أو Vault ID...' : 'Search username, email, phone or Vault ID...'} className={`w-full ps-9 pe-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-amber-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300'}`} />
+                        <input type="text" value={adminSearchTerm} onChange={(e) => setAdminSearchTerm(e.target.value)} placeholder={lang === 'ar' ? 'ابحث باسم المستخدم أو البريد أو الهاتف أو Vault ID...' : 'Search username, email, phone or Vault ID...'} className={`w-full ps-9 pe-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-amber-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                     </div>
                     {adminLoading ? (
-                      <p className="text-xs text-slate-400 text-center py-8">{lang === 'ar' ? 'جاري تحميل الخزنات العالمية...' : 'Loading global vaults...'}</p>
+                      <p className={`text-xs text-center py-8 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{lang === 'ar' ? 'جاري تحميل الخزنات العالمية...' : 'Loading global vaults...'}</p>
                     ) : registeredUsers.filter(u => { const q = adminSearchTerm.trim().toLowerCase(); if (!q) return true; return [u.username, u.email, u.phone, u.id].some(v => String(v || '').toLowerCase().includes(q)); }).length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-8">{t.noUsers}</p>
+                      <p className={`text-xs text-center py-8 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.noUsers}</p>
                     ) : (
                       registeredUsers.filter(u => { const q = adminSearchTerm.trim().toLowerCase(); if (!q) return true; return [u.username, u.email, u.phone, u.id].some(v => String(v || '').toLowerCase().includes(q)); }).map((u, idx) => (
-                        <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                        <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}><User className="w-5 h-5" /></div>
+                            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-600'}`}><User className="w-5 h-5" /></div>
                             <div>
-                              <h4 className="text-sm font-bold flex flex-wrap items-center gap-2">
+                              <h4 className={`text-sm font-bold flex flex-wrap items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                 {u.username}
-                                {u.isLocked && <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full border border-red-500/30">{t.accountSuspended}</span>}
-                                {u.alert && !u.isLocked && <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full border border-amber-500/30">{t.securityAlertBadge}</span>}
+                                {u.isLocked && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDark ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-red-100 text-red-600 border-red-200'}`}>{t.accountSuspended}</span>}
+                                {u.alert && !u.isLocked && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDark ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-amber-100 text-amber-600 border-amber-200'}`}>{t.securityAlertBadge}</span>}
                               </h4>
-                              <p className="text-[10px] text-emerald-500 mt-0.5 font-mono">{t.localCryptoNote}</p>
+                              <p className={`text-[10px] mt-0.5 font-mono ${isDark ? 'text-emerald-500' : 'text-emerald-600'}`}>{t.localCryptoNote}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1802,14 +1819,14 @@ export default function App() {
                                 } catch (e) {}
                                 await loadAdminUsersData();
                                 triggerNotice(t.unblockSuccessAlert);
-                              }} className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
+                              }} className={`px-3.5 py-2 border text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold transition-colors ${isDark ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-600'}`}>
                                 <Unlock className="w-3.5 h-3.5" /> {t.unblockBtn}
                               </button>
                             )}
-                            <button onClick={() => openAdminManageUser(u)} className="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
+                            <button onClick={() => openAdminManageUser(u)} className={`px-3.5 py-2 border text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold transition-colors ${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-500' : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-600'}`}>
                               <Edit3 className="w-3.5 h-3.5" /> <span>{t.manageUserBtn}</span>
                             </button>
-                            <button onClick={() => { askConfirm(t.deleteAccountConfirm, async () => { const { error } = await supabase.rpc('admin_delete_vault', { p_vault_id: String(u.id) }); if (error) triggerNotice(error.message); else { localStorage.removeItem(`passguard_devices_${u.username}`); localStorage.removeItem(`passguard_vault_${u.username}`); localStorage.removeItem(`passguard_meta_${u.username}`); await loadAdminUsersData(); triggerNotice(lang === 'ar' ? 'تم حذف الخزنة بنجاح.' : 'Vault deleted successfully.'); } }); }} className="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold">
+                            <button onClick={() => { askConfirm(t.deleteAccountConfirm, async () => { const { error } = await supabase.rpc('admin_delete_vault', { p_vault_id: String(u.id) }); if (error) triggerNotice(error.message); else { localStorage.removeItem(`passguard_devices_${u.username}`); localStorage.removeItem(`passguard_vault_${u.username}`); localStorage.removeItem(`passguard_meta_${u.username}`); await loadAdminUsersData(); triggerNotice(lang === 'ar' ? 'تم حذف الخزنة بنجاح.' : 'Vault deleted successfully.'); } }); }} className={`px-3.5 py-2 border text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold transition-colors ${isDark ? 'bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-500' : 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600'}`}>
                               <Trash2 className="w-3.5 h-3.5" /> {t.deleteAccountBtn}
                             </button>
                           </div>
@@ -1821,25 +1838,25 @@ export default function App() {
               ) : adminSubView === 'messages' ? (
                 <div className="p-4 sm:p-6 overflow-y-auto space-y-4 animate-fadeIn">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <h3 className="text-sm font-bold flex items-center gap-2"><MessageSquare className="w-4 h-4 text-indigo-400" />{t.adminMessagesBtn}</h3>
-                    <span className="text-xs text-slate-400 font-mono">{lang === 'ar' ? 'الإجمالي:' : 'Total:'} {contactMessagesList.length}</span>
+                    <h3 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}><MessageSquare className="w-4 h-4 text-indigo-400" />{t.adminMessagesBtn}</h3>
+                    <span className={`text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{lang === 'ar' ? 'الإجمالي:' : 'Total:'} {contactMessagesList.length}</span>
                   </div>
                   {contactMessagesList.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-12">{t.noContactMessages}</p>
+                    <p className={`text-xs text-center py-12 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.noContactMessages}</p>
                   ) : (
                     <div className="space-y-3">
                       {contactMessagesList.map((msg) => (
-                        <div key={msg.id || msg.created_at} className={`p-4 border rounded-2xl space-y-2.5 shadow-md ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                        <div key={msg.id || msg.created_at} className={`p-4 border rounded-2xl space-y-2.5 shadow-md transition-colors ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/60 pb-2">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs"><User className="w-4 h-4" /></div>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${isDark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-100 text-indigo-600'}`}><User className="w-4 h-4" /></div>
                               <div>
-                                <h4 className="text-xs font-bold">{msg.name}</h4>
-                                <p className="text-[10px] text-slate-400 font-mono">{formatDate(msg.created_at)}</p>
+                                <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{msg.name}</h4>
+                                <p className={`text-[10px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{formatDate(msg.created_at)}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-3 text-xs">
-                              <span className="px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono">
+                              <span className={`px-2.5 py-1 rounded-lg border font-mono ${isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 'bg-sky-50 text-sky-600 border-sky-200'}`}>
                                 {lang === 'ar' ? 'المفضل:' : 'Preferred:'} {msg.preference} {msg.other_pref ? `(${msg.other_pref})` : ''}
                               </span>
                               <button onClick={async () => {
@@ -1855,14 +1872,14 @@ export default function App() {
                                   setContactMessagesList(prev => prev.filter(m => m.created_at !== msg.created_at));
                                   triggerNotice(lang === 'ar' ? 'تم حذف الرسالة بنجاح.' : 'Message deleted successfully.');
                                 });
-                              }} className="p-1.5 text-rose-400 hover:bg-rose-500/20 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+                              }} className={`p-1.5 rounded-lg transition-colors ${isDark ? 'text-rose-400 hover:bg-rose-500/20' : 'text-rose-600 hover:bg-rose-100'}`}><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono text-slate-300 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80">
+                          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono p-2.5 rounded-xl border transition-colors ${isDark ? 'text-slate-300 bg-slate-900/40 border-slate-800/80' : 'text-slate-700 bg-white border-slate-300'}`}>
                             <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-indigo-400" /> <span>{msg.email}</span></div>
                             <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-emerald-400" /> <span>{msg.phone || (lang === 'ar' ? 'غير متوفر' : 'N/A')}</span></div>
                           </div>
-                          <div className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/20 text-xs leading-relaxed text-slate-200">
+                          <div className={`p-3 rounded-xl border text-xs leading-relaxed transition-colors ${isDark ? 'bg-indigo-950/20 border-indigo-500/20 text-slate-200' : 'bg-indigo-50 border-indigo-200 text-slate-800'}`}>
                             {msg.message}
                           </div>
                         </div>
@@ -1873,36 +1890,36 @@ export default function App() {
               ) : adminSubView === 'manageUser' ? (
                 <div className="flex-1 flex flex-col p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                    <h3 className="text-base font-bold flex items-center gap-2"><ShieldAlert className="w-5 h-5 text-amber-500" />{t.adminManageUserTitle} <span className="text-amber-400">{manageData.oldId}</span></h3>
+                    <h3 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}><ShieldAlert className="w-5 h-5 text-amber-500" />{t.adminManageUserTitle} <span className="text-amber-400">{manageData.oldId}</span></h3>
                   </div>
-                  <p className="text-[11px] text-slate-400 mb-4">{t.adminManageUserSub}</p>
+                  <p className={`text-[11px] mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.adminManageUserSub}</p>
                   <form onSubmit={handleAdminSaveUser} className="space-y-3 text-xs">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.usernameLabel}</label>
-                        <input type="text" value={manageData.identifier} onChange={(e) => setManageData({ ...manageData, identifier: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.usernameLabel}</label>
+                        <input type="text" value={manageData.identifier} onChange={(e) => setManageData({ ...manageData, identifier: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
                       </div>
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.passwordLabel}</label>
-                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-slate-50 border-slate-300 text-amber-600'}`} required />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.passwordLabel}</label>
+                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.emailLabel}</label>
-                        <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.emailLabel}</label>
+                        <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.phoneLabel}</label>
-                        <input type="tel" value={manageData.phone} onChange={(e) => handlePhoneChange(e, (val) => setManageData({ ...manageData, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.phoneLabel}</label>
+                        <input type="tel" value={manageData.phone} onChange={(e) => handlePhoneChange(e, (val) => setManageData({ ...manageData, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                     </div>
-                    <div className={`p-3 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                      <span className="text-slate-400">{t.creationDateLabel}</span>
+                    <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                      <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{t.creationDateLabel}</span>
                       <span className="font-mono text-indigo-400">{formatDate(manageData.createdAt)}</span>
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
-                      <button type="button" onClick={() => setAdminSubView('dashboard')} className={`px-4 py-2.5 border text-xs font-semibold rounded-xl cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300'}`}>{t.cancelBtn}</button>
+                      <button type="button" onClick={() => setAdminSubView('dashboard')} className={`px-4 py-2.5 border text-xs font-semibold rounded-xl cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-200 border-slate-300 text-slate-800 hover:bg-slate-300'}`}>{t.cancelBtn}</button>
                       <button type="submit" className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.saveSettingsBtn}</button>
                     </div>
                   </form>
@@ -1910,23 +1927,23 @@ export default function App() {
               ) : (
                 <div className="flex-1 flex flex-col p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                    <h3 className="text-base font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-amber-500" />{lang === 'ar' ? 'إعدادات حساب المشرف' : 'Admin Account Settings'}</h3>
+                    <h3 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}><Settings className="w-5 h-5 text-amber-500" />{lang === 'ar' ? 'إعدادات حساب المشرف' : 'Admin Account Settings'}</h3>
                   </div>
-                  <p className="text-[11px] text-slate-400 mb-4">{lang === 'ar' ? 'يمكنك تغيير كلمة المرور الخاصة بك من هنا. لديك صلاحيات كاملة على جميع الخزنات المسجلة.' : 'You can change your own password here. You have full access to all registered vaults.'}</p>
+                  <p className={`text-[11px] mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{lang === 'ar' ? 'يمكنك تغيير كلمة المرور الخاصة بك من هنا. لديك صلاحيات كاملة على جميع الخزنات المسجلة.' : 'You can change your own password here. You have full access to all registered vaults.'}</p>
                   <form onSubmit={handleChangeAdminPassword} className="space-y-3 text-xs">
                     <div>
-                      <label className="block mb-1 text-slate-400">{lang === 'ar' ? 'كلمة المرور الجديدة' : 'New Password'}</label>
-                      <input type="password" value={newAdminPassword} onChange={(e) => setNewAdminPassword(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'كلمة المرور الجديدة' : 'New Password'}</label>
+                      <input type="password" value={newAdminPassword} onChange={(e) => setNewAdminPassword(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
                     </div>
                     <div>
-                      <label className="block mb-1 text-slate-400">{lang === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm Password'}</label>
-                      <input type="password" value={confirmAdminPassword} onChange={(e) => setConfirmAdminPassword(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm Password'}</label>
+                      <input type="password" value={confirmAdminPassword} onChange={(e) => setConfirmAdminPassword(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
                     </div>
-                    <div className={`p-3 rounded-xl border text-[11px] ${isDark ? 'bg-amber-500/5 border-amber-500/20 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                    <div className={`p-3 rounded-xl border text-[11px] transition-colors ${isDark ? 'bg-amber-500/5 border-amber-500/20 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
                       {lang === 'ar' ? '⚠️ كلمة مرور المشرف تُدار عبر Supabase Auth، ولا تُحفظ في localStorage.' : '⚠️ Administrator authentication is managed by Supabase Auth and is not stored in localStorage.'}
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
-                      <button type="button" onClick={() => setAdminSubView('dashboard')} className={`px-4 py-2.5 border text-xs font-semibold rounded-xl cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300'}`}>{t.cancelBtn}</button>
+                      <button type="button" onClick={() => setAdminSubView('dashboard')} className={`px-4 py-2.5 border text-xs font-semibold rounded-xl cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-200 border-slate-300 text-slate-800 hover:bg-slate-300'}`}>{t.cancelBtn}</button>
                       <button type="submit" className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{lang === 'ar' ? 'حفظ كلمة المرور الجديدة' : 'Save New Password'}</button>
                     </div>
                   </form>
@@ -1937,19 +1954,19 @@ export default function App() {
         )}
 
         {isUnlocked && !isAdmin && (
-          <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col md:flex-row h-[85vh] max-h-[85vh] overflow-hidden my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
-            <aside className={`w-full md:w-64 border-b md:border-b-0 md:border-l p-4 flex flex-col justify-between shrink-0 ${isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-200'}`}>
+          <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col md:flex-row h-[85vh] max-h-[85vh] overflow-hidden my-auto transition-colors ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-300'}`}>
+            <aside className={`w-full md:w-64 border-b md:border-b-0 md:border-l p-4 flex flex-col justify-between shrink-0 transition-colors ${isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-300'}`}>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-800/60">
                   <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shadow-inner"><ShieldCheck className="w-4 h-4" /></div>
                   <div className="overflow-hidden">
-                    <h3 className="text-[10px] font-bold text-slate-400">{t.vaultTitlePrefix}</h3>
+                    <h3 className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.vaultTitlePrefix}</h3>
                     <p className="text-xs font-mono font-bold text-indigo-400 truncate">{identifier}</p>
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <span className="text-[11px] font-bold text-slate-400 block px-1 mb-0.5">{t.vaultActionsTitle}</span>
-                  <button onClick={() => setVaultSubView('items')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${vaultSubView === 'items' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
+                  <span className={`text-[11px] font-bold block px-1 mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.vaultActionsTitle}</span>
+                  <button onClick={() => setVaultSubView('items')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'items' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Users className={`w-3.5 h-3.5 ${vaultSubView === 'items' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultItemsBtn}</span>
                   </button>
                   <button onClick={async () => {
@@ -1969,26 +1986,26 @@ export default function App() {
                         }
                       } catch (e) {}
                     }
-                  }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
+                  }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Activity className={`w-3.5 h-3.5 ${vaultSubView === 'audit' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultDossierBtn}</span>
                   </button>
-                  <button onClick={() => setVaultSubView('add')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${vaultSubView === 'add' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
+                  <button onClick={() => setVaultSubView('add')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'add' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Plus className={`w-3.5 h-3.5 ${vaultSubView === 'add' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.addAccountBtn}</span>
                   </button>
-                  <button onClick={openVaultSettings} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${vaultSubView === 'settings' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
+                  <button onClick={openVaultSettings} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'settings' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Settings className={`w-3.5 h-3.5 ${vaultSubView === 'settings' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.manageVaultBtn}</span>
                   </button>
-                  <button onClick={() => { const vaultData = currentEncryptedVault ? JSON.stringify(currentEncryptedVault) : localStorage.getItem(`passguard_vault_${identifier.trim().toLowerCase()}`); if (!vaultData) return; const blob = new Blob([typeof vaultData === 'string' ? vaultData : JSON.stringify(vaultData)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `passguard_backup_${identifier.trim().toLowerCase()}.json`; a.click(); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
+                  <button onClick={() => { const vaultData = currentEncryptedVault ? JSON.stringify(currentEncryptedVault) : localStorage.getItem(`passguard_vault_${identifier.trim().toLowerCase()}`); if (!vaultData) return; const blob = new Blob([typeof vaultData === 'string' ? vaultData : JSON.stringify(vaultData)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `passguard_backup_${identifier.trim().toLowerCase()}.json`; a.click(); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Download className="w-3.5 h-3.5 text-sky-400" /><span>{t.exportBtn}</span>
                   </button>
-                  <label className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold ${isDark ? 'bg-slate-900/80 border-slate-800 text-emerald-400 hover:bg-slate-800' : 'bg-white border-slate-300'}`}>
+                  <label className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-emerald-400 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-emerald-600'}`}>
                     <Upload className="w-3.5 h-3.5 text-emerald-400" /><span>{t.importBtn}</span>
                     <input type="file" accept=".json" onChange={handleImportVault} className="hidden" />
                   </label>
                 </div>
               </div>
               <div className="pt-3 border-t border-slate-800/60 mt-3">
-                <button onClick={async () => { if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
+                <button onClick={async () => { if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'}`}>
                   <LogOut className="w-3.5 h-3.5" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
@@ -1997,38 +2014,38 @@ export default function App() {
             <section className="flex-1 flex flex-col overflow-hidden">
               {vaultSubView === 'items' && (
                 <div className="flex-1 flex flex-col overflow-hidden animate-fadeIn">
-                  <div className={`p-3.5 border-b flex items-center justify-between gap-3 shrink-0 ${isDark ? 'bg-slate-950/30 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`p-3.5 border-b flex items-center justify-between gap-3 shrink-0 transition-colors ${isDark ? 'bg-slate-950/30 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <div className="relative flex-1">
-                      <input type="text" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full px-4 py-2 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300'}`} />
+                      <input type="text" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full px-4 py-2 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                     </div>
                     {copyStatusMsg && <span className="text-[11px] text-emerald-400 font-bold shrink-0 animate-pulse bg-emerald-500/10 px-2 py-1.5 rounded-lg border border-emerald-500/20">{copyStatusMsg}</span>}
                   </div>
-                  <div className={`px-4 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200'}`}>
+                  <div className={`px-4 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-300'}`}>
                     <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-                      <button onClick={() => setSelectedGroup('ALL_GROUPS')} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer ${selectedGroup === 'ALL_GROUPS' ? 'bg-indigo-600 text-white shadow' : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-white text-slate-600'}`}>{t.allGroups}</button>
+                      <button onClick={() => setSelectedGroup('ALL_GROUPS')} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${selectedGroup === 'ALL_GROUPS' ? 'bg-indigo-600 text-white shadow' : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-300'}`}>{t.allGroups}</button>
                       {groups.map((g, idx) => (
-                        <button key={idx} onClick={() => setSelectedGroup(g)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${selectedGroup === g ? 'bg-indigo-600 text-white shadow' : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-white text-slate-600'}`}>
+                        <button key={idx} onClick={() => setSelectedGroup(g)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${selectedGroup === g ? 'bg-indigo-600 text-white shadow' : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-300'}`}>
                           <Folder className="w-3.5 h-3.5 text-indigo-400" /><span>{g}</span>
                         </button>
                       ))}
-                      <button onClick={() => setShowManageGroupsModal(true)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20' : 'bg-indigo-50 text-indigo-600 border border-indigo-200'}`}>
+                      <button onClick={() => setShowManageGroupsModal(true)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20' : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'}`}>
                         <FolderPlus className="w-3.5 h-3.5" /><span>{t.manageGroupsBtn}</span>
                       </button>
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <button onClick={handleSelectAll} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-indigo-700'}`}>
+                      <button onClick={handleSelectAll} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-indigo-700 hover:bg-slate-50'}`}>
                         <CheckSquare className="w-3.5 h-3.5" /><span>{t.selectBtn} ({selectedAccountIds.length})</span>
                       </button>
-                      <button onClick={handleBulkCopy} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-sky-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-sky-700'}`}>
+                      <button onClick={handleBulkCopy} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-sky-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-sky-700 hover:bg-slate-50'}`}>
                         <Copy className="w-3.5 h-3.5" /><span>{t.copyBtnAction}</span>
                       </button>
-                      <button onClick={handleBulkCut} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-amber-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-amber-700'}`}>
+                      <button onClick={handleBulkCut} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-amber-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-amber-700 hover:bg-slate-50'}`}>
                         <Scissors className="w-3.5 h-3.5" /><span>{t.cutBtn}</span>
                       </button>
-                      <button onClick={handleBulkPaste} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-emerald-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-emerald-700'}`}>
+                      <button onClick={handleBulkPaste} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-emerald-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-emerald-700 hover:bg-slate-50'}`}>
                         <Clipboard className="w-3.5 h-3.5" /><span>{t.pasteBtn} ({clipboardBuffer.length})</span>
                       </button>
-                      <button onClick={handleBulkDelete} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-slate-900 border-slate-700 text-rose-400 hover:bg-rose-500/10' : 'bg-white border-slate-300 text-rose-600 hover:bg-rose-50'}`}>
+                      <button onClick={handleBulkDelete} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-rose-400 hover:bg-rose-500/10' : 'bg-white border-slate-300 text-rose-600 hover:bg-rose-50'}`}>
                         <Trash2 className="w-3.5 h-3.5" /><span>{t.bulkDeleteBtn}</span>
                       </button>
                     </div>
@@ -2040,31 +2057,31 @@ export default function App() {
                       .map((item) => {
                         const isSelected = selectedAccountIds.includes(item.id);
                         return (
-                          <div key={item.id} className={`p-3.5 border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 ${isSelected ? (isDark ? 'bg-indigo-950/40 border-indigo-500/60' : 'bg-indigo-50 border-indigo-300') : (isDark ? 'bg-slate-950/50 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200')}`}>
+                          <div key={item.id} className={`p-3.5 border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 transition-colors ${isSelected ? (isDark ? 'bg-indigo-950/40 border-indigo-500/60' : 'bg-indigo-50 border-indigo-300') : (isDark ? 'bg-slate-950/50 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-300 hover:bg-white')}`}>
                             <div className="flex items-center gap-3 w-full md:w-auto">
                               <button onClick={() => toggleSelectAccount(item.id)} className="text-indigo-400 cursor-pointer shrink-0">
                                 {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-400" /> : <Square className="w-4 h-4 text-slate-500" />}
                               </button>
                               <div className="overflow-hidden">
-                                <h3 className="text-xs font-bold flex flex-wrap items-center gap-2">
+                                <h3 className={`text-xs font-bold flex flex-wrap items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                   <span className="truncate">{item.title}</span>
                                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">{item.group || t.allGroups}</span>
                                   {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300"><ExternalLink className="w-3 h-3" /></a>}
                                 </h3>
-                                <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.username}</p>
+                                <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{item.username}</p>
                               </div>
                             </div>
                             <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/40">
-                              <span className={`px-2.5 py-1 border text-[11px] rounded-xl font-mono truncate max-w-[120px] sm:max-w-none ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}>
+                              <span className={`px-2.5 py-1 border text-[11px] rounded-xl font-mono truncate max-w-[120px] sm:max-w-none transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}>
                                 {visiblePasswords[item.id] ? item.password : '••••••••••••'}
                               </span>
                               <div className="flex items-center gap-1 shrink-0">
-                                <button onClick={() => togglePasswordVisibility(item.id)} className={`p-1.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-300'}`}>
+                                <button onClick={() => togglePasswordVisibility(item.id)} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-300 text-slate-600 hover:text-slate-900'}`}>
                                   {visiblePasswords[item.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                 </button>
-                                <button onClick={() => copyToClipboard(item.password, item.id)} className={`p-1.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-indigo-600/20' : 'bg-white border-slate-300'}`}><Copy className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => { setEditableRecord({ ...item }); setVaultSubView('details'); }} className={`p-1.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-indigo-600'}`}><Info className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => { askConfirm(t.deleteRecordBtn + '?', () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { const enc = await encryptData(updated, masterPassword); if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc }); if (saveError) { triggerNotice(saveError.message); return; } } else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc)); setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc); }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300'}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => copyToClipboard(item.password, item.id)} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-slate-700 hover:bg-indigo-50'}`}><Copy className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => { setEditableRecord({ ...item }); setVaultSubView('details'); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-indigo-600 hover:bg-indigo-50'}`}><Info className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => { askConfirm(t.deleteRecordBtn + '?', () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { const enc = await encryptData(updated, masterPassword); if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc }); if (saveError) { triggerNotice(saveError.message); return; } } else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc)); setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc); }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50'}`}><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
                           </div>
@@ -2077,8 +2094,8 @@ export default function App() {
               {vaultSubView === 'add' && (
                 <div className="flex-1 flex flex-col p-4 sm:p-7 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 shrink-0">
-                    <h3 className="text-base font-bold">{t.addModalTitle}</h3>
-                    <button type="button" onClick={() => { const ns = !showGenOptions; setShowGenOptions(ns); if (ns) triggerLiveGeneration(genLength, useSymbols, useNumbers); }} className={`text-[11px] px-3 py-1 rounded-xl border cursor-pointer flex items-center gap-1.5 ${showGenOptions ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : isDark ? 'bg-slate-800 border-slate-700 text-indigo-400' : 'bg-slate-100 border-slate-300 text-indigo-600'}`}>
+                    <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.addModalTitle}</h3>
+                    <button type="button" onClick={() => { const ns = !showGenOptions; setShowGenOptions(ns); if (ns) triggerLiveGeneration(genLength, useSymbols, useNumbers); }} className={`text-[11px] px-3 py-1 rounded-xl border cursor-pointer flex items-center gap-1.5 transition-colors ${showGenOptions ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : isDark ? 'bg-slate-800 border-slate-700 text-indigo-400' : 'bg-slate-100 border-slate-300 text-indigo-700 hover:bg-slate-200'}`}>
                       <Sliders className="w-3 h-3" /><span>{t.toggleGenOptions}</span>
                     </button>
                   </div>
@@ -2097,11 +2114,12 @@ export default function App() {
                     triggerNotice(lang === 'ar' ? 'تم حفظ الحساب في الخزنة بنجاح' : 'Account saved in vault successfully');
                   }} className="space-y-3 text-xs">
                     <div>
-                      <input type="text" placeholder={t.siteTitlePlaceholder} value={newTitle} onChange={(e) => handleTitleChange(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.siteTitlePlaceholder}</label>
+                      <input type="text" value={newTitle} onChange={(e) => handleTitleChange(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
                       {siteSuggestions.length > 0 && (
-                        <div className={`mt-1 border rounded-xl shadow-xl z-30 overflow-hidden ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
+                        <div className={`mt-1 border rounded-xl shadow-xl z-30 overflow-hidden transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-300'}`}>
                           {siteSuggestions.map((s, idx) => (
-                            <div key={idx} onClick={() => selectSuggestion(s)} className={`px-3 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
+                            <div key={idx} onClick={() => selectSuggestion(s)} className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
                               ✨ {s.name} <span className="text-[10px] text-slate-500">({s.url})</span>
                             </div>
                           ))}
@@ -2109,27 +2127,41 @@ export default function App() {
                       )}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <input type="text" placeholder={t.usernamePlaceholder} value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                      <input type="text" placeholder={t.siteUrlPlaceholder} value={newUrl} onChange={(e) => setNewUrl(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                      <div>
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.usernamePlaceholder}</label>
+                        <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                      </div>
+                      <div>
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.siteUrlPlaceholder}</label>
+                        <input type="text" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <input type="text" placeholder={t.emailPlaceholder} value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
-                      <input type="tel" placeholder={t.phonePlaceholder} value={newPhone} onChange={(e) => handlePhoneChange(e, setNewPhone)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                      <div>
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.emailPlaceholder}</label>
+                        <input type="text" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                      </div>
+                      <div>
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.phonePlaceholder}</label>
+                        <input type="tel" value={newPhone} onChange={(e) => handlePhoneChange(e, setNewPhone)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                      </div>
                     </div>
                     <div>
-                      <select value={newGroupSelection || ''} onChange={(e) => setNewGroupSelection(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}>
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.groupLabel}</label>
+                      <select value={newGroupSelection || ''} onChange={(e) => setNewGroupSelection(e.target.value)} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
                         <option value="">{t.allGroups}</option>
                         {groups.map((g, idx) => <option key={idx} value={g}>{g}</option>)}
                       </select>
                     </div>
                     <div className="relative">
-                      <input type="text" placeholder={t.passwordPlaceholder} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={`w-full px-3.5 py-2.5 ps-11 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
-                      <button type="button" onClick={() => { if (!showGenOptions) setShowGenOptions(true); triggerLiveGeneration(genLength, useSymbols, useNumbers); }} className="absolute start-2 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 rounded-lg cursor-pointer" title={t.generatePassTitle}>
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.passwordPlaceholder}</label>
+                      <input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={`w-full px-3.5 py-2.5 ps-11 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
+                      <button type="button" onClick={() => { if (!showGenOptions) setShowGenOptions(true); triggerLiveGeneration(genLength, useSymbols, useNumbers); }} className={`absolute start-2 top-8 p-1.5 rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400' : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-600'}`} title={t.generatePassTitle}>
                         <KeyRound className="w-3.5 h-3.5" />
                       </button>
                     </div>
                     {showGenOptions && (
-                      <div className={`p-3 rounded-xl border text-xs space-y-2 ${isDark ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200'}`}>
+                      <div className={`p-3 rounded-xl border text-xs space-y-2 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-300 text-slate-700'}`}>
                         <div className="flex justify-between items-center">
                           <span className="font-semibold">{t.passLength}: {genLength}</span>
                           <input type="range" min="8" max="32" value={genLength} onChange={(e) => setGenLength(Number(e.target.value))} className="accent-indigo-600 cursor-pointer" />
@@ -2145,10 +2177,11 @@ export default function App() {
                       </div>
                     )}
                     <div>
-                      <textarea placeholder={t.notesPlaceholder} value={newNotes} onChange={(e) => setNewNotes(e.target.value)} className={`w-full p-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 h-14 resize-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.notesPlaceholder}</label>
+                      <textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} className={`w-full p-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 h-14 resize-none transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                     </div>
-                    <div className="flex justify-end gap-2 pt-1">
-                      <button type="button" onClick={() => { setShowGenOptions(false); setVaultSubView('items'); }} className={`px-4 py-2 border text-xs font-semibold rounded-xl cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300'}`}>{t.cancelBtn}</button>
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-800/40 mt-4">
+                      <button type="button" onClick={() => { setShowGenOptions(false); setVaultSubView('items'); }} className={`px-4 py-2 border text-xs font-semibold rounded-xl cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>{t.cancelBtn}</button>
                       <button type="submit" className="px-5 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.saveRecordBtn}</button>
                     </div>
                   </form>
@@ -2158,61 +2191,71 @@ export default function App() {
               {vaultSubView === 'details' && editableRecord && (
                 <div className="flex-1 flex flex-col p-4 sm:p-7 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4 shrink-0">
-                    <h3 className="text-base font-bold flex items-center gap-2"><Edit3 className="w-5 h-5 text-indigo-500" />{t.recordDetailsTitle}</h3>
+                    <h3 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}><Edit3 className="w-5 h-5 text-indigo-500" />{t.recordDetailsTitle}</h3>
                   </div>
                   <form onSubmit={handleSaveRecordChanges} className="space-y-3 text-xs">
                     <div>
-                      <label className="block mb-1 text-slate-400">{t.siteTitlePlaceholder}</label>
-                      <input type="text" value={editableRecord.title} onChange={(e) => setEditableRecord({ ...editableRecord, title: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.siteTitlePlaceholder}</label>
+                      <input type="text" value={editableRecord.title} onChange={(e) => setEditableRecord({ ...editableRecord, title: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.usernameLabel}</label>
-                        <input type="text" value={editableRecord.username} onChange={(e) => setEditableRecord({ ...editableRecord, username: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.usernameLabel}</label>
+                        <input type="text" value={editableRecord.username} onChange={(e) => setEditableRecord({ ...editableRecord, username: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.siteUrlPlaceholder}</label>
-                        <input type="text" value={editableRecord.url} onChange={(e) => setEditableRecord({ ...editableRecord, url: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.siteUrlPlaceholder}</label>
+                        <input type="text" value={editableRecord.url} onChange={(e) => setEditableRecord({ ...editableRecord, url: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.emailLabel}</label>
-                        <input type="text" value={editableRecord.email} onChange={(e) => setEditableRecord({ ...editableRecord, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.emailLabel}</label>
+                        <input type="text" value={editableRecord.email} onChange={(e) => setEditableRecord({ ...editableRecord, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.phoneLabel}</label>
-                        <input type="tel" value={editableRecord.phone} onChange={(e) => handlePhoneChange(e, (val) => setEditableRecord({ ...editableRecord, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.phoneLabel}</label>
+                        <input type="tel" value={editableRecord.phone} onChange={(e) => handlePhoneChange(e, (val) => setEditableRecord({ ...editableRecord, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                     </div>
                     <div>
-                      <label className="block mb-1 text-slate-400">{t.groupLabel}</label>
-                      <select value={editableRecord.group || ''} onChange={(e) => setEditableRecord({ ...editableRecord, group: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`}>
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.groupLabel}</label>
+                      <select value={editableRecord.group || ''} onChange={(e) => setEditableRecord({ ...editableRecord, group: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
                         <option value="">{t.allGroups}</option>
                         {groups.map((g, idx) => <option key={idx} value={g}>{g}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block mb-1 text-slate-400">{t.passwordRecordLabel}</label>
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.passwordRecordLabel}</label>
                       <div className="relative flex items-center gap-2">
-                        <input type={visiblePasswords[editableRecord.id] ? "text" : "password"} value={editableRecord.password} onChange={(e) => setEditableRecord({ ...editableRecord, password: e.target.value })} className={`flex-1 px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
-                        <button type="button" onClick={() => togglePasswordVisibility(editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}>
+                        <input type={visiblePasswords[editableRecord.id] ? "text" : "password"} value={editableRecord.password} onChange={(e) => setEditableRecord({ ...editableRecord, password: e.target.value })} className={`flex-1 px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
+                        <button type="button" onClick={() => togglePasswordVisibility(editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-600'}`}>
                           {visiblePasswords[editableRecord.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
-                        <button type="button" onClick={() => copyToClipboard(editableRecord.password, editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300'}`}><Copy className="w-4 h-4 text-emerald-400" /></button>
+                        <button type="button" onClick={() => copyToClipboard(editableRecord.password, editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-600'}`}><Copy className="w-4 h-4 text-emerald-400" /></button>
                       </div>
                     </div>
                     <div>
-                      <label className="block mb-1 text-slate-400">{t.notesLabel}</label>
-                      <textarea value={editableRecord.notes} onChange={(e) => setEditableRecord({ ...editableRecord, notes: e.target.value })} className={`w-full p-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 h-16 resize-none ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.notesLabel}</label>
+                      <textarea value={editableRecord.notes} onChange={(e) => setEditableRecord({ ...editableRecord, notes: e.target.value })} className={`w-full p-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 h-16 resize-none transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                     </div>
-                    <div className={`p-3 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                      <span className="text-slate-400">{t.lastModifiedLabel}</span>
+                    <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                      <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{t.lastModifiedLabel}</span>
                       <span className="font-mono text-indigo-400">{formatDate(editableRecord.lastUpdated)}</span>
                     </div>
-                    <div className="flex justify-end gap-2 pt-2">
-                      <button type="button" onClick={() => setVaultSubView('items')} className={`px-4 py-2 border text-xs font-semibold rounded-xl cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300'}`}>{t.cancelBtn}</button>
-                      <button type="submit" className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.saveNotesBtn}</button>
+                    
+                    <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2 pt-4 border-t border-slate-800/40 mt-4">
+                      <button type="button" onClick={() => setVaultSubView('items')} className={`px-4 py-2 border text-xs font-semibold rounded-xl cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>
+                        {t.exitBtn}
+                      </button>
+                      <button type="button" onClick={() => { 
+                        if (originalRecord) setEditableRecord({ ...originalRecord }); 
+                      }} className={`px-4 py-2 border text-xs font-semibold rounded-xl cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>
+                        {t.cancelBtn}
+                      </button>
+                      <button type="submit" disabled={!isRecordModified} className={`px-5 py-2 text-white text-xs font-bold rounded-xl shadow-lg transition-all ${isRecordModified ? 'bg-indigo-600 hover:bg-indigo-500 cursor-pointer' : 'bg-indigo-600/50 cursor-not-allowed opacity-50'}`}>
+                        {t.saveNotesBtn}
+                      </button>
                     </div>
                   </form>
                 </div>
@@ -2223,23 +2266,23 @@ export default function App() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 shrink-0">
                     <div className="flex items-center gap-3">
                       <div className="p-2.5 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30"><ShieldCheck className="w-6 h-6" /></div>
-                      <div><h3 className="font-extrabold text-base">{t.auditModalTitle}</h3><p className="text-xs text-slate-400">{t.auditModalSub}</p></div>
+                      <div><h3 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.auditModalTitle}</h3><p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.auditModalSub}</p></div>
                     </div>
                   </div>
-                  <div className={`flex p-1 rounded-xl border text-xs shrink-0 ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
-                    <button onClick={() => setAuditTab('metrics')} className={`flex-1 py-2 font-semibold rounded-lg cursor-pointer flex items-center justify-center gap-2 ${auditTab === 'metrics' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}><Activity className="w-4 h-4" />{t.auditTabMetrics}</button>
-                    <button onClick={() => setAuditTab('devices')} className={`flex-1 py-2 font-semibold rounded-lg cursor-pointer flex items-center justify-center gap-2 ${auditTab === 'devices' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}><Laptop className="w-4 h-4" />{t.auditTabDevices} ({vaultDeviceLogs.length})</button>
+                  <div className={`flex p-1 rounded-xl border text-xs shrink-0 transition-colors ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
+                    <button onClick={() => setAuditTab('metrics')} className={`flex-1 py-2 font-semibold rounded-lg cursor-pointer flex items-center justify-center gap-2 ${auditTab === 'metrics' ? 'bg-indigo-600 text-white shadow-lg' : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}><Activity className="w-4 h-4" />{t.auditTabMetrics}</button>
+                    <button onClick={() => setAuditTab('devices')} className={`flex-1 py-2 font-semibold rounded-lg cursor-pointer flex items-center justify-center gap-2 ${auditTab === 'devices' ? 'bg-indigo-600 text-white shadow-lg' : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}><Laptop className="w-4 h-4" />{t.auditTabDevices} ({vaultDeviceLogs.length})</button>
                   </div>
                   {auditTab === 'metrics' && (
                     <div className="space-y-4 animate-fadeIn">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className={`p-4 rounded-2xl border text-center ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}><p className="text-[11px] text-slate-400">{t.totalCredentials}</p><h4 className="text-xl font-bold font-mono mt-1 text-indigo-400">{metrics.total}</h4></div>
-                        <div className={`p-4 rounded-2xl border text-center ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}><p className="text-[11px] text-slate-400">{t.vaultHealthScore}</p><h4 className={`text-xl font-bold font-mono mt-1 ${metrics.score >= 75 ? 'text-emerald-400' : metrics.score >= 50 ? 'text-amber-400' : 'text-rose-500'}`}>{metrics.score}%</h4></div>
-                        <div className={`p-4 rounded-2xl border text-center ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}><p className="text-[11px] text-slate-400">{t.reusedPasswords}</p><h4 className="text-xl font-bold font-mono mt-1 text-rose-400">{metrics.reusedCount}</h4></div>
-                        <div className={`p-4 rounded-2xl border text-center ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}><p className="text-[11px] text-slate-400">{t.weakPasswords}</p><h4 className="text-xl font-bold font-mono mt-1 text-amber-400">{metrics.weakCount}</h4></div>
+                        <div className={`p-4 rounded-2xl border text-center transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}><p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.totalCredentials}</p><h4 className={`text-xl font-bold font-mono mt-1 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>{metrics.total}</h4></div>
+                        <div className={`p-4 rounded-2xl border text-center transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}><p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.vaultHealthScore}</p><h4 className={`text-xl font-bold font-mono mt-1 ${metrics.score >= 75 ? 'text-emerald-500' : metrics.score >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>{metrics.score}%</h4></div>
+                        <div className={`p-4 rounded-2xl border text-center transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}><p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.reusedPasswords}</p><h4 className={`text-xl font-bold font-mono mt-1 ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>{metrics.reusedCount}</h4></div>
+                        <div className={`p-4 rounded-2xl border text-center transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}><p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.weakPasswords}</p><h4 className={`text-xl font-bold font-mono mt-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{metrics.weakCount}</h4></div>
                       </div>
-                      <div className={`p-5 rounded-2xl border space-y-2.5 text-xs leading-relaxed ${isDark ? 'bg-slate-950/40 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200'}`}>
-                        <h4 className="font-bold flex items-center gap-2 text-indigo-400 text-sm"><Zap className="w-4 h-4" />{t.securityRecommendations}</h4>
+                      <div className={`p-5 rounded-2xl border space-y-2.5 text-xs leading-relaxed transition-colors ${isDark ? 'bg-slate-950/40 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-300 text-slate-700'}`}>
+                        <h4 className={`font-bold flex items-center gap-2 text-sm ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}><Zap className="w-4 h-4" />{t.securityRecommendations}</h4>
                         <p>{t.rec1}</p><p>{t.rec2}</p><p>{t.rec3}</p>
                       </div>
                     </div>
@@ -2247,29 +2290,29 @@ export default function App() {
                   {auditTab === 'devices' && (
                     <div className="space-y-3 animate-fadeIn">
                       {vaultDeviceLogs.length === 0 ? (
-                        <p className="text-xs text-slate-400 text-center py-8">{t.noDeviceLogs}</p>
+                        <p className={`text-xs text-center py-8 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.noDeviceLogs}</p>
                       ) : (
                         vaultDeviceLogs.map((dev, idx) => (
-                          <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                          <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-colors ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-white border-slate-300'}`}>
                             <div className="flex items-start gap-3">
-                              <div className={`p-2.5 rounded-xl border shrink-0 ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400' : 'bg-white border-slate-300 text-indigo-600'}`}>
+                              <div className={`p-2.5 rounded-xl border shrink-0 transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400' : 'bg-slate-50 border-slate-300 text-indigo-600'}`}>
                                 {(dev.os || '').includes("Android") || (dev.os || '').includes("iOS") || (dev.os || '').includes("iPhone") || (dev.os || '').includes("Samsung") || (dev.os || '').includes("Honor") ? <Smartphone className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
                               </div>
                               <div className="space-y-0.5 text-xs">
-                                <h4 className="font-bold flex items-center gap-2">
+                                <h4 className={`font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                   <span>{dev.os} ({dev.browser})</span>
-                                  {(dev.is_current || dev.isCurrent) && <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">{t.currentSessionBadge}</span>}
+                                  {(dev.is_current || dev.isCurrent) && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300'}`}>{t.currentSessionBadge}</span>}
                                 </h4>
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 font-mono pt-1">
+                                <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-mono pt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                   <span className="flex items-center gap-1"><Wifi className="w-3 h-3 text-indigo-400" /> IP: {dev.ip}</span>
                                   <span className="flex items-center gap-1"><Server className="w-3 h-3 text-amber-400" /> {dev.isp}</span>
                                   <span className="flex items-center gap-1"><Globe className="w-3 h-3 text-emerald-400" /> {dev.location}</span>
-                                  <span className="flex items-center gap-1 text-slate-500"><Lock className="w-3 h-3" /> {dev.device_id || dev.deviceId}</span>
+                                  <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> {dev.device_id || dev.deviceId}</span>
                                 </div>
                               </div>
                             </div>
-                            <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1 shrink-0 self-end sm:self-center">
-                              <Clock className="w-3.5 h-3.5 text-slate-500" /><span>{formatDate(dev.last_login || dev.lastLogin)}</span>
+                            <div className={`text-[11px] font-mono flex items-center gap-1 shrink-0 self-end sm:self-center ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <Clock className="w-3.5 h-3.5" /><span>{formatDate(dev.last_login || dev.lastLogin)}</span>
                             </div>
                           </div>
                         ))
@@ -2282,32 +2325,32 @@ export default function App() {
               {vaultSubView === 'settings' && (
                 <div className="flex-1 flex flex-col p-4 sm:p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                    <h3 className="text-base font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-indigo-500" />{t.vaultSettingsTitle}</h3>
+                    <h3 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}><Settings className="w-5 h-5 text-indigo-500" />{t.vaultSettingsTitle}</h3>
                   </div>
-                  <p className="text-[11px] text-slate-400 mb-4">{t.vaultSettingsSub}</p>
+                  <p className={`text-[11px] mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.vaultSettingsSub}</p>
                   <form onSubmit={handleSaveSettings} className="space-y-3 text-xs">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.usernameLabel}</label>
-                        <input type="text" value={manageData.identifier} onChange={(e) => setManageData({ ...manageData, identifier: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} required />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.usernameLabel}</label>
+                        <input type="text" value={manageData.identifier} onChange={(e) => setManageData({ ...manageData, identifier: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
                       </div>
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.passwordLabel}</label>
-                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-slate-50 border-slate-300 text-amber-600'}`} required />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.passwordLabel}</label>
+                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.emailLabel}</label>
-                        <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.emailLabel}</label>
+                        <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                       <div>
-                        <label className="block mb-1 text-slate-400">{t.phoneLabel}</label>
-                        <input type="tel" value={manageData.phone} onChange={(e) => handlePhoneChange(e, (val) => setManageData({ ...manageData, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300'}`} />
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.phoneLabel}</label>
+                        <input type="tel" value={manageData.phone} onChange={(e) => handlePhoneChange(e, (val) => setManageData({ ...manageData, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                     </div>
-                    <div className={`p-3 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                      <span className="text-slate-400">{t.creationDateLabel}</span>
+                    <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                      <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{t.creationDateLabel}</span>
                       <span className="font-mono text-indigo-400">{formatDate(manageData.createdAt)}</span>
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
