@@ -499,23 +499,21 @@ export default function App() {
     let cancelled = false;
     const loadVisits = async () => {
       const sessionKey = 'passguard_session_counted';
-
-      // تم تغيير هذا السطر لتخطي قفل الجلسة والسماح بزيادة العداد دائماً
-      // أعدها إلى: sessionStorage.getItem(sessionKey); إذا أردت إحصائيات دقيقة لاحقاً
-      const hasCountedSession = false;
+      
+      // هنا قمنا بإعادة قراءة حالة الجلسة من المتصفح لمنع التكرار
+      const hasCountedSession = sessionStorage.getItem(sessionKey);
 
       if (supabaseConfigured) {
         try {
           if (!hasCountedSession) {
             const { data: incData, error: incErr } = await supabase.rpc('increment_visit');
             if (!incErr && incData !== null) {
-              // تعديل برمجي: التحقق مما إذا كانت النتيجة رقماً مباشراً (Scalar) أو كائناً (Object)
-              const countVal = typeof incData === 'number'
-                ? incData
+              const countVal = typeof incData === 'number' 
+                ? incData 
                 : (Array.isArray(incData) ? incData[0]?.total_visits : incData?.total_visits);
-
+              
               sessionStorage.setItem(sessionKey, 'true');
-
+              
               if (!cancelled && countVal !== undefined && countVal !== null) {
                 setVisitCount(Number(countVal));
                 return;
@@ -538,7 +536,6 @@ export default function App() {
         }
       }
 
-      // العمل على LocalStorage في حال عدم ربط Supabase
       let stored = parseInt(localStorage.getItem('passguard_total_visits') || '0', 10);
       if (!hasCountedSession) {
         stored += 1;
