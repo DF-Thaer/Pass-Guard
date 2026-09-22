@@ -47,7 +47,7 @@ const cacheVaultLocally = (identifier, encrypted, meta = {}) => {
       phone: meta.phone || '',
       createdAt: meta.createdAt || new Date().toISOString(),
     }));
-  } catch (e) {}
+  } catch (e) { }
 };
 
 const cloudSaveVault = async ({ vaultId, identifier, masterPassword, encryptedData, email = null, phone = null }) => {
@@ -70,7 +70,7 @@ const generateSecurePassword = (length, includeSymbols, includeNumbers) => {
   const arr = [];
   charSets.forEach(set => arr.push(set[Math.floor(Math.random() * set.length)]));
   for (let i = arr.length; i < length; i++) arr.push(allChars[Math.floor(Math.random() * allChars.length)]);
-  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[arr[i], arr[j]] = [arr[j], arr[i]]; }
   return arr.join("");
 };
 
@@ -369,7 +369,7 @@ export default function App() {
     const ua = navigator.userAgent;
     let os = lang === 'ar' ? "نظام غير معروف" : "Unknown OS";
     let model = "";
-    
+
     if (/android/i.test(ua)) {
       os = "Android Mobile";
       const match = ua.match(/\b(SM-[A-Za-z0-9]+|X(7[Cc]|6[Cc]|8[Cc])|Honor\s[A-Za-z0-9\s]+|Pixel\s[0-9a-zA-Z\s]+|Redmi\s[A-Za-z0-9\s]+|POCO\s[A-Za-z0-9]+|V2[0-9]{3}[A-Za-z]*|CPH[0-9]{4}|M2[0-9]{3}[A-Za-z0-9]+)\b/i);
@@ -419,7 +419,7 @@ export default function App() {
         const data = await res.json();
         netInfo = { ip: data.ip || '127.0.0.1', isp: data.org || data.asn || 'Verified Network', location: `${data.city || ''}، ${data.country_name || ''}` };
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const localEntry = {
       id: `dev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -481,8 +481,8 @@ export default function App() {
     try {
       const saved = localStorage.getItem(logKey);
       if (saved) logs = JSON.parse(saved);
-    } catch (e) {}
-    
+    } catch (e) { }
+
     logs.forEach(l => { l.is_current = false; l.isCurrent = false; });
     const existingIndex = logs.findIndex(l => (l.device_id || l.deviceId) === device.deviceId);
     if (existingIndex !== -1) {
@@ -491,7 +491,7 @@ export default function App() {
       logs.unshift(localEntry);
     }
     const updated = logs.slice(0, 15);
-    try { localStorage.setItem(logKey, JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(logKey, JSON.stringify(updated)); } catch (e) { }
     setVaultDeviceLogs(updated);
   };
 
@@ -499,15 +499,23 @@ export default function App() {
     let cancelled = false;
     const loadVisits = async () => {
       const sessionKey = 'passguard_session_counted';
-      const hasCountedSession = sessionStorage.getItem(sessionKey);
+
+      // تم تغيير هذا السطر لتخطي قفل الجلسة والسماح بزيادة العداد دائماً
+      // أعدها إلى: sessionStorage.getItem(sessionKey); إذا أردت إحصائيات دقيقة لاحقاً
+      const hasCountedSession = false;
 
       if (supabaseConfigured) {
         try {
           if (!hasCountedSession) {
             const { data: incData, error: incErr } = await supabase.rpc('increment_visit');
-            if (!incErr && incData) {
-              const countVal = Array.isArray(incData) ? incData[0]?.total_visits : incData?.total_visits;
+            if (!incErr && incData !== null) {
+              // تعديل برمجي: التحقق مما إذا كانت النتيجة رقماً مباشراً (Scalar) أو كائناً (Object)
+              const countVal = typeof incData === 'number'
+                ? incData
+                : (Array.isArray(incData) ? incData[0]?.total_visits : incData?.total_visits);
+
               sessionStorage.setItem(sessionKey, 'true');
+
               if (!cancelled && countVal !== undefined && countVal !== null) {
                 setVisitCount(Number(countVal));
                 return;
@@ -530,6 +538,7 @@ export default function App() {
         }
       }
 
+      // العمل على LocalStorage في حال عدم ربط Supabase
       let stored = parseInt(localStorage.getItem('passguard_total_visits') || '0', 10);
       if (!hasCountedSession) {
         stored += 1;
@@ -588,7 +597,7 @@ export default function App() {
         if (!msgErr && msgData) {
           setContactMessagesList(msgData);
         }
-      } catch (e) {}
+      } catch (e) { }
 
     } else if (!supabaseConfigured) {
       const users = [];
@@ -598,7 +607,7 @@ export default function App() {
           const username = key.replace('passguard_vault_', '');
           const metaKey = `passguard_meta_${username}`;
           let isLocked = false, alertMsg = false, meta = {};
-          try { meta = JSON.parse(localStorage.getItem(metaKey)) || {}; } catch (e) {}
+          try { meta = JSON.parse(localStorage.getItem(metaKey)) || {}; } catch (e) { }
           isLocked = !!meta.isLocked; alertMsg = !!meta.alert;
           users.push({ username, isLocked, alert: alertMsg, masterPassword: '', email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || 'N/A', encryptedData: JSON.parse(localStorage.getItem(key) || 'null') });
         }
@@ -673,7 +682,7 @@ export default function App() {
 
     const render = () => {
       const isDarkTheme = themeRef.current === 'dark';
-      
+
       // Smooth mouse lerp
       mouse.x += (mouse.targetX - mouse.x) * 0.12;
       mouse.y += (mouse.targetY - mouse.y) * 0.12;
@@ -710,15 +719,15 @@ export default function App() {
         const dx = mouse.x - p.x;
         const dy = mouse.y - p.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (dist < 180) {
           // Connecting lines to mouse
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(mouse.x, mouse.y);
-          ctx.strokeStyle = isDarkTheme 
-            ? `rgba(99, 102, 241, ${(1 - dist/180) * 0.7})` 
-            : `rgba(79, 70, 229, ${(1 - dist/180) * 0.5})`;
+          ctx.strokeStyle = isDarkTheme
+            ? `rgba(99, 102, 241, ${(1 - dist / 180) * 0.7})`
+            : `rgba(79, 70, 229, ${(1 - dist / 180) * 0.5})`;
           ctx.lineWidth = 1;
           ctx.stroke();
 
@@ -734,14 +743,14 @@ export default function App() {
           const dx2 = p.x - p2.x;
           const dy2 = p.y - p2.y;
           const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
-          
+
           if (dist2 < 120) {
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = isDarkTheme 
-              ? `rgba(148, 163, 184, ${(1 - dist2/120) * 0.25})` 
-              : `rgba(148, 163, 184, ${(1 - dist2/120) * 0.4})`;
+            ctx.strokeStyle = isDarkTheme
+              ? `rgba(148, 163, 184, ${(1 - dist2 / 120) * 0.25})`
+              : `rgba(148, 163, 184, ${(1 - dist2 / 120) * 0.4})`;
             ctx.lineWidth = 0.6;
             ctx.stroke();
           }
@@ -772,27 +781,27 @@ export default function App() {
     setError('');
 
     if (authMode === 'admin') {
-      if (!supabaseConfigured) { 
-        setError(lang === 'ar' ? 'Supabase غير متصل، تأكد من إعداد المفاتيح.' : 'Configure Supabase first.'); 
-        return; 
+      if (!supabaseConfigured) {
+        setError(lang === 'ar' ? 'Supabase غير متصل، تأكد من إعداد المفاتيح.' : 'Configure Supabase first.');
+        return;
       }
       const targetEmail = (ADMIN_EMAIL && ADMIN_EMAIL.trim()) || 'thaeraladom@gmail.com';
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
-        email: targetEmail, 
-        password: masterPassword 
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: targetEmail,
+        password: masterPassword
       });
 
-      if (authError) { 
+      if (authError) {
         console.error('Supabase Auth Error:', authError);
-        setError(authError.message === 'Invalid login credentials' ? t.invalidAdminAlert : authError.message); 
-        return; 
+        setError(authError.message === 'Invalid login credentials' ? t.invalidAdminAlert : authError.message);
+        return;
       }
 
       setAdminPassword(masterPassword);
-      setIsAdmin(true); 
-      setIsUnlocked(true); 
-      setAdminSubView('dashboard'); 
+      setIsAdmin(true);
+      setIsUnlocked(true);
+      setAdminSubView('dashboard');
       setError('');
       await loadAdminUsersData();
       return;
@@ -814,7 +823,7 @@ export default function App() {
           }
           const metaKey = `passguard_meta_${cleanId}`;
           let m = { isLocked: true, alert: true };
-          try { m = { ...JSON.parse(localStorage.getItem(metaKey) || '{}'), isLocked: true, alert: true }; } catch (e) {}
+          try { m = { ...JSON.parse(localStorage.getItem(metaKey) || '{}'), isLocked: true, alert: true }; } catch (e) { }
           localStorage.setItem(metaKey, JSON.stringify(m));
           setError(t.maxTriesExceededAlert);
         } else {
@@ -892,7 +901,7 @@ export default function App() {
             return;
           }
         }
-      } catch (migrationError) {}
+      } catch (migrationError) { }
 
       await triggerFailedAttempt();
       return;
@@ -900,7 +909,7 @@ export default function App() {
 
     const metaKey = `passguard_meta_${cleanId}`;
     let metaData = { isLocked: false, alert: false };
-    try { const savedMeta = localStorage.getItem(metaKey); if (savedMeta) metaData = JSON.parse(savedMeta); } catch (e) {}
+    try { const savedMeta = localStorage.getItem(metaKey); if (savedMeta) metaData = JSON.parse(savedMeta); } catch (e) { }
     if (metaData.isLocked) { setError(t.lockedAccountAlert); return; }
     const storageKey = `passguard_vault_${cleanId}`;
     const savedVault = localStorage.getItem(storageKey);
@@ -985,7 +994,7 @@ export default function App() {
       }
     } else {
       let localMsgs = [];
-      try { localMsgs = JSON.parse(localStorage.getItem('passguard_contact_msgs') || '[]'); } catch (e) {}
+      try { localMsgs = JSON.parse(localStorage.getItem('passguard_contact_msgs') || '[]'); } catch (e) { }
       localMsgs.unshift({ ...messageData, id: Date.now(), created_at: new Date().toISOString() });
       localStorage.setItem('passguard_contact_msgs', JSON.stringify(localMsgs));
     }
@@ -1007,7 +1016,7 @@ export default function App() {
       await navigator.clipboard.writeText(text);
       setCopiedId(id); setCopyStatusMsg(t.copiedFeedback);
       setTimeout(() => { setCopiedId(null); setCopyStatusMsg(''); }, 3000);
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const togglePasswordVisibility = (id) => setVisiblePasswords(prev => ({ ...prev, [id]: !prev[id] }));
@@ -1147,8 +1156,8 @@ export default function App() {
       return;
     }
     askConfirm(
-      lang === 'ar' 
-        ? `هل أنت متأكد من حذف ${selectedAccountIds.length} حساب نهائياً؟` 
+      lang === 'ar'
+        ? `هل أنت متأكد من حذف ${selectedAccountIds.length} حساب نهائياً؟`
         : `Are you sure you want to delete ${selectedAccountIds.length} accounts?`,
       async () => {
         const remaining = vaultItems.filter(i => !selectedAccountIds.includes(i.id));
@@ -1197,7 +1206,7 @@ export default function App() {
   const openVaultSettings = () => {
     const cleanId = normalizeIdentifier(identifier);
     let meta = {};
-    try { meta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}'); } catch (e) {}
+    try { meta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}'); } catch (e) { }
     setManageData({ oldId: cleanId, identifier: meta.identifier || cleanId, masterPassword, oldPass: masterPassword, email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || new Date().toISOString(), vaultId: currentVaultId });
     setVaultSubView('settings');
   };
@@ -1387,17 +1396,17 @@ export default function App() {
             <input type="number" value={userCaptchaInput} onChange={(e) => setUserCaptchaInput(e.target.value)} placeholder={t.captchaInput} className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-indigo-500 mb-4 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
             <div className="flex gap-2">
               <button onClick={() => { setShowCaptchaModal(false); setUserCaptchaInput(''); }} className={`flex-1 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>{t.cancelBtn}</button>
-              <button onClick={() => { 
-                if (parseInt(userCaptchaInput) === mathCaptcha.answer) { 
-                  setShowCaptchaModal(false); 
-                  setUserCaptchaInput(''); 
+              <button onClick={() => {
+                if (parseInt(userCaptchaInput) === mathCaptcha.answer) {
+                  setShowCaptchaModal(false);
+                  setUserCaptchaInput('');
                   setCaptchaPassed(true);
                   setPostCaptchaAttempts(0);
                   triggerNotice(t.captchaPassedAlert);
-                } else { 
-                  setError(t.captchaFailedAlert); 
-                  setUserCaptchaInput(''); 
-                } 
+                } else {
+                  setError(t.captchaFailedAlert);
+                  setUserCaptchaInput('');
+                }
               }} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg">{t.captchaSubmit}</button>
             </div>
           </div>
@@ -1451,7 +1460,7 @@ export default function App() {
               </h3>
               <button onClick={() => setShowAboutModal(false)} className={`cursor-pointer font-bold px-2 py-1 transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
             </div>
-            
+
             {lang === 'ar' ? (
               <div className={`space-y-4 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                 <p className={`font-semibold bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 text-sm ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
@@ -1463,7 +1472,7 @@ export default function App() {
                     <Zap className="w-4 h-4 text-amber-400" />
                     <span>مميزات النظام:</span>
                   </h4>
-                  
+
                   <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-indigo-400">🔒 تشفير فوري داخل متصفحك:</h5>
                     <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>كلمات مرورك تُشفّر مباشرة على جهازك بتقنية <span dir="ltr" className={`font-mono font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>AES-GCM 256-bit</span> قبل حفظها في السحابة.</p>
@@ -1500,7 +1509,7 @@ export default function App() {
                     <Zap className="w-4 h-4 text-amber-400" />
                     <span>System Features:</span>
                   </h4>
-                  
+
                   <div className={`p-3 rounded-xl border space-y-1 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <h5 className="font-bold text-indigo-400">🔒 Client-Side Instant Encryption:</h5>
                     <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>Your records are encrypted directly on your device via <span dir="ltr" className={`font-mono font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>AES-GCM 256-bit</span> before sync.</p>
@@ -1561,7 +1570,7 @@ export default function App() {
           </div>
         </div>
       )}
-{/* نافذة سياسة الخصوصية */}
+      {/* نافذة سياسة الخصوصية */}
       {showPrivacyModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
           <div className={`border p-6 sm:p-7 rounded-3xl w-full max-w-xl max-h-[88vh] overflow-y-auto space-y-4 shadow-2xl transition-all ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
@@ -1746,27 +1755,27 @@ export default function App() {
               </div>
               <div>
                 <label className={`text-xs block mb-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{authMode === 'admin' ? t.adminPasswordLabel : t.passwordLabel}</label>
-                <input 
-                  type="password" 
-                  placeholder="••••••••••••" 
-                  value={masterPassword} 
+                <input
+                  type="password"
+                  placeholder="••••••••••••"
+                  value={masterPassword}
                   dir="ltr"
-                  onChange={(e) => setMasterPassword(e.target.value.replace(/[^\x00-\x7F]/g, ''))} 
-                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
-                  required 
+                  onChange={(e) => setMasterPassword(e.target.value.replace(/[^\x00-\x7F]/g, ''))}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                  required
                 />
               </div>
               {authMode === 'register' && (
                 <div>
                   <label className={`text-xs block mb-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.confirmPasswordLabel}</label>
-                  <input 
-                    type="password" 
-                    placeholder="••••••••••••" 
-                    value={confirmMasterPassword} 
+                  <input
+                    type="password"
+                    placeholder="••••••••••••"
+                    value={confirmMasterPassword}
                     dir="ltr"
-                    onChange={(e) => setConfirmMasterPassword(e.target.value.replace(/[^\x00-\x7F]/g, ''))} 
-                    className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} 
-                    required 
+                    onChange={(e) => setConfirmMasterPassword(e.target.value.replace(/[^\x00-\x7F]/g, ''))}
+                    className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-mono text-left transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                    required
                   />
                 </div>
               )}
@@ -1876,7 +1885,7 @@ export default function App() {
                                   m.isLocked = false;
                                   m.alert = false;
                                   localStorage.setItem(metaKey, JSON.stringify(m));
-                                } catch (e) {}
+                                } catch (e) { }
                                 await loadAdminUsersData();
                                 triggerNotice(t.unblockSuccessAlert);
                               }} className={`px-3.5 py-2 border text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold transition-colors ${isDark ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-600'}`}>
@@ -1925,7 +1934,7 @@ export default function App() {
                                     await supabase.from('contact_messages').delete().eq('id', msg.id);
                                   } else {
                                     let localMsgs = [];
-                                    try { localMsgs = JSON.parse(localStorage.getItem('passguard_contact_msgs') || '[]'); } catch (e) {}
+                                    try { localMsgs = JSON.parse(localStorage.getItem('passguard_contact_msgs') || '[]'); } catch (e) { }
                                     localMsgs = localMsgs.filter(m => m.created_at !== msg.created_at);
                                     localStorage.setItem('passguard_contact_msgs', JSON.stringify(localMsgs));
                                   }
@@ -2044,7 +2053,7 @@ export default function App() {
                             isCurrent: d.device_id === curDev.deviceId
                           })));
                         }
-                      } catch (e) {}
+                      } catch (e) { }
                     }
                   }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Activity className={`w-3.5 h-3.5 ${vaultSubView === 'audit' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultDossierBtn}</span>
@@ -2303,13 +2312,13 @@ export default function App() {
                       <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{t.lastModifiedLabel}</span>
                       <span className="font-mono text-indigo-400">{formatDate(editableRecord.lastUpdated)}</span>
                     </div>
-                    
+
                     <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2 pt-4 border-t border-slate-800/40 mt-4">
                       <button type="button" onClick={() => setVaultSubView('items')} className={`px-4 py-2 border text-xs font-semibold rounded-xl cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>
                         {t.exitBtn}
                       </button>
-                      <button type="button" onClick={() => { 
-                        if (originalRecord) setEditableRecord({ ...originalRecord }); 
+                      <button type="button" onClick={() => {
+                        if (originalRecord) setEditableRecord({ ...originalRecord });
                       }} className={`px-4 py-2 border text-xs font-semibold rounded-xl cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>
                         {t.cancelBtn}
                       </button>
@@ -2388,25 +2397,26 @@ export default function App() {
                     <h3 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}><Settings className="w-5 h-5 text-indigo-500" />{t.vaultSettingsTitle}</h3>
                   </div>
                   <p className={`text-[11px] mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.vaultSettingsSub}</p>
-                  <form onSubmit={handleSaveSettings} className="space-y-3 text-xs">
+                  <form onSubmit={handleSaveSettings} className="space-y-3 text-xs" autoComplete="off">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.usernameLabel}</label>
-                        <input type="text" value={manageData.identifier} onChange={(e) => setManageData({ ...manageData, identifier: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
+                        <input type="text" value={manageData.identifier} onChange={(e) => setManageData({ ...manageData, identifier: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required autoComplete="off" />
                       </div>
                       <div>
                         <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.passwordLabel}</label>
-                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required />
+                        {/* لمنع مدير كلمات المرور من التدخل */}
+                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required autoComplete="new-password" />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.emailLabel}</label>
-                        <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                        <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} autoComplete="off" />
                       </div>
                       <div>
                         <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.phoneLabel}</label>
-                        <input type="tel" value={manageData.phone} onChange={(e) => handlePhoneChange(e, (val) => setManageData({ ...manageData, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                        <input type="tel" value={manageData.phone} onChange={(e) => handlePhoneChange(e, (val) => setManageData({ ...manageData, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} autoComplete="off" />
                       </div>
                     </div>
                     <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
@@ -2430,14 +2440,14 @@ export default function App() {
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
 
         <div className="w-full max-w-7xl mx-auto px-6 sm:px-8 grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 mb-10 text-start relative z-10">
-          
+
           {/* العمود الأول: الشعار ونبذة */}
           <div className="space-y-5">
             <div className="flex items-center gap-3">
-               <div className={`w-12 h-12 rounded-2xl overflow-hidden border flex items-center justify-center p-1 shadow-lg transition-transform hover:scale-105 ${isDark ? 'neon-logo-dark border-indigo-500/30 bg-gradient-to-br from-indigo-900/50 to-slate-900' : 'neon-logo-light border-indigo-200 bg-white'}`}>
-                 <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-contain drop-shadow-md" />
-               </div>
-               <span className={`font-black text-2xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r ${isDark ? 'from-indigo-400 via-sky-400 to-blue-500' : 'from-indigo-600 via-sky-600 to-blue-700'}`}>Pass-Guard</span>
+              <div className={`w-12 h-12 rounded-2xl overflow-hidden border flex items-center justify-center p-1 shadow-lg transition-transform hover:scale-105 ${isDark ? 'neon-logo-dark border-indigo-500/30 bg-gradient-to-br from-indigo-900/50 to-slate-900' : 'neon-logo-light border-indigo-200 bg-white'}`}>
+                <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-contain drop-shadow-md" />
+              </div>
+              <span className={`font-black text-2xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r ${isDark ? 'from-indigo-400 via-sky-400 to-blue-500' : 'from-indigo-600 via-sky-600 to-blue-700'}`}>Pass-Guard</span>
             </div>
             <p className={`text-[13px] leading-relaxed font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               {lang === 'ar' ? 'خزنة كلمات مرور مشفرة وآمنة، توفر لك حماية متقدمة ومزامنة سحابية لجميع حساباتك بسهولة وموثوقية عالية.' : 'An AES-GCM 256-bit encrypted password vault providing advanced protection and secure cloud sync for all your accounts.'}
@@ -2459,51 +2469,51 @@ export default function App() {
           <div className="space-y-5">
             <h3 className={`text-base font-black tracking-wide ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{lang === 'ar' ? 'تواصل معنا' : 'Contact Us'}</h3>
             <div className="flex flex-wrap items-center justify-start gap-3">
-              
+
               {/* Email */}
               <a href="mailto:thaeraladom@gmail.com" title="Email" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#EA4335]/10 hover:border-[#EA4335]/50 hover:text-[#EA4335] hover:shadow-[0_0_15px_rgba(234,67,53,0.3)]' : 'border-slate-300 bg-white hover:bg-[#EA4335]/10 hover:border-[#EA4335]/50 hover:text-[#EA4335]'}`}>
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" /></svg>
               </a>
 
               {/* Phone */}
               <a href="tel:+962792315565" title="Call" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#059669]/10 hover:border-[#059669]/50 hover:text-[#059669] hover:shadow-[0_0_15px_rgba(5,150,105,0.3)]' : 'border-slate-300 bg-white hover:bg-[#059669]/10 hover:border-[#059669]/50 hover:text-[#059669]'}`}>
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" /></svg>
               </a>
 
               {/* WhatsApp */}
               <a href="https://wa.me/962792315565" target="_blank" rel="noopener noreferrer" title="WhatsApp" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#25D366]/10 hover:border-[#25D366]/50 hover:text-[#25D366] hover:shadow-[0_0_15px_rgba(37,211,102,0.3)]' : 'border-slate-300 bg-white hover:bg-[#25D366]/10 hover:border-[#25D366]/50 hover:text-[#25D366]'}`}>
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                  </a>
-                  
-                  {/* Telegram */}
-                  <a href="https://t.me/t30902007" target="_blank" rel="noopener noreferrer" title="Telegram" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc] hover:shadow-[0_0_15px_rgba(0,136,204,0.3)]' : 'border-slate-300 bg-white hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc]'}`}>
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.09l-6.4 4.024-2.76-.86c-.6-.185-.61-.6.125-.89l10.736-4.136c.5-.18.91.105.74.887z"/></svg>
-                  </a>
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" /></svg>
+              </a>
 
-                  {/* Facebook */}
-                  <a href="https://www.facebook.com/t30902007" target="_blank" rel="noopener noreferrer" title="Facebook" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2] hover:shadow-[0_0_15px_rgba(24,119,242,0.3)]' : 'border-slate-300 bg-white hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2]'}`}>
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z"/></svg>
-                  </a>
-                </div>
-                
-                <div className={`pt-2 text-[13px] font-bold flex items-center gap-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
-                  <span>{lang === 'ar' ? 'الزرقاء - الأردن' : 'Zarqa - Jordan'}</span>
-                </div>
-              </div>
+              {/* Telegram */}
+              <a href="https://t.me/t30902007" target="_blank" rel="noopener noreferrer" title="Telegram" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc] hover:shadow-[0_0_15px_rgba(0,136,204,0.3)]' : 'border-slate-300 bg-white hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc]'}`}>
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.09l-6.4 4.024-2.76-.86c-.6-.185-.61-.6.125-.89l10.736-4.136c.5-.18.91.105.74.887z" /></svg>
+              </a>
+
+              {/* Facebook */}
+              <a href="https://www.facebook.com/t30902007" target="_blank" rel="noopener noreferrer" title="Facebook" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2] hover:shadow-[0_0_15px_rgba(24,119,242,0.3)]' : 'border-slate-300 bg-white hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2]'}`}>
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" /></svg>
+              </a>
             </div>
 
-            {/* الشريط السفلي */}
-            <div className={`relative z-10 w-full max-w-7xl mx-auto px-6 pt-6 border-t flex flex-col sm:flex-row items-center justify-between text-[12px] font-semibold ${isDark ? 'border-slate-800/60 text-slate-500' : 'border-slate-300 text-slate-500'}`}>
-              <div className="flex items-center gap-4 mb-3 sm:mb-0">
-                <button onClick={() => setShowPrivacyModal(true)} className={`transition-colors cursor-pointer ${isDark ? 'hover:text-indigo-400' : 'hover:text-indigo-600'}`}>{lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</button>
-                <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                <button onClick={() => setShowTermsModal(true)} className={`transition-colors cursor-pointer ${isDark ? 'hover:text-indigo-400' : 'hover:text-indigo-600'}`}>{lang === 'ar' ? 'شروط الاستخدام' : 'Terms of Service'}</button>
-              </div>
-              <span className="font-mono tracking-tight">© 2026 Pass-Guard. {lang === 'ar' ? 'جميع الحقوق محفوظة.' : 'All Rights Reserved.'}</span>
+            <div className={`pt-2 text-[13px] font-bold flex items-center gap-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+              <span>{lang === 'ar' ? 'الزرقاء - الأردن' : 'Zarqa - Jordan'}</span>
             </div>
-          </footer>
-          {/* نهاية التذييل الاحترافي الجديد (Modern Footer) */}
+          </div>
+        </div>
+
+        {/* الشريط السفلي */}
+        <div className={`relative z-10 w-full max-w-7xl mx-auto px-6 pt-6 border-t flex flex-col sm:flex-row items-center justify-between text-[12px] font-semibold ${isDark ? 'border-slate-800/60 text-slate-500' : 'border-slate-300 text-slate-500'}`}>
+          <div className="flex items-center gap-4 mb-3 sm:mb-0">
+            <button onClick={() => setShowPrivacyModal(true)} className={`transition-colors cursor-pointer ${isDark ? 'hover:text-indigo-400' : 'hover:text-indigo-600'}`}>{lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</button>
+            <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+            <button onClick={() => setShowTermsModal(true)} className={`transition-colors cursor-pointer ${isDark ? 'hover:text-indigo-400' : 'hover:text-indigo-600'}`}>{lang === 'ar' ? 'شروط الاستخدام' : 'Terms of Service'}</button>
+          </div>
+          <span className="font-mono tracking-tight">© 2026 Pass-Guard. {lang === 'ar' ? 'جميع الحقوق محفوظة.' : 'All Rights Reserved.'}</span>
+        </div>
+      </footer>
+      {/* نهاية التذييل الاحترافي الجديد (Modern Footer) */}
     </div>
   );
 }
