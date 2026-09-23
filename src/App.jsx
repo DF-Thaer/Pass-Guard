@@ -35,6 +35,75 @@ const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase(
 
 const normalizeIdentifier = (value) => value.trim().toLowerCase();
 
+const parseCsv = (text) => {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const nextChar = text[index + 1];
+    if (char === '"' && quoted && nextChar === '"') { field += '"'; index += 1; }
+    else if (char === '"') quoted = !quoted;
+    else if (char === ',' && !quoted) { row.push(field); field = ''; }
+    else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && nextChar === '\n') index += 1;
+      row.push(field); field = '';
+      if (row.some(value => value.trim())) rows.push(row);
+      row = [];
+    } else field += char;
+  }
+  if (field || row.length) { row.push(field); if (row.some(value => value.trim())) rows.push(row); }
+  if (rows.length < 2) return [];
+  const headers = rows.shift().map(header => header.replace(/^\uFEFF/, '').trim());
+  return rows.map(values => headers.reduce((record, header, index) => ({ ...record, [header]: values[index] || '' }), {}));
+};
+
+const escapeCsvValue = (value) => {
+  const text = String(value ?? '');
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+const createLastPassCsv = (items) => {
+  const headers = ['url', 'username', 'password', 'extra', 'name', 'grouping', 'fav'];
+  const rows = items.map(item => [
+    item.url || '',
+    item.username || '',
+    item.password || '',
+    [item.email ? `Email: ${item.email}` : '', item.phone ? `Phone: ${item.phone}` : '', item.notes || ''].filter(Boolean).join('\n'),
+    item.title || '',
+    item.group || '',
+    0,
+  ]);
+  return `\uFEFF${[headers, ...rows].map(row => row.map(escapeCsvValue).join(',')).join('\r\n')}\r\n`;
+};
+
+const getSpreadsheetValue = (row, names) => {
+  const entry = Object.entries(row).find(([key]) => names.includes(key.trim().toLowerCase()));
+  return entry ? String(entry[1] ?? '').trim() : '';
+};
+
+const normalizeImportedRecord = (row, index) => {
+  const title = getSpreadsheetValue(row, ['name', 'title', 'site', 'website']) || getSpreadsheetValue(row, ['url']) || `Imported account ${index + 1}`;
+  const notes = getSpreadsheetValue(row, ['extra', 'notes', 'note']);
+  const extraEmail = notes.match(/(?:^|\n)Email:\s*(.+)$/im)?.[1]?.trim() || '';
+  const extraPhone = notes.match(/(?:^|\n)Phone:\s*(.+)$/im)?.[1]?.trim() || '';
+  const cleanNotes = notes.split('\n').filter(line => !/^\s*(Email|Phone):\s*/i.test(line)).join('\n').trim();
+  const grouping = getSpreadsheetValue(row, ['grouping', 'group', 'category']) || 'Imported';
+  return {
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${index}-${Math.random()}`,
+    title,
+    username: getSpreadsheetValue(row, ['username', 'user', 'login', 'email']),
+    password: getSpreadsheetValue(row, ['password', 'pass']),
+    url: getSpreadsheetValue(row, ['url', 'website', 'site']),
+    email: getSpreadsheetValue(row, ['email', 'email address']) || extraEmail,
+    phone: getSpreadsheetValue(row, ['phone', 'phone number']) || extraPhone,
+    notes: cleanNotes,
+    group: grouping,
+    lastUpdated: new Date().toISOString(),
+  };
+};
+
 const cacheVaultLocally = (identifier, encrypted, meta = {}) => {
   try {
     const cleanId = normalizeIdentifier(identifier);
@@ -52,7 +121,7 @@ const cacheVaultLocally = (identifier, encrypted, meta = {}) => {
 
 const cloudSaveVault = async ({ vaultId, identifier, masterPassword, encryptedData, email = null, phone = null }) => {
   if (!supabaseConfigured) return { error: new Error('Supabase is not configured.') };
-  return await supabase.rpc('save_vault', {
+  return await supabase.rpc('save_vault_secure', {
     p_vault_id: vaultId,
     p_identifier: identifier,
     p_master_password: masterPassword,
@@ -143,9 +212,9 @@ const translations = {
     securityScore: "Overall Security Rating", activeAlerts: "Active Security Alerts", userRecordsTitle: "Registered Vaults & Security Alerts",
     noUsers: "No registered vaults found.", accountSuspended: "Security Locked", securityAlertBadge: "Security Warning",
     localCryptoNote: "Cloud-Synced Encrypted Vault", unblockBtn: "Lift Suspension", manageUserBtn: "Manage Account",
-    deleteAccountBtn: "Delete Vault", deleteAccountConfirm: "Are you sure you want to permanently delete this vault?",
+    deleteAccountBtn: "Delete Vault", confirmationTitle: "Confirm action", deleteAccountConfirm: "Are you sure you want to permanently delete this vault?",
     vaultTitlePrefix: "Encrypted Password Vault:", vaultDossierBtn: "Vault Security Audit", vaultItemsBtn: "Accounts View",
-    manageVaultBtn: "Vault Management", exportBtn: "Export Passwords", importBtn: "Import Passwords", addAccountBtn: "Add New Record",
+    manageVaultBtn: "Vault Management", encryptedBackupTitle: "Pass-Guard encrypted backup", exportBtn: "Export encrypted backup", encryptedImportBtn: "Import encrypted backup", lastPassTitle: "LastPass compatibility", lastPassExportBtn: "Export to LastPass", lastPassImportBtn: "Import from LastPass", noRecordsToExportAlert: "There are no records to export.", addAccountBtn: "Add New Record",
     logoutBtn: "Sign Out", searchPlaceholder: "Search saved records...", showHidePass: "Toggle Visibility", copyBtn: "Copy",
     detailsBtn: "Record Details & Edit", deleteRecordBtn: "Delete Record", auditModalTitle: "Vault Security Audit & Telemetry",
     auditModalSub: "Credential strength evaluation and connected devices ledger", auditTabMetrics: "Security Audit Metrics",
@@ -205,9 +274,9 @@ const translations = {
     securityScore: "مؤشر الأمان العام", activeAlerts: "التنبيهات الأمنية النشطة", userRecordsTitle: "قائمة الخزنات المسجلة والتنبيهات الأمنية",
     noUsers: "لا توجد أي خزنة مسجلة.", accountSuspended: "موقوف أمنياً", securityAlertBadge: "إنذار أمني",
     localCryptoNote: "خزنة مشفرة ومتزامنة سحابياً", unblockBtn: "فك الحظر", manageUserBtn: "إدارة الخزنة",
-    deleteAccountBtn: "حذف الخزنة", deleteAccountConfirm: "هل أنت متأكد من حذف هذه الخزنة نهائياً؟",
+    deleteAccountBtn: "حذف الخزنة", confirmationTitle: "تأكيد العملية", deleteAccountConfirm: "هل أنت متأكد من حذف هذه الخزنة نهائياً؟",
     vaultTitlePrefix: "خزنة كلمات المرور المشفرة:", vaultDossierBtn: "معلومات وأمان الخزنة", vaultItemsBtn: "عرض الحسابات",
-    manageVaultBtn: "إدارة الخزنة", exportBtn: "تصدير كلمات المرور", importBtn: "استيراد كلمات المرور", addAccountBtn: "إضافة حساب جديد",
+    manageVaultBtn: "إدارة الخزنة", encryptedBackupTitle: "نسخة Pass-Guard المشفرة", exportBtn: "تصدير نسخة مشفرة", encryptedImportBtn: "استيراد نسخة مشفرة", lastPassTitle: "التوافق مع LastPass", lastPassExportBtn: "تصدير إلى LastPass", lastPassImportBtn: "استيراد من LastPass", noRecordsToExportAlert: "لا توجد حسابات لتصديرها.", addAccountBtn: "إضافة حساب جديد",
     logoutBtn: "تسجيل الخروج", searchPlaceholder: "بحث في الحسابات المحفوظة...", showHidePass: "إظهار/إخفاء", copyBtn: "نسخ",
     detailsBtn: "تفاصيل وتعديل", deleteRecordBtn: "حذف", auditModalTitle: "الملف الأمني الشامل ومعلومات الخزنة",
     auditModalSub: "تدقيق متانة كلمات المرور وسجل الأجهزة المأذون لها", auditTabMetrics: "مؤشرات الأمان الفنية",
@@ -277,6 +346,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [registeredUsers, setRegisteredUsers] = useState([]);
   const [visitCount, setVisitCount] = useState(0);
+  const groupScrollRef = useRef(null);
   const [currentVaultId, setCurrentVaultId] = useState(null);
   const [currentEncryptedVault, setCurrentEncryptedVault] = useState(null);
   const [adminSearchTerm, setAdminSearchTerm] = useState('');
@@ -438,42 +508,26 @@ export default function App() {
       isCurrent: true
     };
 
-    if (supabaseConfigured && vaultId) {
-      try {
-        await supabase.from('vault_device_logs').update({ is_current: false }).eq('vault_id', vaultId);
-        await supabase.from('vault_device_logs').upsert({
-          vault_id: vaultId,
-          device_id: device.deviceId,
-          os: device.os,
-          browser: device.browser,
-          screen_res: device.screenRes,
-          ip: netInfo.ip,
-          isp: netInfo.isp,
-          location: netInfo.location,
-          last_login: nowISO,
-          is_current: true
-        }, { onConflict: 'vault_id,device_id' });
-
-        const { data: cloudLogs } = await supabase
-          .from('vault_device_logs')
-          .select('*')
-          .eq('vault_id', vaultId)
-          .order('last_login', { ascending: false });
-
-        if (cloudLogs && cloudLogs.length > 0) {
-          const formatted = cloudLogs.map(d => ({
-            ...d,
-            deviceId: d.device_id,
-            screenRes: d.screen_res,
-            lastLogin: d.last_login,
-            isCurrent: d.device_id === device.deviceId
-          }));
-          setVaultDeviceLogs(formatted);
-          return;
-        }
-      } catch (err) {
-        console.error('Cloud device sync error:', err);
+    if (supabaseConfigured && vaultId && loginPassword) {
+      const { data, error } = await supabase.rpc('log_device_login_secure', {
+        p_vault_id: vaultId,
+        p_master_password: loginPassword,
+        p_device_id: device.deviceId,
+        p_os: device.os,
+        p_browser: device.browser,
+        p_screen_res: device.screenRes,
+        p_ip: netInfo.ip,
+        p_isp: netInfo.isp,
+        p_location: netInfo.location,
+      });
+      if (!error) {
+        const entries = Array.isArray(data) ? data : data ? [data] : [];
+        setVaultDeviceLogs(entries.map(entry => ({ ...entry, deviceId: entry.device_id, screenRes: entry.screen_res, lastLogin: entry.last_login, isCurrent: entry.is_current })));
+        return;
       }
+      console.error('Cloud device sync error:', error);
+      setVaultDeviceLogs([]);
+      return;
     }
 
     const logKey = `passguard_devices_${cleanId}`;
@@ -568,7 +622,7 @@ export default function App() {
     if (supabaseConfigured && isAdmin) {
       const { data, error } = await supabase
         .from('vaults')
-        .select('id,identifier,email,phone,is_locked,alert,support_master_password,encrypted_data,created_at,updated_at')
+        .select('id,identifier,email,phone,is_locked,alert,created_at,updated_at')
         .order('created_at', { ascending: false });
       if (!error) {
         setRegisteredUsers((data || []).map(v => ({
@@ -576,11 +630,11 @@ export default function App() {
           username: v.identifier,
           isLocked: !!v.is_locked,
           alert: !!v.alert,
-          masterPassword: v.support_master_password || '',
+          masterPassword: '',
           email: v.email || '',
           phone: v.phone || '',
           createdAt: v.created_at || 'N/A',
-          encryptedData: v.encrypted_data || null,
+          encryptedData: null,
         })));
       } else {
         triggerNotice(error.message);
@@ -782,7 +836,11 @@ export default function App() {
         setError(lang === 'ar' ? 'Supabase غير متصل، تأكد من إعداد المفاتيح.' : 'Configure Supabase first.');
         return;
       }
-      const targetEmail = (ADMIN_EMAIL && ADMIN_EMAIL.trim()) || 'thaeraladom@gmail.com';
+      const targetEmail = ADMIN_EMAIL.trim();
+      if (!targetEmail) {
+        setError(lang === 'ar' ? 'لم يتم إعداد بريد المشرف في VITE_ADMIN_EMAIL.' : 'VITE_ADMIN_EMAIL is not configured.');
+        return;
+      }
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: targetEmail,
@@ -798,6 +856,7 @@ export default function App() {
       setAdminPassword(masterPassword);
       setIsAdmin(true);
       setIsUnlocked(true);
+      setMasterPassword('');
       setAdminSubView('dashboard');
       setError('');
       await loadAdminUsersData();
@@ -843,7 +902,7 @@ export default function App() {
     };
 
     if (supabaseConfigured) {
-      const { data, error: rpcError } = await supabase.rpc('login_vault', {
+      const { data, error: rpcError } = await supabase.rpc('login_vault_secure', {
         p_identifier: cleanId,
         p_master_password: masterPassword,
       });
@@ -881,7 +940,7 @@ export default function App() {
         const legacyMeta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}');
         const legacyDecrypted = legacyEncrypted ? await decryptData(legacyEncrypted, masterPassword) : null;
         if (legacyDecrypted) {
-          const { data: migrated, error: migrateError } = await supabase.rpc('register_vault', {
+          const { data: migrated, error: migrateError } = await supabase.rpc('register_vault_secure', {
             p_identifier: cleanId, p_master_password: masterPassword, p_email: legacyMeta.email || '', p_phone: legacyMeta.phone || '', p_encrypted_data: legacyEncrypted
           });
           if (!migrateError) {
@@ -938,7 +997,7 @@ export default function App() {
     const encrypted = await encryptData(initialItems, masterPassword);
 
     if (supabaseConfigured) {
-      const { data, error: rpcError } = await supabase.rpc('register_vault', {
+      const { data, error: rpcError } = await supabase.rpc('register_vault_secure', {
         p_identifier: cleanId,
         p_master_password: masterPassword,
         p_email: '',
@@ -1018,33 +1077,67 @@ export default function App() {
 
   const togglePasswordVisibility = (id) => setVisiblePasswords(prev => ({ ...prev, [id]: !prev[id] }));
 
+  const scrollGroups = (distance) => {
+    groupScrollRef.current?.scrollBy({ left: distance, behavior: 'smooth' });
+  };
+
   const handleImportVault = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const importedData = JSON.parse(event.target.result);
-        if (importedData.ciphertext && importedData.salt && importedData.iv) {
-          const decrypted = await decryptData(importedData, masterPassword);
-          if (decrypted) {
-            if (supabaseConfigured && currentVaultId) {
-              const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: importedData });
-              if (saveError) { triggerNotice(saveError.message); return; }
-            } else {
-              localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(importedData));
-            }
-            setCurrentEncryptedVault(importedData);
-            cacheVaultLocally(identifier, importedData);
-            let customGroups = ['شخصي', 'عمل'];
-            decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
-            setGroups(customGroups); setVaultItems(decrypted);
-            triggerNotice(t.importSuccessAlert);
-          } else triggerNotice(t.importPasswordMismatchAlert);
-        } else triggerNotice(t.importFormatErrorAlert);
+        const isJson = file.name.toLowerCase().endsWith('.json');
+        let importedData;
+        let importedItems = null;
+
+        if (isJson) {
+          importedData = JSON.parse(event.target.result);
+          if (importedData.ciphertext && importedData.salt && importedData.iv) {
+            const decrypted = await decryptData(importedData, masterPassword);
+            if (!decrypted) { triggerNotice(t.importPasswordMismatchAlert); return; }
+            importedItems = decrypted;
+          } else {
+            triggerNotice(t.importFormatErrorAlert);
+            return;
+          }
+        } else {
+          const rows = parseCsv(event.target.result);
+          importedItems = rows.map(normalizeImportedRecord).filter(item => item.username || item.password || item.url || item.title);
+          if (importedItems.length === 0) { triggerNotice(t.importFormatErrorAlert); return; }
+        }
+
+        const isEncryptedBackup = Boolean(importedData?.ciphertext && importedData?.salt && importedData?.iv);
+        const nextItems = isEncryptedBackup ? importedItems : [...vaultItems, ...importedItems];
+        const encrypted = isEncryptedBackup ? importedData : await encryptData(nextItems, masterPassword);
+        if (supabaseConfigured && currentVaultId) {
+          const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted });
+          if (saveError) { triggerNotice(saveError.message); return; }
+        } else {
+          localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+        }
+
+        setCurrentEncryptedVault(encrypted);
+        cacheVaultLocally(identifier, encrypted);
+        const customGroups = ['شخصي', 'عمل', ...nextItems.map(item => item.group).filter(Boolean)];
+        setGroups([...new Set(customGroups)]);
+        setVaultItems(nextItems);
+        triggerNotice(t.importSuccessAlert);
       } catch (err) { triggerNotice(t.importReadErrorAlert); }
     };
     reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleExportLastPass = () => {
+    if (vaultItems.length === 0) { triggerNotice(t.noRecordsToExportAlert); return; }
+    const blob = new Blob([createLastPassCsv(vaultItems)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lastpass_export_${normalizeIdentifier(identifier)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSaveRecordChanges = async (e) => {
@@ -1216,9 +1309,8 @@ export default function App() {
     const encrypted = await encryptData(vaultItems, manageData.masterPassword);
 
     if (supabaseConfigured && currentVaultId) {
-      const { data, error: rpcError } = await supabase.rpc('update_vault_profile', {
+      const { data, error: updateError } = await supabase.rpc('update_vault_profile_secure', {
         p_vault_id: currentVaultId,
-        p_old_identifier: normalizeIdentifier(manageData.oldId),
         p_old_master_password: manageData.oldPass,
         p_new_identifier: newIdClean,
         p_new_master_password: manageData.masterPassword,
@@ -1226,7 +1318,8 @@ export default function App() {
         p_phone: manageData.phone || '',
         p_encrypted_data: encrypted,
       });
-      if (rpcError) { triggerNotice(rpcError.message); return; }
+
+      if (updateError) { triggerNotice(updateError.message); return; }
       const row = Array.isArray(data) ? data[0] : data;
       setCurrentVaultId(row?.id || currentVaultId);
     } else {
@@ -1245,8 +1338,16 @@ export default function App() {
     triggerNotice(t.updateSuccessNotice); setVaultSubView('items');
   };
 
-  const openAdminManageUser = (user) => {
-    setManageData({ oldId: user.username, identifier: user.username, masterPassword: user.masterPassword || '', oldPass: user.masterPassword || '', email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', vaultId: user.id, encryptedData: user.encryptedData, isLocked: user.isLocked, alert: user.alert });
+  const openAdminManageUser = async (user) => {
+    setAdminLoading(true);
+    const { data, error } = await supabase.rpc('admin_reveal_vault', { p_vault_id: user.id });
+    setAdminLoading(false);
+    const recovery = Array.isArray(data) ? data[0] : data;
+    if (error || !recovery?.master_password) {
+      triggerNotice(error?.message || (lang === 'ar' ? 'تعذر تحميل مفتاح الاسترجاع لهذا المستخدم.' : 'Could not load this user recovery key.'));
+      return;
+    }
+    setManageData({ oldId: user.username, identifier: user.username, masterPassword: recovery.master_password, oldPass: recovery.master_password, email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', vaultId: user.id, encryptedData: recovery.encrypted_data, isLocked: user.isLocked, alert: user.alert });
     setAdminSubView('manageUser');
   };
 
@@ -1259,7 +1360,7 @@ export default function App() {
     if (!decrypted) { triggerNotice(lang === 'ar' ? 'فشل فك التشفير - كلمة المرور الحالية للمشرف غير صحيحة.' : 'Decryption failed - current support password mismatch.'); return; }
     const encrypted = await encryptData(decrypted, manageData.masterPassword);
     const newIdClean = normalizeIdentifier(manageData.identifier);
-    const { data, error: rpcError } = await supabase.rpc('admin_update_vault', {
+    const { data, error: updateError } = await supabase.rpc('admin_update_vault_secure', {
       p_vault_id: manageData.vaultId,
       p_identifier: newIdClean,
       p_master_password: manageData.masterPassword,
@@ -1269,7 +1370,8 @@ export default function App() {
       p_alert: !!manageData.alert,
       p_encrypted_data: encrypted,
     });
-    if (rpcError) { triggerNotice(rpcError.message); return; }
+
+    if (updateError) { triggerNotice(updateError.message); return; }
     if (!data) { triggerNotice(lang === 'ar' ? 'تعذر تحديث الخزنة.' : 'Could not update vault.'); return; }
     triggerNotice(lang === 'ar' ? 'تم تحديث بيانات المستخدم والخزنة بنجاح.' : 'User and vault data updated successfully.');
     await loadAdminUsersData();
@@ -1309,6 +1411,25 @@ export default function App() {
         .neon-logo-light { animation: neonPulseLight 2s ease-in-out infinite; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        .backup-sections { margin-top: 22vh !important; }
+        @media (max-width: 767px) { .backup-sections { margin-top: 2rem !important; } }
+        @media (min-width: 768px) { .backup-sections { margin-top: 18vh !important; } }
+        .groups-scroll { min-width: 0; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x; mask-image: linear-gradient(to right, transparent, black 18px, black calc(100% - 18px), transparent); }
+        .groups-scroll::-webkit-scrollbar { display: none; }
+        @media (max-width: 767px) {
+          .mobile-vault-shell { height: auto !important; max-height: none !important; overflow: visible !important; margin-top: 0.75rem !important; margin-bottom: 0.75rem !important; }
+          .mobile-vault-sidebar { width: 100% !important; padding: 0.75rem !important; border-left: 0 !important; }
+          .mobile-vault-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem !important; }
+          .mobile-vault-actions > span { grid-column: 1 / -1; }
+          .mobile-vault-actions > button { min-height: 2.75rem; justify-content: center; margin: 0 !important; }
+          .mobile-vault-actions > .mobile-vault-manage { grid-column: 1 / -1; }
+          .mobile-vault-backups { grid-column: 1 / -1; margin-top: 0.5rem !important; }
+          .mobile-vault-logout { margin-top: 0.75rem !important; padding-top: 0.75rem !important; }
+          .mobile-vault-content { min-height: 70vh; overflow: visible !important; }
+          .mobile-bulk-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem !important; width: 100%; }
+          .mobile-bulk-actions > button { justify-content: center; min-height: 2.5rem; margin: 0 !important; }
+          .mobile-bulk-actions > button:last-child { grid-column: 1 / -1; }
+        }
       `}</style>
 
       {/* Cyber-Network Interactive Canvas Background */}
@@ -1318,12 +1439,23 @@ export default function App() {
       </div>
 
       {confirmDialog.isOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
-          <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <h3 className={`text-lg font-bold mb-6 text-center leading-relaxed ${isDark ? 'text-white' : 'text-slate-900'}`}>{confirmDialog.message}</h3>
-            <div className="flex justify-center gap-3">
-              <button onClick={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null })} className={`px-6 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>{t.cancelBtn}</button>
-              <button onClick={() => { if (confirmDialog.onConfirm) confirmDialog.onConfirm(); setConfirmDialog({ isOpen: false, message: '', onConfirm: null }); }} className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold cursor-pointer">{t.confirmBtn}</button>
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] animate-fadeIn" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="confirmation-title" className={`w-full max-w-md overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-white border-slate-200'}`}>
+            <div className={`h-1 w-full ${isDark ? 'bg-red-500' : 'bg-red-600'}`} />
+            <div className="p-5 sm:p-6">
+              <div className="flex items-start gap-4">
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${isDark ? 'bg-red-500/10 border-red-400/20 text-red-400' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                  <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 id="confirmation-title" className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.confirmationTitle}</h3>
+                  <p className={`mt-2 text-sm leading-6 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{confirmDialog.message}</p>
+                </div>
+              </div>
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button onClick={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null })} className={`w-full rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer sm:w-auto ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>{t.cancelBtn}</button>
+                <button onClick={() => { const onConfirm = confirmDialog.onConfirm; setConfirmDialog({ isOpen: false, message: '', onConfirm: null }); if (onConfirm) onConfirm(); }} className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer sm:w-auto ${isDark ? 'bg-red-500 hover:bg-red-400' : 'bg-red-600 hover:bg-red-700'}`}>{t.confirmBtn}</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1652,7 +1784,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-6xl mx-auto z-20 transition-all duration-500 ease-in-out my-auto">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-5 lg:p-6 w-full max-w-[1600px] mx-auto z-20 transition-all duration-500 ease-in-out my-auto">
         {inAppNotice && (
           <div className="mb-4 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold shadow-2xl backdrop-blur-xl border border-indigo-400/30 animate-pulse shrink-0">{inAppNotice}</div>
         )}
@@ -1870,7 +2002,7 @@ export default function App() {
                             {u.isLocked && (
                               <button onClick={async () => {
                                 if (supabaseConfigured) {
-                                  const { error } = await supabase.rpc('admin_unlock_vault', { p_vault_id: String(u.id) });
+                                  const { error } = await supabase.from('vaults').update({ is_locked: false, alert: false, updated_at: new Date().toISOString() }).eq('id', String(u.id));
                                   if (error) {
                                     triggerNotice(error.message);
                                     return;
@@ -1892,7 +2024,7 @@ export default function App() {
                             <button onClick={() => openAdminManageUser(u)} className={`px-3.5 py-2 border text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold transition-colors ${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-500' : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-600'}`}>
                               <Edit3 className="w-3.5 h-3.5" /> <span>{t.manageUserBtn}</span>
                             </button>
-                            <button onClick={() => { askConfirm(t.deleteAccountConfirm, async () => { const { error } = await supabase.rpc('admin_delete_vault', { p_vault_id: String(u.id) }); if (error) triggerNotice(error.message); else { localStorage.removeItem(`passguard_devices_${u.username}`); localStorage.removeItem(`passguard_vault_${u.username}`); localStorage.removeItem(`passguard_meta_${u.username}`); await loadAdminUsersData(); triggerNotice(lang === 'ar' ? 'تم حذف الخزنة بنجاح.' : 'Vault deleted successfully.'); } }); }} className={`px-3.5 py-2 border text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold transition-colors ${isDark ? 'bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-500' : 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600'}`}>
+                            <button onClick={() => { askConfirm(t.deleteAccountConfirm, async () => { const { error } = await supabase.from('vaults').delete().eq('id', String(u.id)); if (error) triggerNotice(error.message); else { localStorage.removeItem(`passguard_devices_${u.username}`); localStorage.removeItem(`passguard_vault_${u.username}`); localStorage.removeItem(`passguard_meta_${u.username}`); await loadAdminUsersData(); triggerNotice(lang === 'ar' ? 'تم حذف الخزنة بنجاح.' : 'Vault deleted successfully.'); } }); }} className={`px-3.5 py-2 border text-xs rounded-xl cursor-pointer flex items-center gap-1.5 font-bold transition-colors ${isDark ? 'bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-500' : 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600'}`}>
                               <Trash2 className="w-3.5 h-3.5" /> {t.deleteAccountBtn}
                             </button>
                           </div>
@@ -2020,8 +2152,8 @@ export default function App() {
         )}
 
         {isUnlocked && !isAdmin && (
-          <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col md:flex-row h-[85vh] max-h-[85vh] overflow-hidden my-auto transition-colors ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-300'}`}>
-            <aside className={`w-full md:w-64 border-b md:border-b-0 md:border-l p-4 flex flex-col justify-between shrink-0 transition-colors ${isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-300'}`}>
+          <div className={`mobile-vault-shell w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col md:flex-row h-[85vh] max-h-[85vh] overflow-hidden my-auto transition-colors ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-300'}`}>
+            <aside className={`mobile-vault-sidebar w-full md:w-64 border-b md:border-b-0 md:border-l p-4 flex flex-col justify-between shrink-0 transition-colors ${isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-300'}`}>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-800/60">
                   <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shadow-inner"><ShieldCheck className="w-4 h-4" /></div>
@@ -2030,16 +2162,22 @@ export default function App() {
                     <p className="text-xs font-mono font-bold text-indigo-400 truncate">{identifier}</p>
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="mobile-vault-actions space-y-1.5">
                   <span className={`text-[11px] font-bold block px-1 mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.vaultActionsTitle}</span>
                   <button onClick={() => setVaultSubView('items')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'items' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Users className={`w-3.5 h-3.5 ${vaultSubView === 'items' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultItemsBtn}</span>
+                  </button>
+                  <button onClick={() => setVaultSubView('add')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'add' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
+                    <Plus className={`w-3.5 h-3.5 ${vaultSubView === 'add' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.addAccountBtn}</span>
+                  </button>
+                  <button onClick={() => setShowManageGroupsModal(true)} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-indigo-700'}`}>
+                    <FolderPlus className="w-3.5 h-3.5 text-indigo-400" /><span>{t.manageGroupsBtn}</span>
                   </button>
                   <button onClick={async () => {
                     setVaultSubView('audit');
                     if (supabaseConfigured && currentVaultId) {
                       try {
-                        const { data } = await supabase.from('vault_device_logs').select('*').eq('vault_id', currentVaultId).order('last_login', { ascending: false });
+                        const { data } = await supabase.rpc('get_device_logs_secure', { p_vault_id: currentVaultId, p_master_password: masterPassword });
                         if (data && data.length > 0) {
                           const curDev = parseDeviceInfo();
                           setVaultDeviceLogs(data.map(d => ({
@@ -2055,29 +2193,39 @@ export default function App() {
                   }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Activity className={`w-3.5 h-3.5 ${vaultSubView === 'audit' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultDossierBtn}</span>
                   </button>
-                  <button onClick={() => setVaultSubView('add')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'add' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
-                    <Plus className={`w-3.5 h-3.5 ${vaultSubView === 'add' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.addAccountBtn}</span>
-                  </button>
-                  <button onClick={openVaultSettings} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'settings' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
+                  <button onClick={openVaultSettings} className={`mobile-vault-manage w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'settings' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Settings className={`w-3.5 h-3.5 ${vaultSubView === 'settings' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.manageVaultBtn}</span>
                   </button>
-                  <button onClick={() => { const vaultData = currentEncryptedVault ? JSON.stringify(currentEncryptedVault) : localStorage.getItem(`passguard_vault_${identifier.trim().toLowerCase()}`); if (!vaultData) return; const blob = new Blob([typeof vaultData === 'string' ? vaultData : JSON.stringify(vaultData)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `passguard_backup_${identifier.trim().toLowerCase()}.json`; a.click(); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
-                    <Download className="w-3.5 h-3.5 text-sky-400" /><span>{t.exportBtn}</span>
-                  </button>
-                  <label className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-emerald-400 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-emerald-600'}`}>
-                    <Upload className="w-3.5 h-3.5 text-emerald-400" /><span>{t.importBtn}</span>
-                    <input type="file" accept=".json" onChange={handleImportVault} className="hidden" />
-                  </label>
+                  <div className={`mobile-vault-backups backup-sections rounded-2xl border p-2.5 space-y-1.5 ${isDark ? 'bg-indigo-500/5 border-indigo-400/20' : 'bg-indigo-50 border-indigo-200'}`}>
+                    <p className={`px-1 text-[10px] font-bold ${isDark ? 'text-indigo-300' : 'text-indigo-700'}`}>{t.encryptedBackupTitle}</p>
+                    <button onClick={() => { const vaultData = currentEncryptedVault ? JSON.stringify(currentEncryptedVault) : localStorage.getItem(`passguard_vault_${identifier.trim().toLowerCase()}`); if (!vaultData) return; const blob = new Blob([typeof vaultData === 'string' ? vaultData : JSON.stringify(vaultData)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `passguard_backup_${identifier.trim().toLowerCase()}.json`; a.click(); URL.revokeObjectURL(url); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-sky-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-sky-700 hover:bg-slate-50'}`}>
+                      <Download className="w-3.5 h-3.5 text-sky-400" /><span>{t.exportBtn}</span>
+                    </button>
+                    <label className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-sky-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-sky-700'}`}>
+                      <Upload className="w-3.5 h-3.5 text-indigo-400" /><span>{t.encryptedImportBtn}</span>
+                      <input type="file" accept=".json,application/json" onChange={handleImportVault} className="hidden" />
+                    </label>
+                  </div>
+                  <div className={`mobile-vault-backups mt-2 rounded-2xl border p-2.5 space-y-1.5 ${isDark ? 'bg-slate-800/35 border-slate-600/50' : 'bg-slate-100 border-slate-300'}`}>
+                    <p className={`px-1 text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.lastPassTitle}</p>
+                    <button onClick={handleExportLastPass} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-700 text-sky-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-50 text-sky-700'}`}>
+                      <Download className="w-3.5 h-3.5 text-sky-400" /><span>{t.lastPassExportBtn}</span>
+                    </button>
+                    <label className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-700 text-emerald-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-50 text-emerald-700'}`}>
+                      <Upload className="w-3.5 h-3.5 text-emerald-400" /><span>{t.lastPassImportBtn}</span>
+                      <input type="file" accept=".csv,.txt,text/csv,text/plain" onChange={handleImportVault} className="hidden" />
+                    </label>
+                  </div>
                 </div>
               </div>
-              <div className="pt-3 border-t border-slate-800/60 mt-3">
+              <div className="mobile-vault-logout pt-3 border-t border-slate-800/60 mt-3">
                 <button onClick={async () => { if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'}`}>
                   <LogOut className="w-3.5 h-3.5" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
             </aside>
 
-            <section className="flex-1 flex flex-col overflow-hidden">
+            <section className="mobile-vault-content flex-1 flex flex-col overflow-hidden">
               {vaultSubView === 'items' && (
                 <div className="flex-1 flex flex-col overflow-hidden animate-fadeIn">
                   <div className={`p-3.5 border-b flex items-center justify-between gap-3 shrink-0 transition-colors ${isDark ? 'bg-slate-950/30 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
@@ -2087,18 +2235,21 @@ export default function App() {
                     {copyStatusMsg && <span className="text-[11px] text-emerald-400 font-bold shrink-0 animate-pulse bg-emerald-500/10 px-2 py-1.5 rounded-lg border border-emerald-500/20">{copyStatusMsg}</span>}
                   </div>
                   <div className={`px-4 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-300'}`}>
-                    <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-                      <button onClick={() => setSelectedGroup('ALL_GROUPS')} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${selectedGroup === 'ALL_GROUPS' ? 'bg-indigo-600 text-white shadow' : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-300'}`}>{t.allGroups}</button>
+                    <button type="button" onClick={() => scrollGroups(280)} aria-label={lang === 'ar' ? 'تحريك المجموعات يميناً' : 'Scroll groups right'} className={`shrink-0 rounded-lg border p-1.5 cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-indigo-300 hover:bg-indigo-500/15' : 'bg-white border-slate-300 text-indigo-600 hover:bg-indigo-50'}`}>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                    <div ref={groupScrollRef} className="groups-scroll flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1">
+                      <button onClick={() => setSelectedGroup('ALL_GROUPS')} className={`shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${selectedGroup === 'ALL_GROUPS' ? 'bg-indigo-600 text-white shadow' : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-300'}`}>{t.allGroups}</button>
                       {groups.map((g, idx) => (
-                        <button key={idx} onClick={() => setSelectedGroup(g)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${selectedGroup === g ? 'bg-indigo-600 text-white shadow' : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-300'}`}>
+                        <button key={idx} onClick={() => setSelectedGroup(g)} className={`shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${selectedGroup === g ? 'bg-indigo-600 text-white shadow' : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-300'}`}>
                           <Folder className="w-3.5 h-3.5 text-indigo-400" /><span>{g}</span>
                         </button>
                       ))}
-                      <button onClick={() => setShowManageGroupsModal(true)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20' : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'}`}>
-                        <FolderPlus className="w-3.5 h-3.5" /><span>{t.manageGroupsBtn}</span>
-                      </button>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <button type="button" onClick={() => scrollGroups(-280)} aria-label={lang === 'ar' ? 'تحريك المجموعات يساراً' : 'Scroll groups left'} className={`shrink-0 rounded-lg border p-1.5 cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-indigo-300 hover:bg-indigo-500/15' : 'bg-white border-slate-300 text-indigo-600 hover:bg-indigo-50'}`}>
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="mobile-bulk-actions flex items-center gap-1.5 flex-wrap">
                       <button onClick={handleSelectAll} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-indigo-700 hover:bg-slate-50'}`}>
                         <CheckSquare className="w-3.5 h-3.5" /><span>{t.selectBtn} ({selectedAccountIds.length})</span>
                       </button>
@@ -2147,7 +2298,7 @@ export default function App() {
                                 </button>
                                 <button onClick={() => copyToClipboard(item.password, item.id)} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-slate-700 hover:bg-indigo-50'}`}><Copy className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => { setEditableRecord({ ...item }); setVaultSubView('details'); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-indigo-600 hover:bg-indigo-50'}`}><Info className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => { askConfirm(t.deleteRecordBtn + '?', () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { const enc = await encryptData(updated, masterPassword); if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc }); if (saveError) { triggerNotice(saveError.message); return; } } else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc)); setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc); }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50'}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => { askConfirm(t.deleteRecordBtn + (lang === 'ar' ? '؟' : '?'), () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { const enc = await encryptData(updated, masterPassword); if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc }); if (saveError) { triggerNotice(saveError.message); return; } } else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc)); setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc); }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50'}`}><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
                           </div>
@@ -2432,21 +2583,21 @@ export default function App() {
       </main>
 
       {/* بداية التذييل الاحترافي الجديد (Modern Footer) */}
-      <footer className={`w-full relative border-t z-20 shrink-0 transition-colors duration-500 font-sans py-12 ${isDark ? 'bg-slate-950/60 border-slate-800/50 text-slate-300 backdrop-blur-3xl' : 'bg-white/70 border-slate-200/80 text-slate-600 backdrop-blur-3xl'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <footer className={`w-full relative border-t z-20 shrink-0 transition-colors duration-500 font-sans py-14 sm:py-16 ${isDark ? 'bg-slate-950/75 border-slate-800/60 text-slate-300 backdrop-blur-3xl' : 'bg-white/80 border-slate-200/80 text-slate-600 backdrop-blur-3xl'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
         {/* خط علوي مضيء يعطي طابع حديث */}
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
 
-        <div className="w-full max-w-7xl mx-auto px-6 sm:px-8 grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 mb-10 text-start relative z-10">
+        <div className="w-full max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-10 sm:gap-12 xl:gap-16 mb-12 text-start relative z-10">
 
           {/* العمود الأول: الشعار ونبذة */}
-          <div className="space-y-5">
+          <div className="space-y-5 xl:col-span-2 xl:max-w-2xl">
             <div className="flex items-center gap-3">
               <div className={`w-12 h-12 rounded-2xl overflow-hidden border flex items-center justify-center p-1 shadow-lg transition-transform hover:scale-105 ${isDark ? 'neon-logo-dark border-indigo-500/30 bg-gradient-to-br from-indigo-900/50 to-slate-900' : 'neon-logo-light border-indigo-200 bg-white'}`}>
                 <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Pass-Guard Logo" className="w-full h-full object-contain drop-shadow-md" />
               </div>
               <span className={`font-black text-2xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r ${isDark ? 'from-indigo-400 via-sky-400 to-blue-500' : 'from-indigo-600 via-sky-600 to-blue-700'}`}>Pass-Guard</span>
             </div>
-            <p className={`text-[13px] leading-relaxed font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <p className={`max-w-xl text-[13px] leading-7 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               {lang === 'ar' ? 'خزنة كلمات مرور مشفرة وآمنة، توفر لك حماية متقدمة ومزامنة سحابية لجميع حساباتك بسهولة وموثوقية عالية.' : 'An AES-GCM 256-bit encrypted password vault providing advanced protection and secure cloud sync for all your accounts.'}
             </p>
           </div>
@@ -2501,7 +2652,7 @@ export default function App() {
         </div>
 
         {/* الشريط السفلي */}
-        <div className={`relative z-10 w-full max-w-7xl mx-auto px-6 pt-6 border-t flex flex-col sm:flex-row items-center justify-between text-[12px] font-semibold ${isDark ? 'border-slate-800/60 text-slate-500' : 'border-slate-300 text-slate-500'}`}>
+        <div className={`relative z-10 w-full max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px] font-semibold ${isDark ? 'border-slate-800/60 text-slate-500' : 'border-slate-300 text-slate-500'}`}>
           <div className="flex items-center gap-4 mb-3 sm:mb-0">
             <button onClick={() => setShowPrivacyModal(true)} className={`transition-colors cursor-pointer ${isDark ? 'hover:text-indigo-400' : 'hover:text-indigo-600'}`}>{lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</button>
             <span className="w-1 h-1 rounded-full bg-slate-700"></span>
