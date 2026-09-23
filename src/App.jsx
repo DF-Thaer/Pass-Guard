@@ -1430,6 +1430,18 @@ export default function App() {
           .mobile-bulk-actions > button { justify-content: center; min-height: 2.5rem; margin: 0 !important; }
           .mobile-bulk-actions > button:last-child { grid-column: 1 / -1; }
         }
+        @media (min-width: 768px) {
+          .mobile-vault-sidebar { overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(99, 102, 241, 0.45) transparent; }
+          .mobile-vault-sidebar::-webkit-scrollbar { display: block; width: 5px; }
+          .mobile-vault-sidebar::-webkit-scrollbar-track { background: transparent; }
+          .mobile-vault-sidebar::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.45); border-radius: 999px; }
+        }
+        @media (min-width: 768px) and (max-height: 850px) {
+          .mobile-vault-shell { height: calc(100vh - 2rem) !important; max-height: calc(100vh - 2rem) !important; }
+          .mobile-vault-sidebar { justify-content: flex-start !important; }
+          .mobile-vault-sidebar > .mobile-vault-logout { margin-top: auto !important; }
+          .backup-sections { margin-top: 1rem !important; }
+        }
       `}</style>
 
       {/* Cyber-Network Interactive Canvas Background */}
