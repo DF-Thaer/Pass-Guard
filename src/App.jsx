@@ -1,40 +1,122 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
-import { ShieldCheck, Lock, Copy, Check, Plus, Search, LogOut, Trash2, KeyRound, User, AlertTriangle, ShieldAlert, Users, Globe, Sun, Moon, Key, Unlock, Info, Shield, Zap, Download, Upload, Sliders, Eye, EyeOff, ExternalLink, BarChart3, Activity, ArrowRight, RotateCcw, Laptop, Smartphone, Wifi, Clock, Server, ArrowLeft, Save, CheckSquare, Square, Scissors, Clipboard, FolderPlus, Folder, Edit3, Settings, MessageSquare, Send, Phone, Mail } from 'lucide-react';
+import { 
+  ShieldCheck, Lock, Copy, Check, Plus, Search, LogOut, Trash2, KeyRound, 
+  User, AlertTriangle, ShieldAlert, Users, Globe, Sun, Moon, Key, Unlock, 
+  Info, Shield, Zap, Download, Upload, Sliders, Eye, EyeOff, ExternalLink, 
+  BarChart3, Activity, ArrowRight, RotateCcw, Laptop, Smartphone, Wifi, 
+  Clock, Server, ArrowLeft, Save, CheckSquare, Square, Scissors, Clipboard, 
+  FolderPlus, Folder, Edit3, Settings, MessageSquare, Send, Phone, Mail, Fingerprint 
+} from 'lucide-react';
 
-const importCryptoKey = async (password, salt) => {
+// ==================== التشفير وفك التشفير (Client-Side AES-GCM 256-bit) ====================
+const CURRENT_KDF_ITERATIONS = 600000;
+const LEGACY_KDF_ITERATIONS = 100000;
+
+const importCryptoKey = async (password, salt, iterations = CURRENT_KDF_ITERATIONS) => {
   const enc = new TextEncoder();
-  const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
-  return window.crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  const keyMaterial = await window.crypto.subtle.importKey(
+    "raw", 
+    enc.encode(password), 
+    { name: "PBKDF2" }, 
+    false, 
+    ["deriveKey"]
+  );
+  return window.crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" }, 
+    keyMaterial, 
+    { name: "AES-GCM", length: 256 }, 
+    false, 
+    ["encrypt", "decrypt"]
+  );
 };
 
 async function encryptData(secretData, password) {
   const salt = window.crypto.getRandomValues(new Uint8Array(16));
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const key = await importCryptoKey(password, salt);
+  const key = await importCryptoKey(password, salt, CURRENT_KDF_ITERATIONS);
   const enc = new TextEncoder();
-  const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(secretData)));
-  return { ciphertext: Array.from(new Uint8Array(encrypted)), salt: Array.from(salt), iv: Array.from(iv) };
+  const encrypted = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv }, 
+    key, 
+    enc.encode(JSON.stringify(secretData))
+  );
+  return { 
+    ciphertext: Array.from(new Uint8Array(encrypted)), 
+    salt: Array.from(salt), 
+    iv: Array.from(iv),
+    kdfIterations: CURRENT_KDF_ITERATIONS,
+  };
 }
 
 async function decryptData(encryptedObj, password) {
   try {
+    if (!encryptedObj || !Array.isArray(encryptedObj.salt) || encryptedObj.salt.length !== 16 || !Array.isArray(encryptedObj.iv) || encryptedObj.iv.length !== 12 || !Array.isArray(encryptedObj.ciphertext)) return null;
     const salt = new Uint8Array(encryptedObj.salt);
     const iv = new Uint8Array(encryptedObj.iv);
     const data = new Uint8Array(encryptedObj.ciphertext);
-    const key = await importCryptoKey(password, salt);
+    const key = await importCryptoKey(password, salt, getSafeKdfIterations(encryptedObj.kdfIterations));
     const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
     return JSON.parse(new TextDecoder().decode(decrypted));
-  } catch (e) { return null; }
+  } catch (e) { 
+    return null; 
+  }
 }
 
 const isValidPassword = (pass) => !!(pass && pass.length >= 8 && /[A-Z]/.test(pass) && /[0-9]/.test(pass) && /[^A-Za-z0-9]/.test(pass));
 
+const getSafeKdfIterations = (value) => {
+  const iterations = Number(value);
+  if (!Number.isSafeInteger(iterations) || iterations < LEGACY_KDF_ITERATIONS) return LEGACY_KDF_ITERATIONS;
+  return Math.min(iterations, CURRENT_KDF_ITERATIONS);
+};
+
+const checkPwnedPassword = async (password) => {
+  const digest = await window.crypto.subtle.digest('SHA-1', new TextEncoder().encode(password));
+  const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+  const response = await fetch(`https://api.pwnedpasswords.com/range/${hash.slice(0, 5)}`, {
+    headers: { 'Add-Padding': 'true' },
+  });
+  if (!response.ok) throw new Error('Password breach lookup failed.');
+
+  const suffix = hash.slice(5);
+  const match = (await response.text()).split(/\r?\n/).find(line => line.slice(0, 35).toUpperCase() === suffix);
+  return match ? Number(match.slice(36)) || 0 : 0;
+};
+
+// ==================== دوال WebAuthn ومفاتيح المرور (Passkeys) ====================
+const decodeBase64Url = (value) => {
+  if (!value) return new Uint8Array(0);
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(normalized + '='.repeat((4 - (normalized.length % 4)) % 4));
+  return Uint8Array.from(binary, character => character.charCodeAt(0));
+};
+
+const encodeBase64Url = (buffer) => {
+  let binary = '';
+  new Uint8Array(buffer).forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+};
+
+const serializePasskeyCredential = (credential, isRegistration) => {
+  const response = credential.response;
+  const serializedResponse = { clientDataJSON: encodeBase64Url(response.clientDataJSON) };
+  if (isRegistration) {
+    serializedResponse.attestationObject = encodeBase64Url(response.attestationObject);
+    serializedResponse.transports = response.getTransports?.() || [];
+  } else {
+    serializedResponse.authenticatorData = encodeBase64Url(response.authenticatorData);
+    serializedResponse.signature = encodeBase64Url(response.signature);
+    serializedResponse.userHandle = response.userHandle ? encodeBase64Url(response.userHandle) : null;
+  }
+  return { id: credential.id, rawId: encodeBase64Url(credential.rawId), type: credential.type, response: serializedResponse };
+};
+
 const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
+const normalizeIdentifier = (value) => (value || '').trim().toLowerCase();
 
-const normalizeIdentifier = (value) => value.trim().toLowerCase();
-
+// ==================== معالجة ملفات النسخ الاحتياطي (CSV / LastPass) ====================
 const parseCsv = (text) => {
   const rows = [];
   let row = [];
@@ -107,25 +189,28 @@ const normalizeImportedRecord = (row, index) => {
 const cacheVaultLocally = (identifier, encrypted, meta = {}) => {
   try {
     const cleanId = normalizeIdentifier(identifier);
+    let existingMeta = {};
+    try { existingMeta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}'); } catch (e) { }
     localStorage.setItem(`passguard_vault_${cleanId}`, JSON.stringify(encrypted));
     localStorage.setItem(`passguard_meta_${cleanId}`, JSON.stringify({
-      isLocked: !!meta.isLocked,
-      alert: !!meta.alert,
+      isLocked: meta.isLocked ?? !!existingMeta.isLocked,
+      alert: meta.alert ?? !!existingMeta.alert,
       identifier: cleanId,
-      email: meta.email || '',
-      phone: meta.phone || '',
-      createdAt: meta.createdAt || new Date().toISOString(),
+      email: meta.email ?? existingMeta.email ?? '',
+      phone: meta.phone ?? existingMeta.phone ?? '',
+      createdAt: meta.createdAt ?? existingMeta.createdAt ?? new Date().toISOString(),
     }));
   } catch (e) { }
 };
 
-const cloudSaveVault = async ({ vaultId, identifier, masterPassword, encryptedData, email = null, phone = null }) => {
+const cloudSaveVault = async ({ vaultId, identifier, masterPassword, encryptedData, sessionToken, email = null, phone = null }) => {
   if (!supabaseConfigured) return { error: new Error('Supabase is not configured.') };
   return await supabase.rpc('save_vault_secure', {
     p_vault_id: vaultId,
     p_identifier: identifier,
     p_master_password: masterPassword,
     p_encrypted_data: encryptedData,
+    p_session_token: sessionToken,
     p_email: email,
     p_phone: phone,
   });
@@ -139,7 +224,7 @@ const generateSecurePassword = (length, includeSymbols, includeNumbers) => {
   const arr = [];
   charSets.forEach(set => arr.push(set[Math.floor(Math.random() * set.length)]));
   for (let i = arr.length; i < length; i++) arr.push(allChars[Math.floor(Math.random() * allChars.length)]);
-  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[arr[i], arr[j]] = [arr[j], arr[i]]; }
+  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
   return arr.join("");
 };
 
@@ -153,47 +238,7 @@ const POPULAR_SITES = [
   { name: "Reddit", url: "https://reddit.com" }, { name: "YouTube", url: "https://youtube.com" },
   { name: "WhatsApp", url: "https://web.whatsapp.com" }, { name: "Telegram", url: "https://web.telegram.org" },
   { name: "Discord", url: "https://discord.com" }, { name: "Spotify", url: "https://spotify.com" },
-  { name: "Zoom", url: "https://zoom.us" }, { name: "PayPal", url: "https://paypal.com" },
-  { name: "Quora", url: "https://quora.com" }, { name: "Tumblr", url: "https://tumblr.com" },
-  { name: "Dropbox", url: "https://dropbox.com" }, { name: "WordPress", url: "https://wordpress.com" },
-  { name: "Vimeo", url: "https://vimeo.com" }, { name: "Yahoo", url: "https://yahoo.com" },
-  { name: "Bing", url: "https://bing.com" }, { name: "eBay", url: "https://ebay.com" },
-  { name: "AliExpress", url: "https://aliexpress.com" }, { name: "Booking", url: "https://booking.com" },
-  { name: "Airbnb", url: "https://airbnb.com" }, { name: "Uber", url: "https://uber.com" },
-  { name: "Microsoft", url: "https://microsoft.com" }, { name: "Stack Overflow", url: "https://stackoverflow.com" },
-  { name: "Twitch", url: "https://twitch.tv" }, { name: "Shopify", url: "https://shopify.com" },
-  { name: "Medium", url: "https://medium.com" }, { name: "Canva", url: "https://canva.com" },
-  { name: "Slack", url: "https://slack.com" }, { name: "Trello", url: "https://trello.com" },
-  { name: "Asana", url: "https://asana.com" }, { name: "Notion", url: "https://notion.so" },
-  { name: "Figma", url: "https://figma.com" }, { name: "Adobe", url: "https://adobe.com" },
-  { name: "Salesforce", url: "https://salesforce.com" }, { name: "HubSpot", url: "https://hubspot.com" },
-  { name: "Mailchimp", url: "https://mailchimp.com" }, { name: "Zendesk", url: "https://zendesk.com" },
-  { name: "Stripe", url: "https://stripe.com" }, { name: "Square", url: "https://squareup.com" },
-  { name: "Patreon", url: "https://patreon.com" }, { name: "OnlyFans", url: "https://onlyfans.com" },
-  { name: "SoundCloud", url: "https://soundcloud.com" }, { name: "Viber", url: "https://viber.com" },
-  { name: "Line", url: "https://line.me" }, { name: "WeChat", url: "https://wechat.com" },
-  { name: "QQ", url: "https://im.qq.com" }, { name: "Baidu", url: "https://baidu.com" },
-  { name: "Yandex", url: "https://yandex.com" }, { name: "Naver", url: "https://naver.com" },
-  { name: "KakaoTalk", url: "https://kakaocorp.com" }, { name: "Roblox", url: "https://roblox.com" },
-  { name: "Epic Games", url: "https://epicgames.com" }, { name: "Steam", url: "https://store.steampowered.com" },
-  { name: "PlayStation", url: "https://playstation.com" }, { name: "Xbox", url: "https://xbox.com" },
-  { name: "Nintendo", url: "https://nintendo.com" }, { name: "EA", url: "https://ea.com" },
-  { name: "Ubisoft", url: "https://ubisoft.com" }, { name: "Riot Games", url: "https://riotgames.com" },
-  { name: "Blizzard", url: "https://blizzard.com" }, { name: "Hulu", url: "https://hulu.com" },
-  { name: "Disney+", url: "https://disneyplus.com" }, { name: "Amazon Prime", url: "https://primevideo.com" },
-  { name: "HBO Max", url: "https://hbomax.com" }, { name: "Peacock", url: "https://peacocktv.com" },
-  { name: "Paramount+", url: "https://paramountplus.com" }, { name: "Apple TV+", url: "https://tv.apple.com" },
-  { name: "Crunchyroll", url: "https://crunchyroll.com" }, { name: "Wikipedia", url: "https://wikipedia.org" },
-  { name: "IMDb", url: "https://imdb.com" }, { name: "Fandom", url: "https://fandom.com" },
-  { name: "IGN", url: "https://ign.com" }, { name: "GameSpot", url: "https://gamespot.com" },
-  { name: "PC Gamer", url: "https://pcgamer.com" }, { name: "The Verge", url: "https://theverge.com" },
-  { name: "TechCrunch", url: "https://techcrunch.com" }, { name: "Wired", url: "https://wired.com" },
-  { name: "CNET", url: "https://query.cnet.com" }, { name: "Forbes", url: "https://forbes.com" },
-  { name: "Bloomberg", url: "https://bloomberg.com" }, { name: "Wall Street Journal", url: "https://wsj.com" },
-  { name: "New York Times", url: "https://nytimes.com" }, { name: "CNN", url: "https://cnn.com" },
-  { name: "BBC", url: "https://bbc.com" }, { name: "Fox News", url: "https://foxnews.com" },
-  { name: "Al Jazeera", url: "https://aljazeera.net" }, { name: "Skype", url: "https://skype.com" },
-  { name: "Tinder", url: "https://tinder.com" }
+  { name: "Zoom", url: "https://zoom.us" }, { name: "PayPal", url: "https://paypal.com" }
 ];
 
 const translations = {
@@ -224,8 +269,17 @@ const translations = {
     rec2: "• Ensure passwords are at least 16 characters in length, incorporating symbols, numerals, and mixed-case letters.",
     rec3: "• Vault records are encrypted in the browser before being stored. Remote support access is enabled by the trusted administrator model.",
     noDeviceLogs: "No device login records captured yet.", currentSessionBadge: "Active Session",
+    revokedSessionBadge: "Revoked", revokeSessionBtn: "Revoke session", passkeysTitle: "Passkeys",
+    passkeysDescription: "Add a passkey as a second sign-in factor. Your master password is still needed to decrypt the vault.",
+    passkeyNamePlaceholder: "Passkey name", addPasskeyBtn: "Add passkey", removePasskeyBtn: "Remove",
+    noPasskeys: "No passkeys registered.", passkeyAddedNotice: "Passkey added.", passkeyRemovedNotice: "Passkey removed.",
+    sessionRevokedNotice: "Session revoked.", passkeyUnavailable: "Passkeys are unavailable in this browser or origin.",
+    passkeyRequiredError: "Use a registered passkey to continue.", passkeyError: "Passkey verification failed. Try again.",
     aboutModalTitle: "About Pass-Guard: Simple Secure Vault",
     toolsModalTitle: "Password Strength Auditor", toolsPlaceholder: "Type any password to evaluate its resistance...",
+    checkPwnedBtn: "Check for known breaches", checkingPwned: "Checking breach database...",
+    pwnedFound: "Found in {count} known breaches. Do not use this password.", pwnedClear: "No match found in the breach database.",
+    pwnedError: "The breach check is unavailable right now. Try again later.", pwnedPrivacy: "Only the first 5 characters of the password's SHA-1 hash are sent; the password itself stays in this browser.",
     recordDetailsTitle: "Edit Record Details", siteUrlLabel: "Platform URL", usernameLabel: "Username", passwordRecordLabel: "Password",
     emailLabel: "Linked Email", phoneLabel: "Phone Number", groupLabel: "Group Category", lastModifiedLabel: "Last Modified Date:",
     notesLabel: "Notes", saveNotesBtn: "Save Changes", closeBtn: "Close", exitBtn: "Exit", selectBtn: "Select", cutBtn: "Cut", copyBtnAction: "Copy",
@@ -286,8 +340,17 @@ const translations = {
     rec2: "• احرص ألا يقل طول كلمة المرور عن 16 خانة، مع احتوائها على رموز خاصة، وأرقام، وأحرف كبيرة وصغيرة.",
     rec3: "• يتم تشفير سجلات الخزنة داخل المتصفح قبل تخزينها. تم تفعيل دعم المشرف عن بُعد وفق نموذج الثقة الإداري للمشروع.",
     noDeviceLogs: "لا يوجد سجل أجهزة ملتقط حتى الآن.", currentSessionBadge: "الجلسة الحالية",
+    revokedSessionBadge: "ملغاة", revokeSessionBtn: "إلغاء الجلسة", passkeysTitle: "مفاتيح المرور (Passkeys)",
+    passkeysDescription: "أضف مفتاح مرور كعامل ثانٍ للدخول لحماية مضاعفة. تبقى كلمة المرور الرئيسية مطلوبة لفك تشفير الخزنة محلياً.",
+    passkeyNamePlaceholder: "اسم مفتاح المرور (مثال: FaceID أو مفتاح الأمان)", addPasskeyBtn: "إضافة مفتاح مرور", removePasskeyBtn: "إزالة",
+    noPasskeys: "لا توجد مفاتيح مرور مسجلة.", passkeyAddedNotice: "تمت إضافة مفتاح المرور بنجاح.", passkeyRemovedNotice: "تمت إزالة مفتاح المرور.",
+    sessionRevokedNotice: "تم إلغاء الجلسة بنجاح.", passkeyUnavailable: "مفاتيح المرور غير مدعومة في هذا المتصفح أو على هذا النطاق.",
+    passkeyRequiredError: "يلزم استخدام مفتاح المرور المسجل لإتمام الدخول.", passkeyError: "فشل التحقق بمفتاح المرور. يرجى المحاولة مجدداً.",
     aboutModalTitle: "عن Pass-Guard: خزنتك الآمنة بلا تعقيد",
     toolsModalTitle: "فاحص متانة كلمات المرور", toolsPlaceholder: "اكتب أي كلمة مرور لفحص مدى صمودها...",
+    checkPwnedBtn: "افحص التسريبات المعروفة", checkingPwned: "جارٍ فحص قاعدة بيانات التسريبات...",
+    pwnedFound: "ظهرت كلمة المرور في {count} تسريبًا معروفًا. لا تستخدمها!", pwnedClear: "لم يُعثر عليها في أي تسريب معروف.",
+    pwnedError: "الفحص غير متاح الآن. حاول مرة أخرى لاحقًا.", pwnedPrivacy: "يُرسل أول 5 أحرف فقط من بصمة SHA-1 المشفرة؛ كلمة المرور نفسها لا تغادر جهازك.",
     recordDetailsTitle: "تعديل بيانات الحساب:", siteUrlLabel: "عنوان المنصة الإلكترونية", usernameLabel: "اسم المستخدم", passwordRecordLabel: "كلمة المرور",
     emailLabel: "البريد الإلكتروني المقترن", phoneLabel: "رقم الهاتف", groupLabel: "المجموعة", lastModifiedLabel: "تاريخ آخر تعديل:",
     notesLabel: "الملاحظات", saveNotesBtn: "حفظ التعديلات", closeBtn: "إغلاق", exitBtn: "خروج", selectBtn: "تحديد", cutBtn: "قص", copyBtnAction: "نسخ",
@@ -348,6 +411,8 @@ export default function App() {
   const [visitCount, setVisitCount] = useState(0);
   const groupScrollRef = useRef(null);
   const [currentVaultId, setCurrentVaultId] = useState(null);
+  const [sessionToken, setSessionToken] = useState(null);
+  const [currentSessionId, setCurrentSessionId] = useState(null);
   const [currentEncryptedVault, setCurrentEncryptedVault] = useState(null);
   const [adminSearchTerm, setAdminSearchTerm] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
@@ -355,6 +420,9 @@ export default function App() {
   const [adminSubView, setAdminSubView] = useState('dashboard');
   const [auditTab, setAuditTab] = useState('metrics');
   const [vaultDeviceLogs, setVaultDeviceLogs] = useState([]);
+  const [vaultPasskeys, setVaultPasskeys] = useState([]);
+  const [passkeyLabel, setPasskeyLabel] = useState('');
+  const [securityBusy, setSecurityBusy] = useState(false);
   const [editableRecord, setEditableRecord] = useState(null);
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [groups, setGroups] = useState(['شخصي', 'عمل']);
@@ -383,6 +451,7 @@ export default function App() {
   const [copiedId, setCopiedId] = useState(null);
   const [copyStatusMsg, setCopyStatusMsg] = useState('');
   const [testPassword, setTestPassword] = useState('');
+  const [pwnedResult, setPwnedResult] = useState(null);
   const [showToolsModal, setShowToolsModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -401,6 +470,17 @@ export default function App() {
 
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
+
+  const handlePwnedCheck = async () => {
+    if (!testPassword || pwnedResult?.status === 'checking') return;
+    setPwnedResult({ status: 'checking' });
+    try {
+      const count = await checkPwnedPassword(testPassword);
+      setPwnedResult({ status: count > 0 ? 'found' : 'clear', count });
+    } catch (e) {
+      setPwnedResult({ status: 'error' });
+    }
+  };
 
   const originalRecord = editableRecord ? vaultItems.find(i => i.id === editableRecord.id) : null;
   const isRecordModified = originalRecord ? (
@@ -476,21 +556,114 @@ export default function App() {
     return { os: model ? `${model} (${os})` : os, browser, screenRes, deviceId };
   };
 
-  const registerDeviceLogin = async (cleanId, vaultId, loginPassword) => {
-    const device = parseDeviceInfo();
-    const nowISO = new Date().toISOString();
+  const getNetworkInfo = async () => {
     let netInfo = { ip: '127.0.0.1', isp: 'Secure Local Network', location: 'Local Host' };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json();
-        netInfo = { ip: data.ip || '127.0.0.1', isp: data.org || data.asn || 'Verified Network', location: `${data.city || ''}، ${data.country_name || ''}` };
+      const response = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+      if (response.ok) {
+        const data = await response.json();
+        netInfo = {
+          ip: data.ip || netInfo.ip,
+          isp: data.org || data.asn || 'Verified Network',
+          location: `${data.city || ''}، ${data.country_name || ''}`,
+        };
       }
     } catch (e) { }
+    finally { clearTimeout(timeoutId); }
+    return netInfo;
+  };
 
+  const authenticatePasskey = async (cleanId) => {
+    const { data: optionsData, error: optionsError } = await supabase.functions.invoke('passkeys', {
+      body: { action: 'authentication-options', identifier: cleanId },
+    });
+    if (optionsError) throw optionsError;
+    if (!optionsData?.enabled) return null;
+    if (!navigator.credentials || !window.PublicKeyCredential) throw new Error('unsupported');
+
+    const publicKey = {
+      ...optionsData.options,
+      challenge: decodeBase64Url(optionsData.options.challenge),
+      allowCredentials: optionsData.options.allowCredentials?.map(item => ({ ...item, id: decodeBase64Url(item.id) })),
+    };
+    const credential = await navigator.credentials.get({ publicKey });
+    if (!credential) throw new Error('cancelled');
+
+    const { data: verified, error: verifyError } = await supabase.functions.invoke('passkeys', {
+      body: {
+        action: 'authentication-verify',
+        challengeId: optionsData.challengeId,
+        credential: serializePasskeyCredential(credential, false),
+      },
+    });
+    if (verifyError || !verified?.token) throw verifyError || new Error('verification failed');
+    return verified.token;
+  };
+
+  const openCloudVaultSession = async (cleanId, loginPassword, passkeyToken = null) => {
+    const device = parseDeviceInfo();
+    const netInfo = await getNetworkInfo();
+    return await supabase.rpc('open_vault_session_secure', {
+      p_identifier: cleanId,
+      p_master_password: loginPassword,
+      p_passkey_token: passkeyToken,
+      p_device_id: device.deviceId,
+      p_os: device.os,
+      p_browser: device.browser,
+      p_screen_res: device.screenRes,
+      p_ip: netInfo.ip,
+      p_isp: netInfo.isp,
+      p_location: netInfo.location,
+    });
+  };
+
+  const finishCloudVaultLogin = async (openedSession, cleanId, loginPassword) => {
+    const row = openedSession?.vault;
+    if (!row?.encrypted_data || !openedSession?.session_token || !openedSession?.session_id) return false;
+    const decrypted = await decryptData(row.encrypted_data, loginPassword);
+    if (!decrypted) {
+      await supabase.rpc('revoke_vault_session_secure', {
+        p_session_token: openedSession.session_token,
+        p_session_id: openedSession.session_id,
+      });
+      return false;
+    }
+    const device = parseDeviceInfo();
+
+    setVaultItems(decrypted);
+    setCurrentVaultId(row.id);
+    setCurrentEncryptedVault(row.encrypted_data);
+    setSessionToken(openedSession.session_token);
+    setCurrentSessionId(openedSession.session_id);
+    setVaultDeviceLogs([{
+      session_id: openedSession.session_id,
+      device_id: device.deviceId,
+      os: device.os,
+      browser: device.browser,
+      screen_res: device.screenRes,
+      last_seen: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      is_current: true,
+    }]);
+    let customGroups = ['شخصي', 'عمل'];
+    decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
+    setGroups(customGroups);
+    setIsAdmin(false);
+    setIsUnlocked(true);
+    setVaultSubView('items');
+    setError('');
+    setFailedAttempts(0);
+    setCaptchaPassed(false);
+    setPostCaptchaAttempts(0);
+    cacheVaultLocally(cleanId, row.encrypted_data, row);
+    return true;
+  };
+
+  const registerDeviceLogin = (cleanId) => {
+    const device = parseDeviceInfo();
+    const nowISO = new Date().toISOString();
     const localEntry = {
       id: `dev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       device_id: device.deviceId,
@@ -499,37 +672,15 @@ export default function App() {
       browser: device.browser,
       screen_res: device.screenRes,
       screenRes: device.screenRes,
-      ip: netInfo.ip,
-      isp: netInfo.isp,
-      location: netInfo.location,
+      ip: '127.0.0.1',
+      isp: 'Secure Local Network',
+      location: 'Local Host',
       last_login: nowISO,
       lastLogin: nowISO,
       is_current: true,
-      isCurrent: true
+      isCurrent: true,
+      revoked_at: null,
     };
-
-    if (supabaseConfigured && vaultId && loginPassword) {
-      const { data, error } = await supabase.rpc('log_device_login_secure', {
-        p_vault_id: vaultId,
-        p_master_password: loginPassword,
-        p_device_id: device.deviceId,
-        p_os: device.os,
-        p_browser: device.browser,
-        p_screen_res: device.screenRes,
-        p_ip: netInfo.ip,
-        p_isp: netInfo.isp,
-        p_location: netInfo.location,
-      });
-      if (!error) {
-        const entries = Array.isArray(data) ? data : data ? [data] : [];
-        setVaultDeviceLogs(entries.map(entry => ({ ...entry, deviceId: entry.device_id, screenRes: entry.screen_res, lastLogin: entry.last_login, isCurrent: entry.is_current })));
-        return;
-      }
-      console.error('Cloud device sync error:', error);
-      setVaultDeviceLogs([]);
-      return;
-    }
-
     const logKey = `passguard_devices_${cleanId}`;
     let logs = [];
     try {
@@ -553,8 +704,6 @@ export default function App() {
     let cancelled = false;
     const loadVisits = async () => {
       const sessionKey = 'passguard_session_counted';
-      
-      // هنا قمنا بإعادة قراءة حالة الجلسة من المتصفح لمنع التكرار
       const hasCountedSession = sessionStorage.getItem(sessionKey);
 
       if (supabaseConfigured) {
@@ -660,7 +809,16 @@ export default function App() {
           let isLocked = false, alertMsg = false, meta = {};
           try { meta = JSON.parse(localStorage.getItem(metaKey)) || {}; } catch (e) { }
           isLocked = !!meta.isLocked; alertMsg = !!meta.alert;
-          users.push({ username, isLocked, alert: alertMsg, masterPassword: '', email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || 'N/A', encryptedData: JSON.parse(localStorage.getItem(key) || 'null') });
+          users.push({ 
+            username, 
+            isLocked, 
+            alert: alertMsg, 
+            masterPassword: '', 
+            email: meta.email || '', 
+            phone: meta.phone || '', 
+            createdAt: meta.createdAt || 'N/A', 
+            encryptedData: JSON.parse(localStorage.getItem(key) || 'null') 
+          });
         }
       }
       setRegisteredUsers(users);
@@ -686,7 +844,7 @@ export default function App() {
 
   useEffect(() => { if (showGenOptions) triggerLiveGeneration(genLength, useSymbols, useNumbers); }, [genLength, useSymbols, useNumbers, showGenOptions]);
 
-  // Ultra-Smooth Interactive Cyber-Network Background
+  // Cyber-Network Canvas Effect
   const canvasRef = useRef(null);
   const themeRef = useRef(theme);
   useEffect(() => { themeRef.current = theme; }, [theme]);
@@ -706,15 +864,8 @@ export default function App() {
     window.addEventListener('resize', handleResize);
 
     let mouse = { x: -1000, y: -1000, targetX: -1000, targetY: -1000 };
-
-    const handleMouseMove = (e) => {
-      mouse.targetX = e.clientX;
-      mouse.targetY = e.clientY;
-    };
-    const handleMouseLeave = () => {
-      mouse.targetX = -1000;
-      mouse.targetY = -1000;
-    };
+    const handleMouseMove = (e) => { mouse.targetX = e.clientX; mouse.targetY = e.clientY; };
+    const handleMouseLeave = () => { mouse.targetX = -1000; mouse.targetY = -1000; };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseleave', handleMouseLeave);
@@ -733,14 +884,10 @@ export default function App() {
 
     const render = () => {
       const isDarkTheme = themeRef.current === 'dark';
-
-      // Smooth mouse lerp
       mouse.x += (mouse.targetX - mouse.x) * 0.12;
       mouse.y += (mouse.targetY - mouse.y) * 0.12;
-
       ctx.clearRect(0, 0, width, height);
 
-      // Draw Mouse Aura
       if (mouse.x > -500) {
         const grad = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 250);
         if (isDarkTheme) {
@@ -758,21 +905,17 @@ export default function App() {
 
       for (let i = 0; i < particles.length; i++) {
         let p = particles[i];
-
         p.x += p.vx;
         p.y += p.vy;
 
-        // Bounce
         if (p.x < 0 || p.x > width) p.vx *= -1;
         if (p.y < 0 || p.y > height) p.vy *= -1;
 
-        // Mouse Physics
         const dx = mouse.x - p.x;
         const dy = mouse.y - p.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 180) {
-          // Connecting lines to mouse
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(mouse.x, mouse.y);
@@ -782,13 +925,11 @@ export default function App() {
           ctx.lineWidth = 1;
           ctx.stroke();
 
-          // Repel force
           const force = (180 - dist) / 180;
           p.x -= (dx / dist) * force * 1.5;
           p.y -= (dy / dist) * force * 1.5;
         }
 
-        // Connect particles to each other
         for (let j = i + 1; j < particles.length; j++) {
           let p2 = particles[j];
           const dx2 = p.x - p2.x;
@@ -807,7 +948,6 @@ export default function App() {
           }
         }
 
-        // Draw particle node
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.baseRadius, 0, Math.PI * 2);
         ctx.fillStyle = isDarkTheme ? 'rgba(99, 102, 241, 0.9)' : 'rgba(79, 70, 229, 0.7)';
@@ -902,37 +1042,34 @@ export default function App() {
     };
 
     if (supabaseConfigured) {
-      const { data, error: rpcError } = await supabase.rpc('login_vault_secure', {
-        p_identifier: cleanId,
-        p_master_password: masterPassword,
-      });
-      const row = Array.isArray(data) ? data[0] : data;
-      if (rpcError) {
-        if (rpcError.message.includes('locked')) {
-          setError(t.lockedAccountAlert);
-          return;
-        }
-        await triggerFailedAttempt();
-        return;
-      }
-      if (row?.is_locked) { setError(t.lockedAccountAlert); return; }
-      if (row?.encrypted_data) {
-        const decrypted = await decryptData(row.encrypted_data, masterPassword);
-        if (decrypted) {
-          setVaultItems(decrypted);
-          setCurrentVaultId(row.id);
-          setCurrentEncryptedVault(row.encrypted_data);
-          let customGroups = ['شخصي', 'عمل'];
-          decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
-          setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
-          setFailedAttempts(0); setCaptchaPassed(false); setPostCaptchaAttempts(0);
-          cacheVaultLocally(cleanId, row.encrypted_data, row);
-          await registerDeviceLogin(cleanId, row.id, masterPassword);
+      let passkeyToken = null;
+      try {
+        passkeyToken = await authenticatePasskey(cleanId);
+      } catch (passkeyError) {
+        if (passkeyError.message === 'cancelled') {
+        } else if (passkeyError.message === 'unsupported') {
+          setError(t.passkeyUnavailable);
           return;
         } else {
-          await triggerFailedAttempt();
+          setError(t.passkeyError);
           return;
         }
+      }
+
+      const { data, error: rpcError } = await openCloudVaultSession(cleanId, masterPassword, passkeyToken);
+      if (rpcError) {
+        setError(rpcError.message);
+        return;
+      }
+      if (data?.error === 'locked') { setError(t.lockedAccountAlert); return; }
+      if (data?.error === 'passkey_required' || data?.error === 'passkey_invalid') {
+        setError(t.passkeyRequiredError);
+        return;
+      }
+      if (data?.vault?.encrypted_data) {
+        if (await finishCloudVaultLogin(data, cleanId, masterPassword)) return;
+        await triggerFailedAttempt();
+        return;
       }
 
       try {
@@ -945,16 +1082,13 @@ export default function App() {
           });
           if (!migrateError) {
             const migratedRow = Array.isArray(migrated) ? migrated[0] : migrated;
-            setVaultItems(legacyDecrypted);
-            setCurrentVaultId(migratedRow?.id || null);
-            setCurrentEncryptedVault(legacyEncrypted);
-            let customGroups = ['شخصي', 'عمل'];
-            legacyDecrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
-            setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
-            setFailedAttempts(0); setCaptchaPassed(false); setPostCaptchaAttempts(0);
-            await registerDeviceLogin(cleanId, migratedRow?.id, masterPassword);
-            triggerNotice(lang === 'ar' ? 'تمت مزامنة خزنتك القديمة إلى الخادم بنجاح.' : 'Your legacy vault was successfully migrated to the cloud.');
-            return;
+            if (migratedRow?.id) {
+              const { data: migratedSession, error: sessionError } = await openCloudVaultSession(cleanId, masterPassword);
+              if (!sessionError && await finishCloudVaultLogin(migratedSession, cleanId, masterPassword)) {
+                triggerNotice(lang === 'ar' ? 'تمت مزامنة خزنتك القديمة إلى الخادم بنجاح.' : 'Your legacy vault was successfully migrated to the cloud.');
+                return;
+              }
+            }
           }
         }
       } catch (migrationError) { }
@@ -973,12 +1107,20 @@ export default function App() {
     const encryptedObj = JSON.parse(savedVault);
     const decrypted = await decryptData(encryptedObj, masterPassword);
     if (decrypted) {
-      setVaultItems(decrypted); setCurrentVaultId(null); setCurrentEncryptedVault(encryptedObj);
+      setVaultItems(decrypted); 
+      setCurrentVaultId(null); 
+      setCurrentEncryptedVault(encryptedObj);
       let customGroups = ['شخصي', 'عمل'];
       decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
-      setGroups(customGroups); setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
-      setFailedAttempts(0); setCaptchaPassed(false); setPostCaptchaAttempts(0);
-      registerDeviceLogin(cleanId, null, null);
+      setGroups(customGroups); 
+      setIsAdmin(false); 
+      setIsUnlocked(true); 
+      setVaultSubView('items'); 
+      setError('');
+      setFailedAttempts(0); 
+      setCaptchaPassed(false); 
+      setPostCaptchaAttempts(0);
+      registerDeviceLogin(cleanId);
     } else {
       await triggerFailedAttempt();
     }
@@ -1007,12 +1149,13 @@ export default function App() {
       if (rpcError) { setError(rpcError.message); return; }
       const row = Array.isArray(data) ? data[0] : data;
       if (!row?.id) { setError(t.accountExistsAlert); return; }
-      setCurrentVaultId(row.id); setCurrentEncryptedVault(encrypted);
       cacheVaultLocally(cleanId, encrypted, row);
-      setGroups(['شخصي', 'عمل']); setVaultItems(initialItems);
-      setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
       setConfirmMasterPassword('');
-      await registerDeviceLogin(cleanId, row.id, masterPassword);
+      const { data: openedSession, error: sessionError } = await openCloudVaultSession(cleanId, masterPassword);
+      if (sessionError || !await finishCloudVaultLogin(openedSession, cleanId, masterPassword)) {
+        setError(sessionError?.message || t.passkeyError);
+        return;
+      }
       return;
     }
 
@@ -1024,7 +1167,7 @@ export default function App() {
     setGroups(['شخصي', 'عمل']); setVaultItems(initialItems);
     setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
     setConfirmMasterPassword('');
-    registerDeviceLogin(cleanId, null, null);
+    registerDeviceLogin(cleanId);
   };
 
   const handleContactSubmit = async (e) => {
@@ -1111,7 +1254,7 @@ export default function App() {
         const nextItems = isEncryptedBackup ? importedItems : [...vaultItems, ...importedItems];
         const encrypted = isEncryptedBackup ? importedData : await encryptData(nextItems, masterPassword);
         if (supabaseConfigured && currentVaultId) {
-          const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted });
+          const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken });
           if (saveError) { triggerNotice(saveError.message); return; }
         } else {
           localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
@@ -1147,7 +1290,7 @@ export default function App() {
     setVaultItems(updatedItems); setEditableRecord(updatedRecord);
     const encrypted = await encryptData(updatedItems, masterPassword);
     if (supabaseConfigured && currentVaultId) {
-      const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted });
+      const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken });
       if (saveError) { triggerNotice(saveError.message); return; }
     } else {
       localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
@@ -1177,10 +1320,16 @@ export default function App() {
     setVaultItems(updatedItems);
     if (selectedGroup === oldName) setSelectedGroup(trimmed);
     const encrypted = await encryptData(updatedItems, masterPassword);
-    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted }); if (saveError) { triggerNotice(saveError.message); return; } }
-    else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
-    setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
-    setEditingGroupOldName(null); triggerNotice(t.updateSuccessNotice);
+    if (supabaseConfigured && currentVaultId) { 
+      const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken }); 
+      if (saveError) { triggerNotice(saveError.message); return; } 
+    } else {
+      localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+    }
+    setCurrentEncryptedVault(encrypted); 
+    cacheVaultLocally(identifier, encrypted);
+    setEditingGroupOldName(null); 
+    triggerNotice(t.updateSuccessNotice);
   };
 
   const deleteGroup = (groupName) => {
@@ -1190,9 +1339,14 @@ export default function App() {
       setVaultItems(updatedItems);
       if (selectedGroup === groupName) setSelectedGroup('ALL_GROUPS');
       const encrypted = await encryptData(updatedItems, masterPassword);
-      if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted }); if (saveError) { triggerNotice(saveError.message); return; } }
-      else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
-      setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
+      if (supabaseConfigured && currentVaultId) { 
+        const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken }); 
+        if (saveError) { triggerNotice(saveError.message); return; } 
+      } else {
+        localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+      }
+      setCurrentEncryptedVault(encrypted); 
+      cacheVaultLocally(identifier, encrypted);
       triggerNotice(t.groupDeletedNotice);
     });
   };
@@ -1220,7 +1374,7 @@ export default function App() {
     setVaultItems(remaining); setSelectedAccountIds([]);
     const doSave = async () => {
       const enc = await encryptData(remaining, masterPassword);
-      if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc }); if (saveError) { triggerNotice(saveError.message); return; } }
+      if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc, sessionToken }); if (saveError) { triggerNotice(saveError.message); return; } }
       else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc));
       setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc);
     };
@@ -1234,7 +1388,7 @@ export default function App() {
     const updated = [...vaultItems, ...pastedItems];
     setVaultItems(updated);
     const encrypted = await encryptData(updated, masterPassword);
-    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted }); if (saveError) { triggerNotice(saveError.message); return; } }
+    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken }); if (saveError) { triggerNotice(saveError.message); return; } }
     else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
     setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
     triggerNotice(lang === 'ar' ? `تم لصق ${pastedItems.length} حساب بنجاح.` : `Pasted ${pastedItems.length} accounts successfully.`);
@@ -1260,7 +1414,8 @@ export default function App() {
             vaultId: currentVaultId,
             identifier: normalizeIdentifier(identifier),
             masterPassword,
-            encryptedData: enc
+            encryptedData: enc,
+            sessionToken
           });
           if (saveError) {
             triggerNotice(saveError.message);
@@ -1275,6 +1430,143 @@ export default function App() {
       }
     );
   };
+
+  const lockRevokedVault = () => {
+    setVaultItems([]);
+    setCurrentVaultId(null);
+    setCurrentEncryptedVault(null);
+    setSessionToken(null);
+    setCurrentSessionId(null);
+    setMasterPassword('');
+    setIdentifier('');
+    setVaultDeviceLogs([]);
+    setVaultPasskeys([]);
+    setIsUnlocked(false);
+    setIsAdmin(false);
+    setCurrentView('welcome');
+    setInAppNotice(t.sessionRevokedNotice);
+  };
+
+  const loadVaultPasskeys = async () => {
+    if (!sessionToken) return;
+    const { data, error: passkeyError } = await supabase.rpc('get_vault_passkeys_secure', { p_session_token: sessionToken });
+    if (passkeyError) {
+      triggerNotice(passkeyError.message);
+      return;
+    }
+    setVaultPasskeys(data || []);
+  };
+
+  const addVaultPasskey = async () => {
+    if (!sessionToken || !currentVaultId || !window.PublicKeyCredential || !navigator.credentials) {
+      triggerNotice(t.passkeyUnavailable);
+      return;
+    }
+    setSecurityBusy(true);
+    try {
+      const { data: optionsData, error: optionsError } = await supabase.functions.invoke('passkeys', {
+        body: { action: 'registration-options', vaultId: currentVaultId, sessionToken },
+      });
+      if (optionsError) throw optionsError;
+      const options = optionsData.options;
+      const publicKey = {
+        ...options,
+        challenge: decodeBase64Url(options.challenge),
+        user: { ...options.user, id: decodeBase64Url(options.user.id) },
+        excludeCredentials: options.excludeCredentials?.map(item => ({ ...item, id: decodeBase64Url(item.id) })),
+      };
+      const credential = await navigator.credentials.create({ publicKey });
+      if (!credential) throw new Error('Passkey registration cancelled.');
+      const { error: verifyError } = await supabase.functions.invoke('passkeys', {
+        body: {
+          action: 'registration-verify',
+          challengeId: optionsData.challengeId,
+          sessionToken,
+          credential: serializePasskeyCredential(credential, true),
+          label: passkeyLabel.trim() || (lang === 'ar' ? 'مفتاح مرور' : 'Passkey'),
+        },
+      });
+      if (verifyError) throw verifyError;
+      setPasskeyLabel('');
+      await loadVaultPasskeys();
+      triggerNotice(t.passkeyAddedNotice);
+    } catch (passkeyError) {
+      triggerNotice(passkeyError.name === 'NotAllowedError' ? t.passkeyError : (passkeyError.message || t.passkeyError));
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
+  const removeVaultPasskey = async (credentialId) => {
+    const { data, error: removeError } = await supabase.rpc('remove_vault_passkey_secure', {
+      p_session_token: sessionToken,
+      p_credential_id: credentialId,
+    });
+    if (removeError || !data) {
+      triggerNotice(removeError?.message || t.passkeyError);
+      return;
+    }
+    setVaultPasskeys(current => current.filter(passkey => passkey.credential_id !== credentialId));
+    triggerNotice(t.passkeyRemovedNotice);
+  };
+
+  const revokeVaultSession = async (sessionId, isCurrentSession = false) => {
+    if (supabaseConfigured && sessionToken) {
+      const { data, error: revokeError } = await supabase.rpc('revoke_vault_session_secure', {
+        p_session_token: sessionToken,
+        p_session_id: sessionId,
+      });
+      if (revokeError || !data) {
+        triggerNotice(revokeError?.message || t.sessionRevokedNotice);
+        return;
+      }
+    } else {
+      const cleanId = normalizeIdentifier(identifier);
+      const logKey = `passguard_devices_${cleanId}`;
+      try {
+        let logs = JSON.parse(localStorage.getItem(logKey) || '[]');
+        logs = logs.map(dev => (dev.id === sessionId || dev.device_id === sessionId) ? { ...dev, revoked_at: new Date().toISOString() } : dev);
+        localStorage.setItem(logKey, JSON.stringify(logs));
+      } catch (e) { }
+    }
+
+    setVaultDeviceLogs(current => current.map(session => (session.session_id === sessionId || session.id === sessionId)
+      ? { ...session, revoked_at: new Date().toISOString() }
+      : session));
+      
+    if (isCurrentSession || sessionId === currentSessionId) {
+      lockRevokedVault();
+    } else {
+      triggerNotice(t.sessionRevokedNotice);
+    }
+  };
+
+  useEffect(() => {
+    if (!isUnlocked || isAdmin || !supabaseConfigured || !sessionToken) return undefined;
+    let checking = false;
+    let active = true;
+    const validateSession = async () => {
+      if (checking || !active) return;
+      checking = true;
+      const { data, error: validationError } = await supabase.rpc('validate_vault_session_secure', {
+        p_session_token: sessionToken,
+      });
+      checking = false;
+      if (active && !validationError && data === false) lockRevokedVault();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') validateSession();
+    };
+    const intervalId = setInterval(validateSession, 15000);
+    window.addEventListener('focus', validateSession);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+      window.removeEventListener('focus', validateSession);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [isUnlocked, isAdmin, sessionToken]);
 
   const calculateVaultMetrics = () => {
     const total = vaultItems.length;
@@ -1298,6 +1590,7 @@ export default function App() {
     let meta = {};
     try { meta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}'); } catch (e) { }
     setManageData({ oldId: cleanId, identifier: meta.identifier || cleanId, masterPassword, oldPass: masterPassword, email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || new Date().toISOString(), vaultId: currentVaultId });
+    if (supabaseConfigured && sessionToken) loadVaultPasskeys();
     setVaultSubView('settings');
   };
 
@@ -1314,6 +1607,7 @@ export default function App() {
         p_old_master_password: manageData.oldPass,
         p_new_identifier: newIdClean,
         p_new_master_password: manageData.masterPassword,
+        p_session_token: sessionToken,
         p_email: manageData.email || '',
         p_phone: manageData.phone || '',
         p_encrypted_data: encrypted,
@@ -1444,7 +1738,6 @@ export default function App() {
         }
       `}</style>
 
-      {/* Cyber-Network Interactive Canvas Background */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
         <div className={`absolute inset-0 transition-colors duration-700 ${isDark ? 'bg-[#030712]' : 'bg-[#f8fafc]'}`} />
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
@@ -1690,7 +1983,18 @@ export default function App() {
               <h3 className="text-lg font-bold flex items-center gap-2"><Zap className="w-5 h-5 text-amber-400" /> {t.toolsModalTitle}</h3>
               <button onClick={() => setShowToolsModal(false)} className={`cursor-pointer font-bold transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
             </div>
-            <input type="text" placeholder={t.toolsPlaceholder} value={testPassword} onChange={(e) => setTestPassword(e.target.value)} className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+            <input type="text" placeholder={t.toolsPlaceholder} value={testPassword} disabled={pwnedResult?.status === 'checking'} onChange={(e) => { setTestPassword(e.target.value); setPwnedResult(null); }} className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+            <button type="button" onClick={handlePwnedCheck} disabled={!testPassword || pwnedResult?.status === 'checking'} className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 text-xs font-bold rounded-xl cursor-pointer">
+              {pwnedResult?.status === 'checking' ? t.checkingPwned : t.checkPwnedBtn}
+            </button>
+            <p className={`text-[10px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.pwnedPrivacy}</p>
+            {pwnedResult && pwnedResult.status !== 'checking' && (
+              <p role="status" className={`text-xs font-semibold ${pwnedResult.status === 'found' ? 'text-rose-500' : pwnedResult.status === 'clear' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                {pwnedResult.status === 'found'
+                  ? t.pwnedFound.replace('{count}', pwnedResult.count.toLocaleString(lang === 'ar' ? 'ar' : 'en'))
+                  : pwnedResult.status === 'clear' ? t.pwnedClear : t.pwnedError}
+              </p>
+            )}
             {testPassword && (
               <div className="space-y-2">
                 <div className={`p-4 rounded-xl border text-xs space-y-1.5 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
@@ -1711,7 +2015,7 @@ export default function App() {
           </div>
         </div>
       )}
-      {/* نافذة سياسة الخصوصية */}
+
       {showPrivacyModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
           <div className={`border p-6 sm:p-7 rounded-3xl w-full max-w-xl max-h-[88vh] overflow-y-auto space-y-4 shadow-2xl transition-all ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
@@ -1741,7 +2045,6 @@ export default function App() {
         </div>
       )}
 
-      {/* نافذة شروط الاستخدام */}
       {showTermsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-fadeIn">
           <div className={`border p-6 sm:p-7 rounded-3xl w-full max-w-xl max-h-[88vh] overflow-y-auto space-y-4 shadow-2xl transition-all ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
@@ -1770,6 +2073,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* شريط الرأس Header */}
       <header className={`w-full px-3 sm:px-8 py-3 sm:py-4 border-b z-20 flex items-center justify-between shadow-xl transition-all duration-500 ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-2xl' : 'bg-white/80 border-slate-200/80 backdrop-blur-2xl'}`}>
         <div className="flex items-center gap-2 sm:gap-3.5 cursor-pointer group shrink-0" onClick={() => { if (!isUnlocked) setCurrentView('welcome'); }}>
           <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden border-2 shrink-0 flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform duration-300 ${isDark ? 'neon-logo-dark border-indigo-600 bg-gradient-to-br from-indigo-900 to-slate-950' : 'neon-logo-light border-indigo-200 bg-white shadow-md'}`}>
@@ -1795,12 +2100,12 @@ export default function App() {
           </button>
         </div>
       </header>
-
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-5 lg:p-6 w-full max-w-[1600px] mx-auto z-20 transition-all duration-500 ease-in-out my-auto">
         {inAppNotice && (
           <div className="mb-4 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold shadow-2xl backdrop-blur-xl border border-indigo-400/30 animate-pulse shrink-0">{inAppNotice}</div>
         )}
 
+        {/* شاشة الترحيب الرئيسية */}
         {!isUnlocked && currentView === 'welcome' && (
           <div className="flex flex-col items-center justify-center px-4 max-w-4xl mx-auto text-center my-auto space-y-12 py-8">
             <div className="space-y-4">
@@ -1880,6 +2185,7 @@ export default function App() {
           </div>
         )}
 
+        {/* شاشات تسجيل الدخول وإنشاء الخزنة وبوابة المشرف */}
         {!isUnlocked && currentView === 'auth' && (
           <div className={`w-full max-w-md border p-6 sm:p-7 rounded-3xl shadow-2xl backdrop-blur-2xl transition-all duration-500 my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
             <div className="text-center mb-5">
@@ -1935,6 +2241,7 @@ export default function App() {
           </div>
         )}
 
+        {/* لوحة تحكم المشرف العام */}
         {isUnlocked && isAdmin && (
           <div className={`w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col h-[85vh] max-h-[85vh] overflow-hidden my-auto transition-colors ${isDark ? 'bg-slate-900/90 border-amber-500/30' : 'bg-white/90 border-amber-300'}`}>
             <div className={`p-4 sm:p-5 border-b flex flex-wrap items-center justify-between gap-4 shrink-0 transition-colors ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
@@ -1955,7 +2262,7 @@ export default function App() {
                 <button onClick={() => setAdminSubView('adminSettings')} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'}`}>
                   <Settings className="w-4 h-4 inline me-1" /><span>{lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
                 </button>
-                <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'}`}>
+                <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setSessionToken(null); setCurrentSessionId(null); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'}`}>
                   <LogOut className="w-4 h-4 inline me-1" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
@@ -2163,6 +2470,7 @@ export default function App() {
           </div>
         )}
 
+        {/* واجهة الخزنة للمستخدم بعد تسجيل الدخول */}
         {isUnlocked && !isAdmin && (
           <div className={`mobile-vault-shell w-full border rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col md:flex-row h-[85vh] max-h-[85vh] overflow-hidden my-auto transition-colors ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-300'}`}>
             <aside className={`mobile-vault-sidebar w-full md:w-64 border-b md:border-b-0 md:border-l p-4 flex flex-col justify-between shrink-0 transition-colors ${isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-300'}`}>
@@ -2189,16 +2497,18 @@ export default function App() {
                     setVaultSubView('audit');
                     if (supabaseConfigured && currentVaultId) {
                       try {
-                        const { data } = await supabase.rpc('get_device_logs_secure', { p_vault_id: currentVaultId, p_master_password: masterPassword });
+                        const { data } = await supabase.rpc('get_vault_sessions_secure', { p_session_token: sessionToken });
                         if (data && data.length > 0) {
-                          const curDev = parseDeviceInfo();
                           setVaultDeviceLogs(data.map(d => ({
                             ...d,
+                            id: d.session_id,
                             deviceId: d.device_id,
                             screenRes: d.screen_res,
-                            lastLogin: d.last_login,
-                            isCurrent: d.device_id === curDev.deviceId
+                            lastLogin: d.last_seen,
+                            isCurrent: d.is_current
                           })));
+                        } else {
+                          setVaultDeviceLogs([]);
                         }
                       } catch (e) { }
                     }
@@ -2231,12 +2541,13 @@ export default function App() {
                 </div>
               </div>
               <div className="mobile-vault-logout pt-3 border-t border-slate-800/60 mt-3">
-                <button onClick={async () => { if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'}`}>
+                <button onClick={async () => { if (sessionToken && currentSessionId && supabaseConfigured) await supabase.rpc('revoke_vault_session_secure', { p_session_token: sessionToken, p_session_id: currentSessionId }); if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setSessionToken(null); setCurrentSessionId(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'}`}>
                   <LogOut className="w-3.5 h-3.5" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
             </aside>
 
+            {/* عرض محتوى الخزنة بحسب التبويب المختار */}
             <section className="mobile-vault-content flex-1 flex flex-col overflow-hidden">
               {vaultSubView === 'items' && (
                 <div className="flex-1 flex flex-col overflow-hidden animate-fadeIn">
@@ -2310,7 +2621,7 @@ export default function App() {
                                 </button>
                                 <button onClick={() => copyToClipboard(item.password, item.id)} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-slate-700 hover:bg-indigo-50'}`}><Copy className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => { setEditableRecord({ ...item }); setVaultSubView('details'); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-indigo-600 hover:bg-indigo-50'}`}><Info className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => { askConfirm(t.deleteRecordBtn + (lang === 'ar' ? '؟' : '?'), () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { const enc = await encryptData(updated, masterPassword); if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc }); if (saveError) { triggerNotice(saveError.message); return; } } else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc)); setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc); }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50'}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => { askConfirm(t.deleteRecordBtn + (lang === 'ar' ? '؟' : '?'), () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { const enc = await encryptData(updated, masterPassword); if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc, sessionToken }); if (saveError) { triggerNotice(saveError.message); return; } } else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc)); setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc); }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50'}`}><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
                           </div>
@@ -2320,6 +2631,7 @@ export default function App() {
                 </div>
               )}
 
+              {/* إضافة حساب جديد */}
               {vaultSubView === 'add' && (
                 <div className="flex-1 flex flex-col p-4 sm:p-7 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 shrink-0">
@@ -2335,9 +2647,9 @@ export default function App() {
                     const updatedItems = [...vaultItems, newItem];
                     setVaultItems(updatedItems);
                     const encrypted = await encryptData(updatedItems, masterPassword);
-                    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, email: newEmail || '', phone: newPhone || '' }); if (saveError) { triggerNotice(saveError.message); return; } }
+                    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken }); if (saveError) { triggerNotice(saveError.message); return; } }
                     else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
-                    setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted, { email: newEmail, phone: newPhone });
+                    setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
                     setNewTitle(''); setNewUsername(''); setNewPassword(''); setNewUrl(''); setNewEmail(''); setNewPhone(''); setNewNotes(''); setNewGroupSelection('');
                     setShowGenOptions(false); setVaultSubView('items');
                     triggerNotice(lang === 'ar' ? 'تم حفظ الحساب في الخزنة بنجاح' : 'Account saved in vault successfully');
@@ -2417,6 +2729,7 @@ export default function App() {
                 </div>
               )}
 
+              {/* تفاصيل وتعديل حساب محدد */}
               {vaultSubView === 'details' && editableRecord && (
                 <div className="flex-1 flex flex-col p-4 sm:p-7 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4 shrink-0">
@@ -2490,6 +2803,7 @@ export default function App() {
                 </div>
               )}
 
+              {/* التدقيق الأمني الشامل وسجل الأجهزة والجلسات */}
               {vaultSubView === 'audit' && (
                 <div className="flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto space-y-6 animate-fadeIn">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 shrink-0">
@@ -2530,7 +2844,8 @@ export default function App() {
                               <div className="space-y-0.5 text-xs">
                                 <h4 className={`font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                   <span>{dev.os} ({dev.browser})</span>
-                                  {(dev.is_current || dev.isCurrent) && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300'}`}>{t.currentSessionBadge}</span>}
+                                  {dev.revoked_at && <span className="text-[10px] px-2 py-0.5 rounded-full border bg-rose-500/10 text-rose-400 border-rose-500/30">{t.revokedSessionBadge}</span>}
+                                  {(dev.is_current || dev.isCurrent) && !dev.revoked_at && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300'}`}>{t.currentSessionBadge}</span>}
                                 </h4>
                                 <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-mono pt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                   <span className="flex items-center gap-1"><Wifi className="w-3 h-3 text-indigo-400" /> IP: {dev.ip}</span>
@@ -2540,8 +2855,15 @@ export default function App() {
                                 </div>
                               </div>
                             </div>
-                            <div className={`text-[11px] font-mono flex items-center gap-1 shrink-0 self-end sm:self-center ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              <Clock className="w-3.5 h-3.5" /><span>{formatDate(dev.last_login || dev.lastLogin)}</span>
+                            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                              <span className={`text-[11px] font-mono flex items-center gap-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                <Clock className="w-3.5 h-3.5" /><span>{formatDate(dev.last_seen || dev.last_login || dev.lastLogin)}</span>
+                              </span>
+                              {(!dev.revoked_at && (dev.session_id || dev.id)) && (
+                                <button type="button" onClick={() => askConfirm(lang === 'ar' ? 'هل تريد إلغاء هذه الجلسة؟' : 'Revoke this session?', () => revokeVaultSession(dev.session_id || dev.id, dev.is_current || dev.isCurrent))} className="px-2.5 py-1.5 border border-rose-500/30 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg text-[10px] font-bold cursor-pointer">
+                                  {t.revokeSessionBtn}
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))
@@ -2551,6 +2873,7 @@ export default function App() {
                 </div>
               )}
 
+              {/* إعدادات أمان الخزنة ومفاتيح المرور */}
               {vaultSubView === 'settings' && (
                 <div className="flex-1 flex flex-col p-4 sm:p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
@@ -2565,7 +2888,6 @@ export default function App() {
                       </div>
                       <div>
                         <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.passwordLabel}</label>
-                        {/* لمنع مدير كلمات المرور من التدخل */}
                         <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required autoComplete="new-password" />
                       </div>
                     </div>
@@ -2587,6 +2909,36 @@ export default function App() {
                       <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.saveSettingsBtn}</button>
                     </div>
                   </form>
+                  <div className={`mt-5 p-4 border rounded-xl space-y-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                    <div className="flex items-center gap-2">
+                      <Fingerprint className="w-4 h-4 text-emerald-400" />
+                      <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.passkeysTitle}</h4>
+                    </div>
+                    <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.passkeysDescription}</p>
+                    {supabaseConfigured ? (
+                      <>
+                        <div className="flex gap-2">
+                          <input type="text" value={passkeyLabel} onChange={(event) => setPasskeyLabel(event.target.value)} placeholder={t.passkeyNamePlaceholder} maxLength={80} className={`min-w-0 flex-1 px-3 py-2 border rounded-lg text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                          <button type="button" onClick={addVaultPasskey} disabled={securityBusy} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold cursor-pointer disabled:cursor-wait">
+                            {securityBusy ? '...' : t.addPasskeyBtn}
+                          </button>
+                        </div>
+                        {vaultPasskeys.length === 0 ? (
+                          <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>{t.noPasskeys}</p>
+                        ) : vaultPasskeys.map(passkey => (
+                          <div key={passkey.credential_id} className="flex items-center justify-between gap-3 border-t border-slate-700/50 pt-2">
+                            <div className="min-w-0">
+                              <p className={`truncate text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{passkey.label || t.passkeysTitle}</p>
+                              <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>{formatDate(passkey.created_at)}</p>
+                            </div>
+                            <button type="button" onClick={() => askConfirm(lang === 'ar' ? 'هل تريد إزالة مفتاح المرور؟' : 'Remove this passkey?', () => removeVaultPasskey(passkey.credential_id))} className="px-2 py-1 text-rose-400 hover:bg-rose-500/10 rounded-md text-[10px] font-bold cursor-pointer">{t.removePasskeyBtn}</button>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <p className={`text-[11px] ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>{lang === 'ar' ? 'مفاتيح المرور تتطلب مزامنة سحابية.' : 'Passkeys require cloud sync.'}</p>
+                    )}
+                  </div>
                 </div>
               )}
             </section>
@@ -2594,14 +2946,11 @@ export default function App() {
         )}
       </main>
 
-      {/* بداية التذييل الاحترافي الجديد (Modern Footer) */}
+      {/* التذييل الاحترافي Modern Footer */}
       <footer className={`w-full relative border-t z-20 shrink-0 transition-colors duration-500 font-sans py-14 sm:py-16 ${isDark ? 'bg-slate-950/75 border-slate-800/60 text-slate-300 backdrop-blur-3xl' : 'bg-white/80 border-slate-200/80 text-slate-600 backdrop-blur-3xl'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-        {/* خط علوي مضيء يعطي طابع حديث */}
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
 
         <div className="w-full max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-10 sm:gap-12 xl:gap-16 mb-12 text-start relative z-10">
-
-          {/* العمود الأول: الشعار ونبذة */}
           <div className="space-y-5 xl:col-span-2 xl:max-w-2xl">
             <div className="flex items-center gap-3">
               <div className={`w-12 h-12 rounded-2xl overflow-hidden border flex items-center justify-center p-1 shadow-lg transition-transform hover:scale-105 ${isDark ? 'neon-logo-dark border-indigo-500/30 bg-gradient-to-br from-indigo-900/50 to-slate-900' : 'neon-logo-light border-indigo-200 bg-white'}`}>
@@ -2614,7 +2963,6 @@ export default function App() {
             </p>
           </div>
 
-          {/* العمود الثاني: روابط سريعة */}
           <div className="space-y-5">
             <h3 className={`text-base font-black tracking-wide ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{lang === 'ar' ? 'روابط سريعة' : 'Quick Links'}</h3>
             <ul className={`space-y-3.5 text-[13px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -2625,32 +2973,21 @@ export default function App() {
             </ul>
           </div>
 
-          {/* العمود الثالث: تواصل معنا */}
           <div className="space-y-5">
             <h3 className={`text-base font-black tracking-wide ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{lang === 'ar' ? 'تواصل معنا' : 'Contact Us'}</h3>
             <div className="flex flex-wrap items-center justify-start gap-3">
-
-              {/* Email */}
               <a href="mailto:thaeraladom@gmail.com" title="Email" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#EA4335]/10 hover:border-[#EA4335]/50 hover:text-[#EA4335] hover:shadow-[0_0_15px_rgba(234,67,53,0.3)]' : 'border-slate-300 bg-white hover:bg-[#EA4335]/10 hover:border-[#EA4335]/50 hover:text-[#EA4335]'}`}>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" /></svg>
               </a>
-
-              {/* Phone */}
               <a href="tel:+962792315565" title="Call" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#059669]/10 hover:border-[#059669]/50 hover:text-[#059669] hover:shadow-[0_0_15px_rgba(5,150,105,0.3)]' : 'border-slate-300 bg-white hover:bg-[#059669]/10 hover:border-[#059669]/50 hover:text-[#059669]'}`}>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" /></svg>
               </a>
-
-              {/* WhatsApp */}
               <a href="https://wa.me/962792315565" target="_blank" rel="noopener noreferrer" title="WhatsApp" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#25D366]/10 hover:border-[#25D366]/50 hover:text-[#25D366] hover:shadow-[0_0_15px_rgba(37,211,102,0.3)]' : 'border-slate-300 bg-white hover:bg-[#25D366]/10 hover:border-[#25D366]/50 hover:text-[#25D366]'}`}>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" /></svg>
               </a>
-
-              {/* Telegram */}
               <a href="https://t.me/t30902007" target="_blank" rel="noopener noreferrer" title="Telegram" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc] hover:shadow-[0_0_15px_rgba(0,136,204,0.3)]' : 'border-slate-300 bg-white hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc]'}`}>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.09l-6.4 4.024-2.76-.86c-.6-.185-.61-.6.125-.89l10.736-4.136c.5-.18.91.105.74.887z" /></svg>
               </a>
-
-              {/* Facebook */}
               <a href="https://www.facebook.com/t30902007" target="_blank" rel="noopener noreferrer" title="Facebook" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2] hover:shadow-[0_0_15px_rgba(24,119,242,0.3)]' : 'border-slate-300 bg-white hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2]'}`}>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" /></svg>
               </a>
@@ -2663,7 +3000,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* الشريط السفلي */}
         <div className={`relative z-10 w-full max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px] font-semibold ${isDark ? 'border-slate-800/60 text-slate-500' : 'border-slate-300 text-slate-500'}`}>
           <div className="flex items-center gap-4 mb-3 sm:mb-0">
             <button onClick={() => setShowPrivacyModal(true)} className={`transition-colors cursor-pointer ${isDark ? 'hover:text-indigo-400' : 'hover:text-indigo-600'}`}>{lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</button>
@@ -2673,7 +3009,6 @@ export default function App() {
           <span className="font-mono tracking-tight">© 2026 Pass-Guard. {lang === 'ar' ? 'جميع الحقوق محفوظة.' : 'All Rights Reserved.'}</span>
         </div>
       </footer>
-      {/* نهاية التذييل الاحترافي الجديد (Modern Footer) */}
     </div>
   );
 }

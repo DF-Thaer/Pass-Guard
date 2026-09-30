@@ -12,6 +12,8 @@ A local, client-side encrypted password manager built with **React**, **Vite**, 
 - **Interactive Security Auditor**: Real-time evaluation of password entropy, strength scores, and reused credential detection.
 - **Categorization & Management**: Custom group tagging, multi-account actions (bulk copy, cut, paste), and search indexing.
 - **Telemetry & Session Auditing**: Tracks authorized login environments, network telemetry, and detected devices.
+- **Revocable Cloud Sessions**: Revoke active vault sessions remotely; revoked sessions stop cloud writes.
+- **Passkeys**: Optional WebAuthn second factor using device biometrics, PIN, or a security key.
 - **Encrypted Backup & Restore**: Full JSON import/export encrypted against your unique derived master key.
 - **Automated CI/CD**: Seamless GitHub Pages builds powered by GitHub Actions.
 
@@ -43,3 +45,21 @@ npm install --legacy-peer-deps
 
 # Start dev server
 npm run dev
+```
+
+## Secure Sessions And Passkeys
+
+Cloud sessions and Passkeys require the Supabase setup below. Local-only vaults continue to work without these services, but cannot be revoked remotely.
+
+1. Run `supabase/SECURE_SESSIONS_AND_PASSKEYS.sql` in the Supabase SQL editor after `SECURE_RECOVERY_MIGRATION.sql`.
+2. Deploy the Edge Function from `supabase/functions/passkeys`.
+3. Set these Edge Function secrets:
+
+```text
+PASSKEY_RP_ID=df-thaer.github.io
+PASSKEY_ORIGINS=https://df-thaer.github.io,https://your-custom-domain.example
+```
+
+For local development use `PASSKEY_RP_ID=localhost` and include the exact local origin, such as `http://localhost:5173`, in `PASSKEY_ORIGINS`. The RP ID is the domain only, without `https://` or a path.
+
+The Edge Function uses `@simplewebauthn/server` through Deno's npm compatibility. Keep `SUPABASE_SERVICE_ROLE_KEY` available only as an Edge Function secret; never place it in Vite environment variables.
