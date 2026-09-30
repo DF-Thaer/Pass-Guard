@@ -238,8 +238,41 @@ const POPULAR_SITES = [
   { name: "Reddit", url: "https://reddit.com" }, { name: "YouTube", url: "https://youtube.com" },
   { name: "WhatsApp", url: "https://web.whatsapp.com" }, { name: "Telegram", url: "https://web.telegram.org" },
   { name: "Discord", url: "https://discord.com" }, { name: "Spotify", url: "https://spotify.com" },
-  { name: "Zoom", url: "https://zoom.us" }, { name: "PayPal", url: "https://paypal.com" }
+  { name: "Zoom", url: "https://zoom.us" }, { name: "PayPal", url: "https://paypal.com" },
+  { name: "Microsoft", url: "https://microsoft.com" }, { name: "Outlook", url: "https://outlook.live.com" },
+  { name: "OneDrive", url: "https://onedrive.live.com" }, { name: "Dropbox", url: "https://dropbox.com" },
+  { name: "Notion", url: "https://notion.so" }, { name: "Canva", url: "https://canva.com" },
+  { name: "Figma", url: "https://figma.com" }, { name: "Slack", url: "https://slack.com" },
+  { name: "Trello", url: "https://trello.com" }, { name: "Atlassian", url: "https://atlassian.com" },
+  { name: "AWS", url: "https://aws.amazon.com" }, { name: "Google Cloud", url: "https://cloud.google.com" },
+  { name: "Cloudflare", url: "https://cloudflare.com" }, { name: "Heroku", url: "https://heroku.com" },
+  { name: "Stack Overflow", url: "https://stackoverflow.com" }, { name: "npm", url: "https://npmjs.com" },
+  { name: "GitLab", url: "https://gitlab.com" }, { name: "Bitbucket", url: "https://bitbucket.org" },
+  { name: "Twitch", url: "https://twitch.tv" }, { name: "Steam", url: "https://store.steampowered.com" },
+  { name: "Epic Games", url: "https://epicgames.com" }, { name: "PlayStation", url: "https://playstation.com" },
+  { name: "Xbox", url: "https://xbox.com" }, { name: "EA", url: "https://ea.com" },
+  { name: "Booking.com", url: "https://booking.com" }, { name: "Airbnb", url: "https://airbnb.com" },
+  { name: "Uber", url: "https://uber.com" }, { name: "Careem", url: "https://careem.com" },
+  { name: "eBay", url: "https://ebay.com" }, { name: "AliExpress", url: "https://aliexpress.com" },
+  { name: "Temu", url: "https://temu.com" }, { name: "Shein", url: "https://shein.com" },
+  { name: "OpenAI", url: "https://openai.com" }, { name: "ChatGPT", url: "https://chatgpt.com" },
+  { name: "Jordan Ahli Bank", url: "https://ahli.com" }, { name: "Arab Bank", url: "https://arabbank.com" },
+  { name: "Bank al Etihad", url: "https://bankaletihad.com" }, { name: "Zain Jordan", url: "https://jo.zain.com" },
+  { name: "Orange Jordan", url: "https://orange.jo" }, { name: "Umniah", url: "https://umniah.com" },
+  { name: "Jordan Post", url: "https://jordanpost.com.jo" }, { name: "eFAWATEERcom", url: "https://efawateercom.jo" },
+  { name: "Mojib", url: "https://mojib.jo" }, { name: "Saudi National Bank", url: "https://www.alahli.com" },
+  { name: "STC", url: "https://stc.com.sa" }, { name: "Mobily", url: "https://mobily.com.sa" },
+  { name: "Qatar Airways", url: "https://qatarairways.com" }, { name: "Emirates", url: "https://emirates.com" },
+  { name: "Noon", url: "https://noon.com" }, { name: "HungerStation", url: "https://hungerstation.com" },
+  { name: "Talabat", url: "https://talabat.com" }, { name: "Careem Pay", url: "https://careem.com" }
 ];
+
+const getSiteIconUrl = (url) => {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
+  } catch (e) { return ''; }
+};
 
 const translations = {
   en: {
@@ -275,6 +308,7 @@ const translations = {
     noPasskeys: "No passkeys registered.", passkeyAddedNotice: "Passkey added.", passkeyRemovedNotice: "Passkey removed.",
     sessionRevokedNotice: "Session revoked.", passkeyUnavailable: "Passkeys are unavailable in this browser or origin.",
     passkeyRequiredError: "Use a registered passkey to continue.", passkeyError: "Passkey verification failed. Try again.",
+    passkeyLoginBtn: "Sign in with Passkey (optional)", passkeyVerifiedNotice: "Passkey verified. Enter your master password and sign in.",
     aboutModalTitle: "About Pass-Guard: Simple Secure Vault",
     toolsModalTitle: "Password Strength Auditor", toolsPlaceholder: "Type any password to evaluate its resistance...",
     checkPwnedBtn: "Check for known breaches", checkingPwned: "Checking breach database...",
@@ -346,6 +380,7 @@ const translations = {
     noPasskeys: "لا توجد مفاتيح مرور مسجلة.", passkeyAddedNotice: "تمت إضافة مفتاح المرور بنجاح.", passkeyRemovedNotice: "تمت إزالة مفتاح المرور.",
     sessionRevokedNotice: "تم إلغاء الجلسة بنجاح.", passkeyUnavailable: "مفاتيح المرور غير مدعومة في هذا المتصفح أو على هذا النطاق.",
     passkeyRequiredError: "يلزم استخدام مفتاح المرور المسجل لإتمام الدخول.", passkeyError: "فشل التحقق بمفتاح المرور. يرجى المحاولة مجدداً.",
+    passkeyLoginBtn: "الدخول بمفتاح المرور (اختياري)", passkeyVerifiedNotice: "تم التحقق بمفتاح المرور. أدخل كلمة المرور الرئيسية واضغط دخول.",
     aboutModalTitle: "عن Pass-Guard: خزنتك الآمنة بلا تعقيد",
     toolsModalTitle: "فاحص متانة كلمات المرور", toolsPlaceholder: "اكتب أي كلمة مرور لفحص مدى صمودها...",
     checkPwnedBtn: "افحص التسريبات المعروفة", checkingPwned: "جارٍ فحص قاعدة بيانات التسريبات...",
@@ -413,6 +448,7 @@ export default function App() {
   const [currentVaultId, setCurrentVaultId] = useState(null);
   const [sessionToken, setSessionToken] = useState(null);
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [passkeyToken, setPasskeyToken] = useState(null);
   const [currentEncryptedVault, setCurrentEncryptedVault] = useState(null);
   const [adminSearchTerm, setAdminSearchTerm] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
@@ -600,6 +636,25 @@ export default function App() {
     });
     if (verifyError || !verified?.token) throw verifyError || new Error('verification failed');
     return verified.token;
+  };
+
+  const handleOptionalPasskeyLogin = async () => {
+    if (!identifier.trim()) {
+      setError(t.missingFieldsAlert);
+      return;
+    }
+    try {
+      const token = await authenticatePasskey(normalizeIdentifier(identifier));
+      if (!token) {
+        setError(t.passkeyUnavailable);
+        return;
+      }
+      setPasskeyToken(token);
+      setError('');
+      triggerNotice(t.passkeyVerifiedNotice);
+    } catch (passkeyError) {
+      setError(passkeyError.message === 'unsupported' ? t.passkeyUnavailable : t.passkeyError);
+    }
   };
 
   const openCloudVaultSession = async (cleanId, loginPassword, passkeyToken = null) => {
@@ -844,7 +899,7 @@ export default function App() {
 
   useEffect(() => { if (showGenOptions) triggerLiveGeneration(genLength, useSymbols, useNumbers); }, [genLength, useSymbols, useNumbers, showGenOptions]);
 
-  // Cyber-Network Canvas Effect
+  // Interactive starfield and flowing signal background
   const canvasRef = useRef(null);
   const themeRef = useRef(theme);
   useEffect(() => { themeRef.current = theme; }, [theme]);
@@ -853,14 +908,23 @@ export default function App() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let animationFrameId;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
 
     const handleResize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      width = window.innerWidth;
+      height = window.innerHeight;
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * pixelRatio);
+      canvas.height = Math.floor(height * pixelRatio);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     };
+    handleResize();
     window.addEventListener('resize', handleResize);
 
     let mouse = { x: -1000, y: -1000, targetX: -1000, targetY: -1000 };
@@ -871,63 +935,69 @@ export default function App() {
     window.addEventListener('mouseleave', handleMouseLeave);
 
     const particles = [];
-    const particleCount = Math.min(Math.floor((width * height) / 10000), 120);
+    const particleCount = Math.min(Math.floor((width * height) / 9000), 150);
     for (let i = 0; i < particleCount; i++) {
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 1.2,
-        vy: (Math.random() - 0.5) * 1.2,
-        baseRadius: Math.random() * 1.5 + 1,
+        vx: (Math.random() - 0.5) * 0.65,
+        vy: (Math.random() - 0.5) * 0.45,
+        baseRadius: Math.random() * 1.35 + 0.75,
+        phase: Math.random() * Math.PI * 2,
       });
     }
 
-    const render = () => {
+    const render = (time = 0) => {
       const isDarkTheme = themeRef.current === 'dark';
-      mouse.x += (mouse.targetX - mouse.x) * 0.12;
-      mouse.y += (mouse.targetY - mouse.y) * 0.12;
+      const motionTime = time;
+      const motionScale = reduceMotion ? 0.4 : 1;
+      mouse.x += (mouse.targetX - mouse.x) * 0.08;
+      mouse.y += (mouse.targetY - mouse.y) * 0.08;
       ctx.clearRect(0, 0, width, height);
 
+      const horizon = ctx.createLinearGradient(0, height * 0.2, width, height);
+      horizon.addColorStop(0, isDarkTheme ? 'rgba(15, 23, 42, 0.05)' : 'rgba(224, 242, 254, 0.18)');
+      horizon.addColorStop(1, isDarkTheme ? 'rgba(30, 41, 59, 0.3)' : 'rgba(219, 234, 254, 0.28)');
+      ctx.fillStyle = horizon;
+      ctx.fillRect(0, 0, width, height);
+
       if (mouse.x > -500) {
-        const grad = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 250);
+        const grad = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 190);
         if (isDarkTheme) {
-          grad.addColorStop(0, 'rgba(99, 102, 241, 0.15)');
+          grad.addColorStop(0, 'rgba(56, 189, 248, 0.15)');
+          grad.addColorStop(0.45, 'rgba(99, 102, 241, 0.06)');
           grad.addColorStop(1, 'rgba(3, 7, 18, 0)');
         } else {
-          grad.addColorStop(0, 'rgba(99, 102, 241, 0.08)');
+          grad.addColorStop(0, 'rgba(14, 165, 233, 0.12)');
+          grad.addColorStop(0.45, 'rgba(79, 70, 229, 0.04)');
           grad.addColorStop(1, 'rgba(248, 250, 252, 0)');
         }
         ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(mouse.x, mouse.y, 250, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect(0, 0, width, height);
       }
 
       for (let i = 0; i < particles.length; i++) {
-        let p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
+        const p = particles[i];
+        p.x += p.vx * motionScale;
+        p.y += p.vy * motionScale;
 
-        if (p.x < 0 || p.x > width) p.vx *= -1;
-        if (p.y < 0 || p.y > height) p.vy *= -1;
+        if (p.x < -10 || p.x > width + 10) p.vx *= -1;
+        if (p.y < -10 || p.y > height + 10) p.vy *= -1;
 
         const dx = mouse.x - p.x;
         const dy = mouse.y - p.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
+        const pulse = 0.55 + Math.sin(motionTime * 0.0015 + p.phase) * 0.2;
 
         if (dist < 180) {
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(mouse.x, mouse.y);
           ctx.strokeStyle = isDarkTheme
-            ? `rgba(99, 102, 241, ${(1 - dist / 180) * 0.7})`
-            : `rgba(79, 70, 229, ${(1 - dist / 180) * 0.5})`;
+            ? `rgba(56, 189, 248, ${(1 - dist / 180) * 0.45})`
+            : `rgba(37, 99, 235, ${(1 - dist / 180) * 0.3})`;
           ctx.lineWidth = 1;
           ctx.stroke();
-
-          const force = (180 - dist) / 180;
-          p.x -= (dx / dist) * force * 1.5;
-          p.y -= (dy / dist) * force * 1.5;
         }
 
         for (let j = i + 1; j < particles.length; j++) {
@@ -936,13 +1006,13 @@ export default function App() {
           const dy2 = p.y - p2.y;
           const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
 
-          if (dist2 < 120) {
+          if (dist2 < 105) {
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.strokeStyle = isDarkTheme
-              ? `rgba(148, 163, 184, ${(1 - dist2 / 120) * 0.25})`
-              : `rgba(148, 163, 184, ${(1 - dist2 / 120) * 0.4})`;
+              ? `rgba(99, 102, 241, ${(1 - dist2 / 105) * 0.22})`
+              : `rgba(59, 130, 246, ${(1 - dist2 / 105) * 0.2})`;
             ctx.lineWidth = 0.6;
             ctx.stroke();
           }
@@ -950,14 +1020,25 @@ export default function App() {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.baseRadius, 0, Math.PI * 2);
-        ctx.fillStyle = isDarkTheme ? 'rgba(99, 102, 241, 0.9)' : 'rgba(79, 70, 229, 0.7)';
+        ctx.fillStyle = isDarkTheme ? `rgba(125, 211, 252, ${pulse})` : `rgba(37, 99, 235, ${pulse * 0.65})`;
         ctx.fill();
+      }
+
+      for (let layer = 0; layer < 3; layer += 1) {
+        ctx.beginPath();
+        for (let x = -20; x <= width + 20; x += 20) {
+          const y = height * (0.28 + layer * 0.18) + Math.sin(x * 0.004 + motionTime * 0.00035 + layer) * (16 + layer * 8);
+          if (x === -20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = isDarkTheme ? `rgba(56, 189, 248, ${0.06 - layer * 0.012})` : `rgba(37, 99, 235, ${0.05 - layer * 0.01})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
 
       animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    render(0);
 
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -1042,32 +1123,17 @@ export default function App() {
     };
 
     if (supabaseConfigured) {
-      let passkeyToken = null;
-      try {
-        passkeyToken = await authenticatePasskey(cleanId);
-      } catch (passkeyError) {
-        if (passkeyError.message === 'cancelled') {
-        } else if (passkeyError.message === 'unsupported') {
-          setError(t.passkeyUnavailable);
-          return;
-        } else {
-          setError(t.passkeyError);
-          return;
-        }
-      }
-
       const { data, error: rpcError } = await openCloudVaultSession(cleanId, masterPassword, passkeyToken);
       if (rpcError) {
         setError(rpcError.message);
         return;
       }
       if (data?.error === 'locked') { setError(t.lockedAccountAlert); return; }
-      if (data?.error === 'passkey_required' || data?.error === 'passkey_invalid') {
-        setError(t.passkeyRequiredError);
-        return;
-      }
       if (data?.vault?.encrypted_data) {
-        if (await finishCloudVaultLogin(data, cleanId, masterPassword)) return;
+        if (await finishCloudVaultLogin(data, cleanId, masterPassword)) {
+          setPasskeyToken(null);
+          return;
+        }
         await triggerFailedAttempt();
         return;
       }
@@ -1206,7 +1272,7 @@ export default function App() {
   const openDirectAction = (mode) => {
     setAuthMode(mode);
     setIdentifier(mode === 'admin' ? 'admin' : '');
-    setMasterPassword(''); setConfirmMasterPassword(''); setError('');
+    setMasterPassword(''); setConfirmMasterPassword(''); setPasskeyToken(null); setError('');
     setCurrentView('auth');
   };
 
@@ -1705,6 +1771,9 @@ export default function App() {
         .neon-logo-light { animation: neonPulseLight 2s ease-in-out infinite; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        .landing-main { min-height: calc(100vh - 6.5rem); }
+        .landing-welcome { width: 100%; min-height: clamp(34rem, calc(100vh - 11rem), 52rem); justify-content: center; }
+        @media (max-width: 767px) { .landing-main { min-height: calc(100vh - 5rem); } .landing-welcome { min-height: 38rem; } }
         .backup-sections { margin-top: 22vh !important; }
         @media (max-width: 767px) { .backup-sections { margin-top: 2rem !important; } }
         @media (min-width: 768px) { .backup-sections { margin-top: 18vh !important; } }
@@ -2100,14 +2169,14 @@ export default function App() {
           </button>
         </div>
       </header>
-      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-5 lg:p-6 w-full max-w-[1600px] mx-auto z-20 transition-all duration-500 ease-in-out my-auto">
+      <main className="landing-main flex-1 flex flex-col items-center justify-center p-4 sm:p-5 lg:p-6 w-full max-w-[1600px] mx-auto z-20 transition-all duration-500 ease-in-out my-auto">
         {inAppNotice && (
           <div className="mb-4 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold shadow-2xl backdrop-blur-xl border border-indigo-400/30 animate-pulse shrink-0">{inAppNotice}</div>
         )}
 
         {/* شاشة الترحيب الرئيسية */}
         {!isUnlocked && currentView === 'welcome' && (
-          <div className="flex flex-col items-center justify-center px-4 max-w-4xl mx-auto text-center my-auto space-y-12 py-8">
+          <div className="landing-welcome flex flex-col items-center justify-center px-4 max-w-4xl mx-auto text-center my-auto space-y-12 py-8">
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold mb-2 shadow-inner animate-pulse">
                 <Shield className="w-3.5 h-3.5 text-indigo-400" />
@@ -2232,6 +2301,11 @@ export default function App() {
                 {authMode === 'register' && <><Plus className="w-4 h-4" /> {t.submitRegister}</>}
                 {authMode === 'admin' && <><ShieldAlert className="w-4 h-4" /> {t.submitAdmin}</>}
               </button>
+              {authMode === 'login' && supabaseConfigured && (
+                <button type="button" onClick={handleOptionalPasskeyLogin} className={`w-full py-2.5 border font-bold rounded-xl text-xs cursor-pointer flex items-center justify-center gap-2 transition-colors ${isDark ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20' : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
+                  <Fingerprint className="w-4 h-4" />{passkeyToken ? t.passkeyVerifiedNotice : t.passkeyLoginBtn}
+                </button>
+              )}
               <div className="pt-2 border-t border-slate-800/80">
                 <button type="button" onClick={() => setCurrentView('welcome')} className={`w-full py-2 px-4 rounded-xl border text-xs font-semibold cursor-pointer flex items-center justify-center gap-2 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>
                   <ArrowRight className="w-3.5 h-3.5" /><span>{t.backToHome}</span>
@@ -2604,6 +2678,7 @@ export default function App() {
                               </button>
                               <div className="overflow-hidden">
                                 <h3 className={`text-xs font-bold flex flex-wrap items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                  {item.url && getSiteIconUrl(item.url) && <img src={getSiteIconUrl(item.url)} alt="" aria-hidden="true" className={`w-4 h-4 rounded object-contain shrink-0 ${isDark ? 'brightness-125' : ''}`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
                                   <span className="truncate">{item.title}</span>
                                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">{item.group || t.allGroups}</span>
                                   {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300"><ExternalLink className="w-3 h-3" /></a>}
@@ -2661,7 +2736,7 @@ export default function App() {
                         <div className={`mt-1 border rounded-xl shadow-xl z-30 overflow-hidden transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-300'}`}>
                           {siteSuggestions.map((s, idx) => (
                             <div key={idx} onClick={() => selectSuggestion(s)} className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
-                              ✨ {s.name} <span className="text-[10px] text-slate-500">({s.url})</span>
+                              <span className="inline-flex items-center gap-2"><img src={getSiteIconUrl(s.url)} alt="" aria-hidden="true" className={`w-4 h-4 rounded object-contain ${isDark ? 'brightness-125' : ''}`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />{s.name}</span> <span className="text-[10px] text-slate-500">({s.url})</span>
                             </div>
                           ))}
                         </div>

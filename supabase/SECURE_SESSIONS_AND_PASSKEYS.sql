@@ -159,7 +159,6 @@ declare
   v_vault public.vaults%rowtype;
   v_session_token text;
   v_session_id uuid;
-  v_passkey_token_hash text;
 begin
   select * into v_vault
   from public.vaults v
@@ -173,22 +172,6 @@ begin
 
   if v_vault.is_locked then
     return jsonb_build_object('error', 'locked');
-  end if;
-
-  if exists (select 1 from public.passguard_passkeys k where k.vault_id = v_vault.id) then
-    if coalesce(p_passkey_token, '') = '' then
-      return jsonb_build_object('error', 'passkey_required');
-    end if;
-
-    v_passkey_token_hash := public.passguard_hash_token(p_passkey_token);
-    delete from public.passguard_passkey_tokens t
-    where t.token_hash = v_passkey_token_hash
-      and t.vault_id = v_vault.id
-      and t.expires_at > now();
-
-    if not found then
-      return jsonb_build_object('error', 'passkey_invalid');
-    end if;
   end if;
 
   v_session_token := encode(gen_random_bytes(32), 'hex');
