@@ -6,7 +6,7 @@ import {
   Info, Shield, Zap, Download, Upload, Sliders, Eye, EyeOff, ExternalLink, 
   BarChart3, Activity, ArrowRight, RotateCcw, Laptop, Smartphone, Wifi, 
   Clock, Server, ArrowLeft, Save, CheckSquare, Square, Scissors, Clipboard, 
-  FolderPlus, Folder, Edit3, Settings, MessageSquare, Send, Phone, Mail, Fingerprint 
+  FolderPlus, Folder, Edit3, Settings, MessageSquare, Send, Phone, Mail
 } from 'lucide-react';
 
 // ==================== التشفير وفك التشفير (Client-Side AES-GCM 256-bit) ====================
@@ -82,34 +82,6 @@ const checkPwnedPassword = async (password) => {
   const suffix = hash.slice(5);
   const match = (await response.text()).split(/\r?\n/).find(line => line.slice(0, 35).toUpperCase() === suffix);
   return match ? Number(match.slice(36)) || 0 : 0;
-};
-
-// ==================== دوال WebAuthn ومفاتيح المرور (Passkeys) ====================
-const decodeBase64Url = (value) => {
-  if (!value) return new Uint8Array(0);
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const binary = atob(normalized + '='.repeat((4 - (normalized.length % 4)) % 4));
-  return Uint8Array.from(binary, character => character.charCodeAt(0));
-};
-
-const encodeBase64Url = (buffer) => {
-  let binary = '';
-  new Uint8Array(buffer).forEach(byte => { binary += String.fromCharCode(byte); });
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-};
-
-const serializePasskeyCredential = (credential, isRegistration) => {
-  const response = credential.response;
-  const serializedResponse = { clientDataJSON: encodeBase64Url(response.clientDataJSON) };
-  if (isRegistration) {
-    serializedResponse.attestationObject = encodeBase64Url(response.attestationObject);
-    serializedResponse.transports = response.getTransports?.() || [];
-  } else {
-    serializedResponse.authenticatorData = encodeBase64Url(response.authenticatorData);
-    serializedResponse.signature = encodeBase64Url(response.signature);
-    serializedResponse.userHandle = response.userHandle ? encodeBase64Url(response.userHandle) : null;
-  }
-  return { id: credential.id, rawId: encodeBase64Url(credential.rawId), type: credential.type, response: serializedResponse };
 };
 
 const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -302,13 +274,8 @@ const translations = {
     rec2: "• Ensure passwords are at least 16 characters in length, incorporating symbols, numerals, and mixed-case letters.",
     rec3: "• Vault records are encrypted in the browser before being stored. Remote support access is enabled by the trusted administrator model.",
     noDeviceLogs: "No device login records captured yet.", currentSessionBadge: "Active Session",
-    revokedSessionBadge: "Revoked", revokeSessionBtn: "Revoke session", passkeysTitle: "Passkeys",
-    passkeysDescription: "Add a passkey as a second sign-in factor. Your master password is still needed to decrypt the vault.",
-    passkeyNamePlaceholder: "Passkey name", addPasskeyBtn: "Add passkey", removePasskeyBtn: "Remove",
-    noPasskeys: "No passkeys registered.", passkeyAddedNotice: "Passkey added.", passkeyRemovedNotice: "Passkey removed.",
-    sessionRevokedNotice: "Session revoked.", passkeyUnavailable: "Passkeys are unavailable in this browser or origin.",
-    passkeyRequiredError: "Use a registered passkey to continue.", passkeyError: "Passkey verification failed. Try again.",
-    passkeyLoginBtn: "Sign in with Passkey (optional)", passkeyVerifiedNotice: "Passkey verified. Enter your master password and sign in.",
+    revokedSessionBadge: "Revoked", revokeSessionBtn: "Revoke session",
+    sessionRevokedNotice: "Session revoked.",
     aboutModalTitle: "About Pass-Guard: Simple Secure Vault",
     toolsModalTitle: "Password Strength Auditor", toolsPlaceholder: "Type any password to evaluate its resistance...",
     checkPwnedBtn: "Check for known breaches", checkingPwned: "Checking breach database...",
@@ -374,13 +341,8 @@ const translations = {
     rec2: "• احرص ألا يقل طول كلمة المرور عن 16 خانة، مع احتوائها على رموز خاصة، وأرقام، وأحرف كبيرة وصغيرة.",
     rec3: "• يتم تشفير سجلات الخزنة داخل المتصفح قبل تخزينها. تم تفعيل دعم المشرف عن بُعد وفق نموذج الثقة الإداري للمشروع.",
     noDeviceLogs: "لا يوجد سجل أجهزة ملتقط حتى الآن.", currentSessionBadge: "الجلسة الحالية",
-    revokedSessionBadge: "ملغاة", revokeSessionBtn: "إلغاء الجلسة", passkeysTitle: "مفاتيح المرور (Passkeys)",
-    passkeysDescription: "أضف مفتاح مرور كعامل ثانٍ للدخول لحماية مضاعفة. تبقى كلمة المرور الرئيسية مطلوبة لفك تشفير الخزنة محلياً.",
-    passkeyNamePlaceholder: "اسم مفتاح المرور (مثال: FaceID أو مفتاح الأمان)", addPasskeyBtn: "إضافة مفتاح مرور", removePasskeyBtn: "إزالة",
-    noPasskeys: "لا توجد مفاتيح مرور مسجلة.", passkeyAddedNotice: "تمت إضافة مفتاح المرور بنجاح.", passkeyRemovedNotice: "تمت إزالة مفتاح المرور.",
-    sessionRevokedNotice: "تم إلغاء الجلسة بنجاح.", passkeyUnavailable: "مفاتيح المرور غير مدعومة في هذا المتصفح أو على هذا النطاق.",
-    passkeyRequiredError: "يلزم استخدام مفتاح المرور المسجل لإتمام الدخول.", passkeyError: "فشل التحقق بمفتاح المرور. يرجى المحاولة مجدداً.",
-    passkeyLoginBtn: "الدخول بمفتاح المرور (اختياري)", passkeyVerifiedNotice: "تم التحقق بمفتاح المرور. أدخل كلمة المرور الرئيسية واضغط دخول.",
+    revokedSessionBadge: "ملغاة", revokeSessionBtn: "إلغاء الجلسة",
+    sessionRevokedNotice: "تم إلغاء الجلسة بنجاح.",
     aboutModalTitle: "عن Pass-Guard: خزنتك الآمنة بلا تعقيد",
     toolsModalTitle: "فاحص متانة كلمات المرور", toolsPlaceholder: "اكتب أي كلمة مرور لفحص مدى صمودها...",
     checkPwnedBtn: "افحص التسريبات المعروفة", checkingPwned: "جارٍ فحص قاعدة بيانات التسريبات...",
@@ -448,7 +410,6 @@ export default function App() {
   const [currentVaultId, setCurrentVaultId] = useState(null);
   const [sessionToken, setSessionToken] = useState(null);
   const [currentSessionId, setCurrentSessionId] = useState(null);
-  const [passkeyToken, setPasskeyToken] = useState(null);
   const [currentEncryptedVault, setCurrentEncryptedVault] = useState(null);
   const [adminSearchTerm, setAdminSearchTerm] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
@@ -456,9 +417,6 @@ export default function App() {
   const [adminSubView, setAdminSubView] = useState('dashboard');
   const [auditTab, setAuditTab] = useState('metrics');
   const [vaultDeviceLogs, setVaultDeviceLogs] = useState([]);
-  const [vaultPasskeys, setVaultPasskeys] = useState([]);
-  const [passkeyLabel, setPasskeyLabel] = useState('');
-  const [securityBusy, setSecurityBusy] = useState(false);
   const [editableRecord, setEditableRecord] = useState(null);
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [groups, setGroups] = useState(['شخصي', 'عمل']);
@@ -611,59 +569,13 @@ export default function App() {
     return netInfo;
   };
 
-  const authenticatePasskey = async (cleanId) => {
-    const { data: optionsData, error: optionsError } = await supabase.functions.invoke('passkeys', {
-      body: { action: 'authentication-options', identifier: cleanId },
-    });
-    if (optionsError) throw optionsError;
-    if (!optionsData?.enabled) return null;
-    if (!navigator.credentials || !window.PublicKeyCredential) throw new Error('unsupported');
-
-    const publicKey = {
-      ...optionsData.options,
-      challenge: decodeBase64Url(optionsData.options.challenge),
-      allowCredentials: optionsData.options.allowCredentials?.map(item => ({ ...item, id: decodeBase64Url(item.id) })),
-    };
-    const credential = await navigator.credentials.get({ publicKey });
-    if (!credential) throw new Error('cancelled');
-
-    const { data: verified, error: verifyError } = await supabase.functions.invoke('passkeys', {
-      body: {
-        action: 'authentication-verify',
-        challengeId: optionsData.challengeId,
-        credential: serializePasskeyCredential(credential, false),
-      },
-    });
-    if (verifyError || !verified?.token) throw verifyError || new Error('verification failed');
-    return verified.token;
-  };
-
-  const handleOptionalPasskeyLogin = async () => {
-    if (!identifier.trim()) {
-      setError(t.missingFieldsAlert);
-      return;
-    }
-    try {
-      const token = await authenticatePasskey(normalizeIdentifier(identifier));
-      if (!token) {
-        setError(t.passkeyUnavailable);
-        return;
-      }
-      setPasskeyToken(token);
-      setError('');
-      triggerNotice(t.passkeyVerifiedNotice);
-    } catch (passkeyError) {
-      setError(passkeyError.message === 'unsupported' ? t.passkeyUnavailable : t.passkeyError);
-    }
-  };
-
-  const openCloudVaultSession = async (cleanId, loginPassword, passkeyToken = null) => {
+  const openCloudVaultSession = async (cleanId, loginPassword) => {
     const device = parseDeviceInfo();
     const netInfo = await getNetworkInfo();
     return await supabase.rpc('open_vault_session_secure', {
       p_identifier: cleanId,
       p_master_password: loginPassword,
-      p_passkey_token: passkeyToken,
+      p_passkey_token: null,
       p_device_id: device.deviceId,
       p_os: device.os,
       p_browser: device.browser,
@@ -1123,7 +1035,7 @@ export default function App() {
     };
 
     if (supabaseConfigured) {
-      const { data, error: rpcError } = await openCloudVaultSession(cleanId, masterPassword, passkeyToken);
+      const { data, error: rpcError } = await openCloudVaultSession(cleanId, masterPassword);
       if (rpcError) {
         setError(rpcError.message);
         return;
@@ -1131,7 +1043,6 @@ export default function App() {
       if (data?.error === 'locked') { setError(t.lockedAccountAlert); return; }
       if (data?.vault?.encrypted_data) {
         if (await finishCloudVaultLogin(data, cleanId, masterPassword)) {
-          setPasskeyToken(null);
           return;
         }
         await triggerFailedAttempt();
@@ -1219,7 +1130,7 @@ export default function App() {
       setConfirmMasterPassword('');
       const { data: openedSession, error: sessionError } = await openCloudVaultSession(cleanId, masterPassword);
       if (sessionError || !await finishCloudVaultLogin(openedSession, cleanId, masterPassword)) {
-        setError(sessionError?.message || t.passkeyError);
+        setError(sessionError?.message || (lang === 'ar' ? 'تعذر فتح جلسة الخزنة.' : 'Unable to open the vault session.'));
         return;
       }
       return;
@@ -1272,16 +1183,31 @@ export default function App() {
   const openDirectAction = (mode) => {
     setAuthMode(mode);
     setIdentifier(mode === 'admin' ? 'admin' : '');
-    setMasterPassword(''); setConfirmMasterPassword(''); setPasskeyToken(null); setError('');
+    setMasterPassword(''); setConfirmMasterPassword(''); setError('');
     setCurrentView('auth');
   };
 
   const copyToClipboard = async (text, id) => {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const helper = document.createElement('textarea');
+        helper.value = text;
+        helper.setAttribute('readonly', '');
+        helper.style.position = 'fixed';
+        helper.style.opacity = '0';
+        document.body.appendChild(helper);
+        helper.select();
+        const copied = document.execCommand('copy');
+        document.body.removeChild(helper);
+        if (!copied) throw new Error('Copy command was rejected.');
+      }
       setCopiedId(id); setCopyStatusMsg(t.copiedFeedback);
       setTimeout(() => { setCopiedId(null); setCopyStatusMsg(''); }, 3000);
-    } catch (err) { }
+    } catch (err) {
+      triggerNotice(lang === 'ar' ? 'تعذر نسخ كلمة المرور. اسمح للموقع بالوصول إلى الحافظة ثم حاول مجدداً.' : 'Unable to copy. Allow clipboard access and try again.');
+    }
   };
 
   const togglePasswordVisibility = (id) => setVisiblePasswords(prev => ({ ...prev, [id]: !prev[id] }));
@@ -1506,74 +1432,10 @@ export default function App() {
     setMasterPassword('');
     setIdentifier('');
     setVaultDeviceLogs([]);
-    setVaultPasskeys([]);
     setIsUnlocked(false);
     setIsAdmin(false);
     setCurrentView('welcome');
     setInAppNotice(t.sessionRevokedNotice);
-  };
-
-  const loadVaultPasskeys = async () => {
-    if (!sessionToken) return;
-    const { data, error: passkeyError } = await supabase.rpc('get_vault_passkeys_secure', { p_session_token: sessionToken });
-    if (passkeyError) {
-      triggerNotice(passkeyError.message);
-      return;
-    }
-    setVaultPasskeys(data || []);
-  };
-
-  const addVaultPasskey = async () => {
-    if (!sessionToken || !currentVaultId || !window.PublicKeyCredential || !navigator.credentials) {
-      triggerNotice(t.passkeyUnavailable);
-      return;
-    }
-    setSecurityBusy(true);
-    try {
-      const { data: optionsData, error: optionsError } = await supabase.functions.invoke('passkeys', {
-        body: { action: 'registration-options', vaultId: currentVaultId, sessionToken },
-      });
-      if (optionsError) throw optionsError;
-      const options = optionsData.options;
-      const publicKey = {
-        ...options,
-        challenge: decodeBase64Url(options.challenge),
-        user: { ...options.user, id: decodeBase64Url(options.user.id) },
-        excludeCredentials: options.excludeCredentials?.map(item => ({ ...item, id: decodeBase64Url(item.id) })),
-      };
-      const credential = await navigator.credentials.create({ publicKey });
-      if (!credential) throw new Error('Passkey registration cancelled.');
-      const { error: verifyError } = await supabase.functions.invoke('passkeys', {
-        body: {
-          action: 'registration-verify',
-          challengeId: optionsData.challengeId,
-          sessionToken,
-          credential: serializePasskeyCredential(credential, true),
-          label: passkeyLabel.trim() || (lang === 'ar' ? 'مفتاح مرور' : 'Passkey'),
-        },
-      });
-      if (verifyError) throw verifyError;
-      setPasskeyLabel('');
-      await loadVaultPasskeys();
-      triggerNotice(t.passkeyAddedNotice);
-    } catch (passkeyError) {
-      triggerNotice(passkeyError.name === 'NotAllowedError' ? t.passkeyError : (passkeyError.message || t.passkeyError));
-    } finally {
-      setSecurityBusy(false);
-    }
-  };
-
-  const removeVaultPasskey = async (credentialId) => {
-    const { data, error: removeError } = await supabase.rpc('remove_vault_passkey_secure', {
-      p_session_token: sessionToken,
-      p_credential_id: credentialId,
-    });
-    if (removeError || !data) {
-      triggerNotice(removeError?.message || t.passkeyError);
-      return;
-    }
-    setVaultPasskeys(current => current.filter(passkey => passkey.credential_id !== credentialId));
-    triggerNotice(t.passkeyRemovedNotice);
   };
 
   const revokeVaultSession = async (sessionId, isCurrentSession = false) => {
@@ -1656,7 +1518,6 @@ export default function App() {
     let meta = {};
     try { meta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}'); } catch (e) { }
     setManageData({ oldId: cleanId, identifier: meta.identifier || cleanId, masterPassword, oldPass: masterPassword, email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || new Date().toISOString(), vaultId: currentVaultId });
-    if (supabaseConfigured && sessionToken) loadVaultPasskeys();
     setVaultSubView('settings');
   };
 
@@ -2301,11 +2162,6 @@ export default function App() {
                 {authMode === 'register' && <><Plus className="w-4 h-4" /> {t.submitRegister}</>}
                 {authMode === 'admin' && <><ShieldAlert className="w-4 h-4" /> {t.submitAdmin}</>}
               </button>
-              {authMode === 'login' && supabaseConfigured && (
-                <button type="button" onClick={handleOptionalPasskeyLogin} className={`w-full py-2.5 border font-bold rounded-xl text-xs cursor-pointer flex items-center justify-center gap-2 transition-colors ${isDark ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20' : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
-                  <Fingerprint className="w-4 h-4" />{passkeyToken ? t.passkeyVerifiedNotice : t.passkeyLoginBtn}
-                </button>
-              )}
               <div className="pt-2 border-t border-slate-800/80">
                 <button type="button" onClick={() => setCurrentView('welcome')} className={`w-full py-2 px-4 rounded-xl border text-xs font-semibold cursor-pointer flex items-center justify-center gap-2 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}>
                   <ArrowRight className="w-3.5 h-3.5" /><span>{t.backToHome}</span>
@@ -2678,7 +2534,7 @@ export default function App() {
                               </button>
                               <div className="overflow-hidden">
                                 <h3 className={`text-xs font-bold flex flex-wrap items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                  {item.url && getSiteIconUrl(item.url) && <img src={getSiteIconUrl(item.url)} alt="" aria-hidden="true" className={`w-4 h-4 rounded object-contain shrink-0 ${isDark ? 'brightness-125' : ''}`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
+                                  {item.url && getSiteIconUrl(item.url) && <img src={getSiteIconUrl(item.url)} alt="" aria-hidden="true" className={`w-8 h-8 rounded-lg object-contain shrink-0 p-0.5 border ${isDark ? 'brightness-125 bg-slate-900 border-slate-700' : 'bg-white border-slate-300'}`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
                                   <span className="truncate">{item.title}</span>
                                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">{item.group || t.allGroups}</span>
                                   {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300"><ExternalLink className="w-3 h-3" /></a>}
@@ -2984,36 +2840,6 @@ export default function App() {
                       <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.saveSettingsBtn}</button>
                     </div>
                   </form>
-                  <div className={`mt-5 p-4 border rounded-xl space-y-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
-                    <div className="flex items-center gap-2">
-                      <Fingerprint className="w-4 h-4 text-emerald-400" />
-                      <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.passkeysTitle}</h4>
-                    </div>
-                    <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.passkeysDescription}</p>
-                    {supabaseConfigured ? (
-                      <>
-                        <div className="flex gap-2">
-                          <input type="text" value={passkeyLabel} onChange={(event) => setPasskeyLabel(event.target.value)} placeholder={t.passkeyNamePlaceholder} maxLength={80} className={`min-w-0 flex-1 px-3 py-2 border rounded-lg text-xs focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
-                          <button type="button" onClick={addVaultPasskey} disabled={securityBusy} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold cursor-pointer disabled:cursor-wait">
-                            {securityBusy ? '...' : t.addPasskeyBtn}
-                          </button>
-                        </div>
-                        {vaultPasskeys.length === 0 ? (
-                          <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>{t.noPasskeys}</p>
-                        ) : vaultPasskeys.map(passkey => (
-                          <div key={passkey.credential_id} className="flex items-center justify-between gap-3 border-t border-slate-700/50 pt-2">
-                            <div className="min-w-0">
-                              <p className={`truncate text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{passkey.label || t.passkeysTitle}</p>
-                              <p className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>{formatDate(passkey.created_at)}</p>
-                            </div>
-                            <button type="button" onClick={() => askConfirm(lang === 'ar' ? 'هل تريد إزالة مفتاح المرور؟' : 'Remove this passkey?', () => removeVaultPasskey(passkey.credential_id))} className="px-2 py-1 text-rose-400 hover:bg-rose-500/10 rounded-md text-[10px] font-bold cursor-pointer">{t.removePasskeyBtn}</button>
-                          </div>
-                        ))}
-                      </>
-                    ) : (
-                      <p className={`text-[11px] ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>{lang === 'ar' ? 'مفاتيح المرور تتطلب مزامنة سحابية.' : 'Passkeys require cloud sync.'}</p>
-                    )}
-                  </div>
                 </div>
               )}
             </section>
