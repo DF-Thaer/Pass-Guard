@@ -1203,7 +1203,7 @@ export default function App() {
         document.body.removeChild(helper);
         if (!copied) throw new Error('Copy command was rejected.');
       }
-      setCopiedId(id); setCopyStatusMsg(t.copiedFeedback);
+      setCopiedId(id); setCopyStatusMsg(t.copiedFeedback); triggerNotice(t.copiedFeedback);
       setTimeout(() => { setCopiedId(null); setCopyStatusMsg(''); }, 3000);
     } catch (err) {
       triggerNotice(lang === 'ar' ? 'تعذر نسخ كلمة المرور. اسمح للموقع بالوصول إلى الحافظة ثم حاول مجدداً.' : 'Unable to copy. Allow clipboard access and try again.');
@@ -2550,7 +2550,7 @@ export default function App() {
                                 <button onClick={() => togglePasswordVisibility(item.id)} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-300 text-slate-600 hover:text-slate-900'}`}>
                                   {visiblePasswords[item.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                 </button>
-                                <button onClick={() => copyToClipboard(item.password, item.id)} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-slate-700 hover:bg-indigo-50'}`}><Copy className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => copyToClipboard(item.password, item.id)} aria-label={t.copyBtn} title={t.copyBtn} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-slate-700 hover:bg-indigo-50'}`}>{copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}</button>
                                 <button onClick={() => { setEditableRecord({ ...item }); setVaultSubView('details'); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-indigo-600 hover:bg-indigo-50'}`}><Info className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => { askConfirm(t.deleteRecordBtn + (lang === 'ar' ? '؟' : '?'), () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { const enc = await encryptData(updated, masterPassword); if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc, sessionToken }); if (saveError) { triggerNotice(saveError.message); return; } } else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc)); setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc); }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50'}`}><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
@@ -2705,7 +2705,7 @@ export default function App() {
                         <button type="button" onClick={() => togglePasswordVisibility(editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-600'}`}>
                           {visiblePasswords[editableRecord.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
-                        <button type="button" onClick={() => copyToClipboard(editableRecord.password, editableRecord.id)} className={`p-2.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-600'}`}><Copy className="w-4 h-4 text-emerald-400" /></button>
+                        <button type="button" onClick={() => copyToClipboard(editableRecord.password, editableRecord.id)} aria-label={t.copyBtn} title={t.copyBtn} className={`p-2.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-600'}`}>{copiedId === editableRecord.id ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-emerald-400" />}</button>
                       </div>
                     </div>
                     <div>
