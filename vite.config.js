@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      devOptions: { enabled: true },
       includeAssets: ['logo.png'],
       manifest: {
         name: 'Pass-Guard Secure Vault',

@@ -248,7 +248,7 @@ const getSiteIconUrl = (url) => {
 
 const translations = {
   en: {
-    appName: "Pass-Guard", toolsBtn: "Password Auditor", contactBtn: "Contact Admin", aboutBtn: "About Website", toggleTheme: "Toggle Appearance",
+    appName: "Pass-Guard", toolsBtn: "Password Auditor", contactBtn: "Contact Admin", aboutBtn: "About Website", installApp: "Install App", installUnavailable: "Use your browser menu to install the app.", toggleTheme: "Toggle Appearance",
     welcomeTitle: "Welcome to", welcomeDesc: "An AES-GCM 256-bit encrypted password vault with secure cloud sync and remote administrative support.",
     openVaultBtn: "Open Vault (Sign In)", createVaultBtn: "Create New Vault", adminPortalBtn: "Administration Portal",
     statVisits: "Total Visits", statLocal: "Encrypted Vault", statEncryption: "AES-GCM Encryption", statProtection: "Active Protection",
@@ -315,7 +315,7 @@ const translations = {
     adminMessagesBtn: "Incoming Messages", noContactMessages: "No incoming messages found."
   },
   ar: {
-    appName: "Pass-Guard", toolsBtn: "فاحص كلمة السر", contactBtn: "تواصل مع المشرف", aboutBtn: "عن الموقع", toggleTheme: "تبديل المظهر",
+    appName: "Pass-Guard", toolsBtn: "فاحص كلمة السر", contactBtn: "تواصل مع المشرف", aboutBtn: "عن الموقع", installApp: "تثبيت التطبيق", installUnavailable: "استخدم قائمة المتصفح لتثبيت التطبيق.", toggleTheme: "تبديل المظهر",
     welcomeTitle: "مرحباً بك في", welcomeDesc: "خزنة كلمات مرور مشفرة بتقنية AES-GCM 256-bit مع مزامنة سحابية ودعم إداري عن بُعد للخزنات.",
     openVaultBtn: "فتح الخزنة (تسجيل الدخول)", createVaultBtn: "إنشاء خزنة جديدة", adminPortalBtn: "بوابة المشرف العام",
     statVisits: "إجمالي الزيارات", statLocal: "خزنة مشفرة", statEncryption: "AES-GCM تشفير", statProtection: "حماية مستمرة",
@@ -461,9 +461,34 @@ export default function App() {
   const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
   const [manageData, setManageData] = useState({ oldId: '', identifier: '', masterPassword: '', oldPass: '', email: '', phone: '', createdAt: '' });
   const [inAppNotice, setInAppNotice] = useState('');
+  const [installPrompt, setInstallPrompt] = useState(null);
 
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
+
+  useEffect(() => {
+    const handleInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+    const clearInstallPrompt = () => setInstallPrompt(null);
+    window.addEventListener('beforeinstallprompt', handleInstallPrompt);
+    window.addEventListener('appinstalled', clearInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
+      window.removeEventListener('appinstalled', clearInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!installPrompt) {
+      triggerNotice(t.installUnavailable);
+      return;
+    }
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
 
   const handlePwnedCheck = async () => {
     if (!testPassword || pwnedResult?.status === 'checking') return;
@@ -2021,6 +2046,9 @@ export default function App() {
           </button>
           <button onClick={() => setShowAboutModal(true)} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-indigo-700 hover:bg-slate-50'}`} title={t.aboutBtn}>
             <Info className="w-3.5 h-3.5 text-indigo-400" /><span className="hidden sm:inline">{t.aboutBtn}</span>
+          </button>
+          <button onClick={handleInstallApp} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-105 ${isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20' : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'}`} title={t.installApp}>
+            <Download className="w-3.5 h-3.5 text-emerald-400" /><span className="hidden sm:inline">{t.installApp}</span>
           </button>
           <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className={`p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm hover:scale-105 ${isDark ? 'bg-slate-900/90 border-slate-700/80 text-slate-200 hover:bg-slate-800' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`} title={lang === 'en' ? 'العربية' : 'English'}>
             <Globe className="w-3.5 h-3.5 text-sky-400" /><span className="text-[11px] sm:text-xs">{lang === 'en' ? 'عربي' : 'EN'}</span>
