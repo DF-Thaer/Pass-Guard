@@ -472,6 +472,7 @@ export default function App() {
   const [mfaEnrollment, setMfaEnrollment] = useState(null);
   const [mfaEnrollmentCode, setMfaEnrollmentCode] = useState('');
   const [mfaEnrollmentBusy, setMfaEnrollmentBusy] = useState(false);
+  const [mfaFactorStatus, setMfaFactorStatus] = useState('unknown');
 
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
@@ -534,6 +535,27 @@ export default function App() {
 
   const startMfaEnrollment = async () => {
     setMfaEnrollmentBusy(true);
+    const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+    if (factorsError) {
+      setMfaEnrollmentBusy(false);
+      triggerNotice(factorsError.message || t.mfaSetupError);
+      return;
+    }
+    const existingFactor = factorsData?.totp?.find(factor => factor.friendly_name === 'Pass-Guard Admin');
+    if (existingFactor?.status === 'verified') {
+      setMfaFactorStatus('verified');
+      setMfaEnrollmentBusy(false);
+      triggerNotice(t.mfaEnabled);
+      return;
+    }
+    if (existingFactor) {
+      const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId: existingFactor.id });
+      if (unenrollError) {
+        setMfaEnrollmentBusy(false);
+        triggerNotice(unenrollError.message || t.mfaSetupError);
+        return;
+      }
+    }
     const { data, error: enrollmentError } = await supabase.auth.mfa.enroll({
       factorType: 'totp',
       friendlyName: 'Pass-Guard Admin',
@@ -569,7 +591,18 @@ export default function App() {
     }
     setMfaEnrollment(null);
     setMfaEnrollmentCode('');
+    setMfaFactorStatus('verified');
     triggerNotice(t.mfaEnabled);
+  };
+
+  const loadMfaStatus = async () => {
+    const { data, error } = await supabase.auth.mfa.listFactors();
+    if (error) {
+      setMfaFactorStatus('unknown');
+      return;
+    }
+    const hasVerifiedFactor = data?.totp?.some(factor => factor.status === 'verified');
+    setMfaFactorStatus(hasVerifiedFactor ? 'verified' : 'none');
   };
 
   const handlePwnedCheck = async () => {
@@ -2333,7 +2366,7 @@ export default function App() {
                 <button onClick={() => setAdminSubView('messages')} className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-bold flex items-center gap-1.5 transition-colors ${adminSubView === 'messages' ? 'bg-indigo-600 text-white border-indigo-500' : isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}>
                   <MessageSquare className="w-3.5 h-3.5" /><span>{t.adminMessagesBtn} ({contactMessagesList.length})</span>
                 </button>
-                <button onClick={() => setAdminSubView('adminSettings')} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'}`}>
+                <button onClick={() => { setAdminSubView('adminSettings'); loadMfaStatus(); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'}`}>
                   <Settings className="w-4 h-4 inline me-1" /><span>{lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
                 </button>
                 <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setSessionToken(null); setCurrentSessionId(null); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'}`}>
@@ -2535,7 +2568,9 @@ export default function App() {
                     </div>
                     <div className={`p-4 rounded-xl border space-y-3 ${isDark ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50 border-emerald-200'}`}>
                       <h4 className={`text-sm font-bold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>{t.mfaSetupTitle}</h4>
-                      {!mfaEnrollment ? (
+                      {mfaFactorStatus === 'verified' ? (
+                        <p className={`text-[11px] font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>{t.mfaEnabled}</p>
+                      ) : !mfaEnrollment ? (
                         <>
                           <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.mfaSetupDescription}</p>
                           <button type="button" onClick={startMfaEnrollment} disabled={mfaEnrollmentBusy} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold cursor-pointer disabled:cursor-wait">
