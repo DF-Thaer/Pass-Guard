@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'script',
       devOptions: { enabled: true },
       includeAssets: ['logo.png'],
       manifest: {
