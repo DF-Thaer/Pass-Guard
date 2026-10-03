@@ -256,6 +256,7 @@ const translations = {
     loginSub: "Enter credentials to decrypt your vault and access saved records", registerSub: "Create a secure encrypted vault secured by a master password", adminSub: "Exclusive global administrative access for system auditing, support, and security alerts",
     identifierLabel: "Username, Email, or Phone", adminIdentifierLabel: "Administrator Identifier", passwordLabel: "Master Password", confirmPasswordLabel: "Confirm Master Password", adminPasswordLabel: "Administrator Secret Key",
     submitLogin: "Decrypt Vault", submitRegister: "Create & Initialize Vault", submitAdmin: "Access Admin Dashboard",
+    mfaTitle: "Two-Factor Verification", mfaDescription: "Enter the 6-digit code from your authenticator app.", mfaCodePlaceholder: "6-digit code", mfaVerifyBtn: "Verify Code", mfaSetupTitle: "Secure Admin Account", mfaSetupDescription: "Add an authenticator app to protect administrator sign-in.", mfaSetupBtn: "Set Up Authenticator", mfaScanDescription: "Scan this QR code with your authenticator app, then enter the generated code.", mfaSetupVerifyBtn: "Confirm Authenticator", mfaEnabled: "Authenticator protection is enabled.", mfaInvalidError: "Invalid or expired verification code.", mfaSetupError: "Unable to set up authenticator protection.",
     backToHome: "Return to Home & Choose Another Action", adminPanelTitle: "Advanced Administrative Control Panel", adminBadge: "Root Admin",
     adminPanelSub: "Global encrypted system auditing metrics and cloud sync monitoring", registeredUsersCount: "Total Registered Users",
     visitsCounter: "Visits Counter", resetVisitsConfirm: "Are you sure you want to reset the visits counter to 0?",
@@ -323,6 +324,7 @@ const translations = {
     loginSub: "أدخل بياناتك لفك تشفير الخزنة والوصول إلى حساباتك المحفوظة", registerSub: "أنشئ خزنتك المشفرة والمحمية بكلمة مرورك الرئيسية", adminSub: "وصول إداري عالمي حصري لتدقيق الخزنات والدعم الفني ومتابعة الإنذارات الأمنية",
     identifierLabel: "اسم المستخدم، البريد، أو رقم الهاتف", adminIdentifierLabel: "معرّف المشرف", passwordLabel: "كلمة المرور الرئيسية", confirmPasswordLabel: "تأكيد كلمة المرور الرئيسية", adminPasswordLabel: "المفتاح السري للمشرف",
     submitLogin: "فك تشفير الخزنة", submitRegister: "إنشاء الخزنة وبدء الاستخدام", submitAdmin: "دخول لوحة التحكم",
+    mfaTitle: "التحقق بخطوتين", mfaDescription: "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة.", mfaCodePlaceholder: "رمز من 6 أرقام", mfaVerifyBtn: "تحقق من الرمز", mfaSetupTitle: "حماية حساب المشرف", mfaSetupDescription: "أضف تطبيق مصادقة لحماية دخول المشرف.", mfaSetupBtn: "إعداد تطبيق المصادقة", mfaScanDescription: "امسح رمز QR من تطبيق المصادقة ثم أدخل الرمز الظاهر.", mfaSetupVerifyBtn: "تأكيد تطبيق المصادقة", mfaEnabled: "حماية تطبيق المصادقة مفعّلة.", mfaInvalidError: "رمز التحقق غير صحيح أو منتهي الصلاحية.", mfaSetupError: "تعذر إعداد حماية تطبيق المصادقة.",
     backToHome: "العودة للرئيسية واختيار مسار آخر", adminPanelTitle: "لوحة القيادة والتحكم الإداري المتقدم", adminBadge: "مشرف النظام",
     adminPanelSub: "نظام تدقيق العمليات الأمنية ومراقبة سلامة المزامنة السحابية العالمية", registeredUsersCount: "إجمالي المستخدمين المسجلين",
     visitsCounter: "عداد الزيارات", resetVisitsConfirm: "هل أنت متأكد من تصفير عداد الزيارات بالكامل إلى 0؟",
@@ -462,6 +464,14 @@ export default function App() {
   const [manageData, setManageData] = useState({ oldId: '', identifier: '', masterPassword: '', oldPass: '', email: '', phone: '', createdAt: '' });
   const [inAppNotice, setInAppNotice] = useState('');
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [mfaChallengeId, setMfaChallengeId] = useState(null);
+  const [mfaFactorId, setMfaFactorId] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [showMfaModal, setShowMfaModal] = useState(false);
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [mfaEnrollment, setMfaEnrollment] = useState(null);
+  const [mfaEnrollmentCode, setMfaEnrollmentCode] = useState('');
+  const [mfaEnrollmentBusy, setMfaEnrollmentBusy] = useState(false);
 
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
@@ -488,6 +498,78 @@ export default function App() {
     installPrompt.prompt();
     await installPrompt.userChoice;
     setInstallPrompt(null);
+  };
+
+  const finishAdminLogin = async (password) => {
+    setAdminPassword(password);
+    setIsAdmin(true);
+    setIsUnlocked(true);
+    setMasterPassword('');
+    setAdminSubView('dashboard');
+    setError('');
+    await loadAdminUsersData();
+  };
+
+  const handleMfaVerify = async (event) => {
+    event.preventDefault();
+    if (!mfaCode || !mfaFactorId || !mfaChallengeId) return;
+    setMfaBusy(true);
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId: mfaFactorId,
+      challengeId: mfaChallengeId,
+      code: mfaCode.trim(),
+    });
+    setMfaBusy(false);
+    if (verifyError) {
+      setError(t.mfaInvalidError);
+      return;
+    }
+    const password = masterPassword;
+    setShowMfaModal(false);
+    setMfaChallengeId(null);
+    setMfaFactorId(null);
+    setMfaCode('');
+    await finishAdminLogin(password);
+  };
+
+  const startMfaEnrollment = async () => {
+    setMfaEnrollmentBusy(true);
+    const { data, error: enrollmentError } = await supabase.auth.mfa.enroll({
+      factorType: 'totp',
+      friendlyName: 'Pass-Guard Admin',
+    });
+    setMfaEnrollmentBusy(false);
+    if (enrollmentError) {
+      triggerNotice(enrollmentError.message || t.mfaSetupError);
+      return;
+    }
+    setMfaEnrollment(data);
+    setMfaEnrollmentCode('');
+  };
+
+  const verifyMfaEnrollment = async (event) => {
+    event.preventDefault();
+    if (!mfaEnrollment?.id || !mfaEnrollmentCode.trim()) return;
+    setMfaEnrollmentBusy(true);
+    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaEnrollment.id });
+    if (challengeError) {
+      setMfaEnrollmentBusy(false);
+      triggerNotice(challengeError.message || t.mfaSetupError);
+      return;
+    }
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId: mfaEnrollment.id,
+      challengeId: challenge.id,
+      code: mfaEnrollmentCode.trim(),
+    });
+    setMfaEnrollmentBusy(false);
+    if (verifyError) {
+      triggerNotice(t.mfaInvalidError);
+      return;
+    }
+    setMfaEnrollment(null);
+    setMfaEnrollmentCode('');
+    triggerNotice(t.mfaEnabled);
   };
 
   const handlePwnedCheck = async () => {
@@ -1011,13 +1093,27 @@ export default function App() {
         return;
       }
 
-      setAdminPassword(masterPassword);
-      setIsAdmin(true);
-      setIsUnlocked(true);
-      setMasterPassword('');
-      setAdminSubView('dashboard');
-      setError('');
-      await loadAdminUsersData();
+      const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) {
+        await supabase.auth.signOut();
+        setError(factorsError.message);
+        return;
+      }
+      const verifiedFactor = factorsData?.totp?.find(factor => factor.status === 'verified');
+      if (verifiedFactor) {
+        const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: verifiedFactor.id });
+        if (challengeError) {
+          await supabase.auth.signOut();
+          setError(challengeError.message || t.mfaInvalidError);
+          return;
+        }
+        setMfaFactorId(verifiedFactor.id);
+        setMfaChallengeId(challenge.id);
+        setMfaCode('');
+        setShowMfaModal(true);
+        return;
+      }
+      await finishAdminLogin(masterPassword);
       return;
     }
     if (!identifier.trim() || !masterPassword.trim()) { setError(t.missingFieldsAlert); return; }
@@ -1774,6 +1870,26 @@ export default function App() {
         </div>
       )}
 
+      {showMfaModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
+          <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              <h3 className="text-base font-bold">{t.mfaTitle}</h3>
+            </div>
+            <p className={`text-xs mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.mfaDescription}</p>
+            <form onSubmit={handleMfaVerify} className="space-y-3">
+              <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, ''))} placeholder={t.mfaCodePlaceholder} className={`w-full px-4 py-3 border rounded-xl text-center text-lg tracking-[0.35em] font-mono focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
+              {error && <p className="text-rose-500 text-xs font-semibold">{error}</p>}
+              <div className="flex gap-2">
+                <button type="button" onClick={async () => { await supabase.auth.signOut(); setShowMfaModal(false); setMfaCode(''); setMfaFactorId(null); setMfaChallengeId(null); setMasterPassword(''); }} className={`flex-1 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>{t.cancelBtn}</button>
+                <button type="submit" disabled={mfaBusy || mfaCode.length !== 6} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer disabled:cursor-wait">{mfaBusy ? '...' : t.mfaVerifyBtn}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showCaptchaModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
           <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
@@ -2416,6 +2532,24 @@ export default function App() {
                     </div>
                     <div className={`p-3 rounded-xl border text-[11px] transition-colors ${isDark ? 'bg-amber-500/5 border-amber-500/20 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
                       {lang === 'ar' ? '⚠️ كلمة مرور المشرف تُدار عبر Supabase Auth، ولا تُحفظ في localStorage.' : '⚠️ Administrator authentication is managed by Supabase Auth and is not stored in localStorage.'}
+                    </div>
+                    <div className={`p-4 rounded-xl border space-y-3 ${isDark ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50 border-emerald-200'}`}>
+                      <h4 className={`text-sm font-bold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>{t.mfaSetupTitle}</h4>
+                      {!mfaEnrollment ? (
+                        <>
+                          <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.mfaSetupDescription}</p>
+                          <button type="button" onClick={startMfaEnrollment} disabled={mfaEnrollmentBusy} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold cursor-pointer disabled:cursor-wait">
+                            {mfaEnrollmentBusy ? '...' : t.mfaSetupBtn}
+                          </button>
+                        </>
+                      ) : (
+                        <form onSubmit={verifyMfaEnrollment} className="space-y-3">
+                          {mfaEnrollment.totp?.qr_code && <img src={mfaEnrollment.totp.qr_code} alt="Authenticator QR code" className="w-44 h-44 mx-auto rounded-xl bg-white p-2" />}
+                          <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.mfaScanDescription}</p>
+                          <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={mfaEnrollmentCode} onChange={(event) => setMfaEnrollmentCode(event.target.value.replace(/\D/g, ''))} placeholder={t.mfaCodePlaceholder} className={`w-full px-3 py-2.5 border rounded-lg text-center font-mono tracking-[0.3em] focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
+                          <button type="submit" disabled={mfaEnrollmentBusy || mfaEnrollmentCode.length !== 6} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold cursor-pointer disabled:cursor-wait">{mfaEnrollmentBusy ? '...' : t.mfaSetupVerifyBtn}</button>
+                        </form>
+                      )}
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
                       <button type="button" onClick={() => setAdminSubView('dashboard')} className={`px-4 py-2.5 border text-xs font-semibold rounded-xl cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-200 border-slate-300 text-slate-800 hover:bg-slate-300'}`}>{t.cancelBtn}</button>
