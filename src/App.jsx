@@ -1678,7 +1678,22 @@ export default function App() {
         margin: [10, 10, 12, 10],
         filename: `passguard-security-report-${normalizeIdentifier(identifier) || 'vault'}-${reportDate}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          onclone: (clonedDocument) => {
+            const clonedReport = clonedDocument.querySelector('[data-security-report]');
+            if (clonedReport) {
+              clonedReport.style.visibility = 'visible';
+              clonedReport.style.opacity = '1';
+              clonedReport.style.position = 'static';
+              clonedReport.style.left = 'auto';
+              clonedReport.style.zIndex = 'auto';
+            }
+          },
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'] },
       }).from(securityReportRef.current).save();
@@ -2235,7 +2250,7 @@ export default function App() {
           <div className="mb-4 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold shadow-2xl backdrop-blur-xl border border-indigo-400/30 animate-pulse shrink-0">{inAppNotice}</div>
         )}
 
-        <div ref={securityReportRef} dir={lang === 'ar' ? 'rtl' : 'ltr'} style={{ position: 'fixed', left: '-10000px', top: '0', width: '794px', background: '#ffffff', color: '#172033', padding: '42px', fontFamily: 'Arial, sans-serif', lineHeight: 1.6 }}>
+        <div ref={securityReportRef} data-security-report="true" dir={lang === 'ar' ? 'rtl' : 'ltr'} style={{ position: 'fixed', left: '0', top: '0', zIndex: -1, visibility: 'hidden', opacity: 0, width: '794px', background: '#ffffff', color: '#172033', padding: '42px', fontFamily: 'Arial, sans-serif', lineHeight: 1.6 }}>
           <div style={{ borderBottom: '5px solid #0f766e', paddingBottom: '22px', marginBottom: '26px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
