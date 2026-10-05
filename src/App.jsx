@@ -1673,6 +1673,11 @@ export default function App() {
     setReportGenerating(true);
     try {
       const { default: html2pdf } = await import('html2pdf.js');
+      const reportElement = securityReportRef.current;
+      reportElement.style.visibility = 'visible';
+      reportElement.style.opacity = '1';
+      reportElement.style.zIndex = '9999';
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const reportDate = new Date().toISOString().slice(0, 10);
       await html2pdf().set({
         margin: [10, 10, 12, 10],
@@ -1683,16 +1688,6 @@ export default function App() {
           useCORS: true,
           backgroundColor: '#ffffff',
           logging: false,
-          onclone: (clonedDocument) => {
-            const clonedReport = clonedDocument.querySelector('[data-security-report]');
-            if (clonedReport) {
-              clonedReport.style.visibility = 'visible';
-              clonedReport.style.opacity = '1';
-              clonedReport.style.position = 'static';
-              clonedReport.style.left = 'auto';
-              clonedReport.style.zIndex = 'auto';
-            }
-          },
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'] },
@@ -1701,6 +1696,11 @@ export default function App() {
     } catch (error) {
       triggerNotice(lang === 'ar' ? 'تعذر تصدير تقرير الأمان.' : 'Unable to export the security report.');
     } finally {
+      if (securityReportRef.current) {
+        securityReportRef.current.style.visibility = 'hidden';
+        securityReportRef.current.style.opacity = '0';
+        securityReportRef.current.style.zIndex = '-1';
+      }
       setReportGenerating(false);
     }
   };
