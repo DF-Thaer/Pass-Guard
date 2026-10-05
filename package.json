@@ -12,7 +12,6 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
     "framer-motion": "^13.2.0",
-    "html2pdf.js": "^0.14.0",
     "lucide-react": "^1.45.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

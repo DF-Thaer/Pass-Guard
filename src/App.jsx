@@ -1671,52 +1671,20 @@ export default function App() {
   const handleExportSecurityReport = async () => {
     if (!securityReportRef.current || reportGenerating) return;
     setReportGenerating(true);
-    let reportFrame = null;
     try {
-      const { default: html2pdf } = await import('html2pdf.js');
-      reportFrame = document.createElement('iframe');
-      Object.assign(reportFrame.style, {
-        position: 'fixed',
-        left: '-10000px',
-        top: '0',
-        width: '794px',
-        height: '1200px',
-        border: '0',
-        visibility: 'hidden',
-        pointerEvents: 'none',
-      });
-      reportFrame.setAttribute('aria-hidden', 'true');
-      document.body.appendChild(reportFrame);
-      const frameDocument = reportFrame.contentDocument;
-      frameDocument.open();
-      frameDocument.write('<!doctype html><html><head><meta charset="UTF-8"><style>html,body{margin:0;padding:0;background:#fff}body{width:794px}</style></head><body></body></html>');
-      frameDocument.close();
-      const reportElement = securityReportRef.current.cloneNode(true);
-      Object.assign(reportElement.style, {
-        position: 'static',
-        left: 'auto',
-        top: 'auto',
-        zIndex: 'auto',
-        visibility: 'visible',
-        opacity: '1',
-      });
-      frameDocument.body.appendChild(reportElement);
-      reportFrame.style.height = `${Math.max(frameDocument.body.scrollHeight, 1200)}px`;
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const printWindow = window.open('', '_blank', 'width=900,height=1200');
+      if (!printWindow) throw new Error('Print window was blocked.');
       const reportDate = new Date().toISOString().slice(0, 10);
-      await html2pdf().set({
-        margin: [10, 10, 12, 10],
-        filename: `passguard-security-report-${normalizeIdentifier(identifier) || 'vault'}-${reportDate}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, windowWidth: 794 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] },
-      }).from(securityReportRef.current).save();
-      triggerNotice(lang === 'ar' ? 'تم تصدير تقرير الأمان بنجاح.' : 'Security report exported successfully.');
+      const reportMarkup = securityReportRef.current.innerHTML;
+      printWindow.document.write(`<!doctype html><html lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="UTF-8"><title>Pass-Guard Security Report - ${reportDate}</title><style>@page{size:A4;margin:10mm}html,body{margin:0;padding:0;background:#fff}body{font-family:Arial,sans-serif;color:#172033}*{box-sizing:border-box}section{page-break-inside:avoid}</style></head><body>${reportMarkup}</body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.onafterprint = () => printWindow.close();
+      setTimeout(() => printWindow.print(), 300);
+      triggerNotice(lang === 'ar' ? 'تم فتح التقرير. اختر حفظ بصيغة PDF من نافذة الطباعة.' : 'The report is ready. Choose Save as PDF in the print window.');
     } catch (error) {
-      triggerNotice(lang === 'ar' ? 'تعذر تصدير تقرير الأمان.' : 'Unable to export the security report.');
+      triggerNotice(lang === 'ar' ? 'تعذر فتح نافذة تصدير التقرير. اسمح بالنوافذ المنبثقة ثم حاول مجدداً.' : 'Unable to open the report window. Allow pop-ups and try again.');
     } finally {
-      reportFrame?.remove();
       setReportGenerating(false);
     }
   };
