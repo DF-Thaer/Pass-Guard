@@ -1671,24 +1671,44 @@ export default function App() {
   const handleExportSecurityReport = async () => {
     if (!securityReportRef.current || reportGenerating) return;
     setReportGenerating(true);
+    let reportFrame = null;
     try {
       const { default: html2pdf } = await import('html2pdf.js');
-      const reportElement = securityReportRef.current;
-      reportElement.style.visibility = 'visible';
-      reportElement.style.opacity = '1';
-      reportElement.style.zIndex = '9999';
+      reportFrame = document.createElement('iframe');
+      Object.assign(reportFrame.style, {
+        position: 'fixed',
+        left: '-10000px',
+        top: '0',
+        width: '794px',
+        height: '1200px',
+        border: '0',
+        visibility: 'hidden',
+        pointerEvents: 'none',
+      });
+      reportFrame.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(reportFrame);
+      const frameDocument = reportFrame.contentDocument;
+      frameDocument.open();
+      frameDocument.write('<!doctype html><html><head><meta charset="UTF-8"><style>html,body{margin:0;padding:0;background:#fff}body{width:794px}</style></head><body></body></html>');
+      frameDocument.close();
+      const reportElement = securityReportRef.current.cloneNode(true);
+      Object.assign(reportElement.style, {
+        position: 'static',
+        left: 'auto',
+        top: 'auto',
+        zIndex: 'auto',
+        visibility: 'visible',
+        opacity: '1',
+      });
+      frameDocument.body.appendChild(reportElement);
+      reportFrame.style.height = `${Math.max(frameDocument.body.scrollHeight, 1200)}px`;
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const reportDate = new Date().toISOString().slice(0, 10);
       await html2pdf().set({
         margin: [10, 10, 12, 10],
         filename: `passguard-security-report-${normalizeIdentifier(identifier) || 'vault'}-${reportDate}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          logging: false,
-        },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, windowWidth: 794 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'] },
       }).from(securityReportRef.current).save();
@@ -1696,11 +1716,7 @@ export default function App() {
     } catch (error) {
       triggerNotice(lang === 'ar' ? 'تعذر تصدير تقرير الأمان.' : 'Unable to export the security report.');
     } finally {
-      if (securityReportRef.current) {
-        securityReportRef.current.style.visibility = 'hidden';
-        securityReportRef.current.style.opacity = '0';
-        securityReportRef.current.style.zIndex = '-1';
-      }
+      reportFrame?.remove();
       setReportGenerating(false);
     }
   };
