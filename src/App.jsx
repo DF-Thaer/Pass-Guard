@@ -265,7 +265,7 @@ const translations = {
     localCryptoNote: "Cloud-Synced Encrypted Vault", unblockBtn: "Lift Suspension", manageUserBtn: "Manage Account",
     deleteAccountBtn: "Delete Vault", confirmationTitle: "Confirm action", deleteAccountConfirm: "Are you sure you want to permanently delete this vault?",
     vaultTitlePrefix: "Encrypted Password Vault:", vaultDossierBtn: "Vault Security Audit", vaultItemsBtn: "Accounts View",
-    manageVaultBtn: "Vault Management", encryptedBackupTitle: "Pass-Guard encrypted backup", exportBtn: "Export encrypted backup", encryptedImportBtn: "Import encrypted backup", lastPassTitle: "LastPass compatibility", lastPassExportBtn: "Export to LastPass", lastPassImportBtn: "Import from LastPass", noRecordsToExportAlert: "There are no records to export.", addAccountBtn: "Add New Record",
+    manageVaultBtn: "Vault Management", encryptedBackupTitle: "Pass-Guard encrypted backup", exportBtn: "Export encrypted backup", encryptedImportBtn: "Import encrypted backup", securityReportTitle: "Security report", exportSecurityReport: "Export security report (PDF)", reportGenerating: "Preparing PDF...", lastPassTitle: "LastPass compatibility", lastPassExportBtn: "Export to LastPass", lastPassImportBtn: "Import from LastPass", noRecordsToExportAlert: "There are no records to export.", addAccountBtn: "Add New Record",
     logoutBtn: "Sign Out", searchPlaceholder: "Search saved records...", showHidePass: "Toggle Visibility", copyBtn: "Copy",
     detailsBtn: "Record Details & Edit", deleteRecordBtn: "Delete Record", auditModalTitle: "Vault Security Audit & Telemetry",
     auditModalSub: "Credential strength evaluation and connected devices ledger", auditTabMetrics: "Security Audit Metrics",
@@ -333,7 +333,7 @@ const translations = {
     localCryptoNote: "خزنة مشفرة ومتزامنة سحابياً", unblockBtn: "فك الحظر", manageUserBtn: "إدارة الخزنة",
     deleteAccountBtn: "حذف الخزنة", confirmationTitle: "تأكيد العملية", deleteAccountConfirm: "هل أنت متأكد من حذف هذه الخزنة نهائياً؟",
     vaultTitlePrefix: "خزنة كلمات المرور المشفرة:", vaultDossierBtn: "معلومات وأمان الخزنة", vaultItemsBtn: "عرض الحسابات",
-    manageVaultBtn: "إدارة الخزنة", encryptedBackupTitle: "نسخة Pass-Guard المشفرة", exportBtn: "تصدير نسخة مشفرة", encryptedImportBtn: "استيراد نسخة مشفرة", lastPassTitle: "التوافق مع LastPass", lastPassExportBtn: "تصدير إلى LastPass", lastPassImportBtn: "استيراد من LastPass", noRecordsToExportAlert: "لا توجد حسابات لتصديرها.", addAccountBtn: "إضافة حساب جديد",
+    manageVaultBtn: "إدارة الخزنة", encryptedBackupTitle: "نسخة Pass-Guard المشفرة", exportBtn: "تصدير نسخة مشفرة", encryptedImportBtn: "استيراد نسخة مشفرة", securityReportTitle: "تقرير الأمان", exportSecurityReport: "تصدير تقرير الأمان PDF", reportGenerating: "جارٍ تجهيز التقرير...", lastPassTitle: "التوافق مع LastPass", lastPassExportBtn: "تصدير إلى LastPass", lastPassImportBtn: "استيراد من LastPass", noRecordsToExportAlert: "لا توجد حسابات لتصديرها.", addAccountBtn: "إضافة حساب جديد",
     logoutBtn: "تسجيل الخروج", searchPlaceholder: "بحث في الحسابات المحفوظة...", showHidePass: "إظهار/إخفاء", copyBtn: "نسخ",
     detailsBtn: "تفاصيل وتعديل", deleteRecordBtn: "حذف", auditModalTitle: "الملف الأمني الشامل ومعلومات الخزنة",
     auditModalSub: "تدقيق متانة كلمات المرور وسجل الأجهزة المأذون لها", auditTabMetrics: "مؤشرات الأمان الفنية",
@@ -409,6 +409,7 @@ export default function App() {
   const [registeredUsers, setRegisteredUsers] = useState([]);
   const [visitCount, setVisitCount] = useState(0);
   const groupScrollRef = useRef(null);
+  const securityReportRef = useRef(null);
   const [currentVaultId, setCurrentVaultId] = useState(null);
   const [sessionToken, setSessionToken] = useState(null);
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -463,6 +464,7 @@ export default function App() {
   const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
   const [manageData, setManageData] = useState({ oldId: '', identifier: '', masterPassword: '', oldPass: '', email: '', phone: '', createdAt: '' });
   const [inAppNotice, setInAppNotice] = useState('');
+  const [reportGenerating, setReportGenerating] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [mfaChallengeId, setMfaChallengeId] = useState(null);
   const [mfaFactorId, setMfaFactorId] = useState(null);
@@ -1666,6 +1668,28 @@ export default function App() {
     return { score, weakCount, reusedCount, strongCount, total };
   };
 
+  const handleExportSecurityReport = async () => {
+    if (!securityReportRef.current || reportGenerating) return;
+    setReportGenerating(true);
+    try {
+      const { default: html2pdf } = await import('html2pdf.js');
+      const reportDate = new Date().toISOString().slice(0, 10);
+      await html2pdf().set({
+        margin: [10, 10, 12, 10],
+        filename: `passguard-security-report-${normalizeIdentifier(identifier) || 'vault'}-${reportDate}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] },
+      }).from(securityReportRef.current).save();
+      triggerNotice(lang === 'ar' ? 'تم تصدير تقرير الأمان بنجاح.' : 'Security report exported successfully.');
+    } catch (error) {
+      triggerNotice(lang === 'ar' ? 'تعذر تصدير تقرير الأمان.' : 'Unable to export the security report.');
+    } finally {
+      setReportGenerating(false);
+    }
+  };
+
   const openVaultSettings = () => {
     const cleanId = normalizeIdentifier(identifier);
     let meta = {};
@@ -2211,6 +2235,57 @@ export default function App() {
           <div className="mb-4 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold shadow-2xl backdrop-blur-xl border border-indigo-400/30 animate-pulse shrink-0">{inAppNotice}</div>
         )}
 
+        <div ref={securityReportRef} dir={lang === 'ar' ? 'rtl' : 'ltr'} style={{ position: 'fixed', left: '-10000px', top: '0', width: '794px', background: '#ffffff', color: '#172033', padding: '42px', fontFamily: 'Arial, sans-serif', lineHeight: 1.6 }}>
+          <div style={{ borderBottom: '5px solid #0f766e', paddingBottom: '22px', marginBottom: '26px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ color: '#0f766e', fontSize: '14px', fontWeight: 700, letterSpacing: '1px' }}>PASS-GUARD</div>
+                <h1 style={{ margin: '8px 0 2px', color: '#0f172a', fontSize: '29px', lineHeight: 1.2 }}>{lang === 'ar' ? 'تقرير أمان الخزنة' : 'Vault Security Report'}</h1>
+                <p style={{ margin: 0, color: '#64748b', fontSize: '12px' }}>{lang === 'ar' ? 'تقرير تحليلي محلي لا يتضمن كلمات المرور أو محتوى الملاحظات.' : 'A local security analysis that excludes passwords and note contents.'}</p>
+              </div>
+              <div style={{ width: '76px', height: '76px', borderRadius: '18px', background: '#ecfdf5', border: '1px solid #99f6e4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f766e', fontSize: '30px', fontWeight: 900 }}>{metrics.score}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '22px', color: '#475569', fontSize: '12px' }}>
+              <span>{lang === 'ar' ? 'الخزنة:' : 'Vault:'} <strong>{identifier || '-'}</strong></span>
+              <span>{lang === 'ar' ? 'تاريخ الإصدار:' : 'Issued:'} <strong>{new Date().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')}</strong></span>
+            </div>
+          </div>
+
+          <section style={{ pageBreakInside: 'avoid', marginBottom: '24px' }}>
+            <h2 style={{ color: '#0f766e', fontSize: '17px', borderBottom: '1px solid #cbd5e1', paddingBottom: '7px' }}>{lang === 'ar' ? 'الملخص التنفيذي' : 'Executive Summary'}</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '9px' }}>
+              {[
+                [lang === 'ar' ? 'إجمالي السجلات' : 'Total records', metrics.total],
+                [lang === 'ar' ? 'كلمات ضعيفة' : 'Weak passwords', metrics.weakCount],
+                [lang === 'ar' ? 'كلمات مكررة' : 'Reused passwords', metrics.reusedCount],
+                [lang === 'ar' ? 'التقييم' : 'Security score', `${metrics.score}%`],
+              ].map(([label, value]) => <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}><div style={{ color: '#0f766e', fontSize: '21px', fontWeight: 800 }}>{value}</div><div style={{ color: '#64748b', fontSize: '10px' }}>{label}</div></div>)}
+            </div>
+            <p style={{ color: '#334155', fontSize: '12px', marginTop: '15px' }}>{lang === 'ar' ? `يعتمد التقييم على قوة كلمات المرور، عدم تكرارها، واكتمال السجلات. النتيجة الحالية ${metrics.score}% وتحتاج إلى مراجعة دورية للحفاظ على مستوى الحماية.` : `The score reflects password strength, reuse, and record completeness. The current result is ${metrics.score}% and should be reviewed regularly.`}</p>
+          </section>
+
+          <section style={{ pageBreakInside: 'avoid', marginBottom: '24px' }}>
+            <h2 style={{ color: '#0f766e', fontSize: '17px', borderBottom: '1px solid #cbd5e1', paddingBottom: '7px' }}>{lang === 'ar' ? 'جرد الحسابات' : 'Account Inventory'}</h2>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+              <thead><tr style={{ background: '#0f766e', color: '#ffffff' }}><th style={{ padding: '8px', textAlign: 'start' }}>#</th><th style={{ padding: '8px', textAlign: 'start' }}>{lang === 'ar' ? 'الحساب' : 'Account'}</th><th style={{ padding: '8px', textAlign: 'start' }}>{lang === 'ar' ? 'المجموعة' : 'Group'}</th><th style={{ padding: '8px', textAlign: 'start' }}>{lang === 'ar' ? 'الحالة' : 'Status'}</th></tr></thead>
+              <tbody>{vaultItems.length === 0 ? <tr><td colSpan="4" style={{ padding: '12px', textAlign: 'center', color: '#64748b' }}>{lang === 'ar' ? 'لا توجد سجلات.' : 'No records.'}</td></tr> : vaultItems.map((item, index) => { const isWeak = item.password.length < 8 || !/[0-9]/.test(item.password) || !/[@#$%&*!-_]/.test(item.password); return <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0' }}><td style={{ padding: '8px' }}>{index + 1}</td><td style={{ padding: '8px', fontWeight: 700 }}>{item.title || '-'}</td><td style={{ padding: '8px' }}>{item.group || (lang === 'ar' ? 'بدون مجموعة' : 'Uncategorized')}</td><td style={{ padding: '8px', color: isWeak ? '#b91c1c' : '#047857', fontWeight: 700 }}>{isWeak ? (lang === 'ar' ? 'تحتاج مراجعة' : 'Review needed') : (lang === 'ar' ? 'جيدة' : 'Good')}</td></tr>; })}</tbody>
+            </table>
+          </section>
+
+          <section style={{ pageBreakInside: 'avoid', marginBottom: '24px' }}>
+            <h2 style={{ color: '#0f766e', fontSize: '17px', borderBottom: '1px solid #cbd5e1', paddingBottom: '7px' }}>{lang === 'ar' ? 'قواعد الحماية الموصى بها' : 'Recommended Security Rules'}</h2>
+            <ul style={{ margin: 0, paddingInlineStart: '20px', color: '#334155', fontSize: '12px' }}>
+              {(lang === 'ar' ? ['استخدم كلمة مرور فريدة وطويلة لكل خدمة.', 'راجع السجلات الضعيفة أو المكررة وقم بتحديثها فوراً.', 'لا تشارك كلمة المرور الرئيسية أو رموز الاسترداد مع أي شخص.', 'فعّل المصادقة متعددة العوامل للحسابات المهمة.', 'احتفظ بنسخة احتياطية مشفرة في مكان آمن.'] : ['Use a unique, long password for every service.', 'Review and update weak or reused records immediately.', 'Never share the master password or recovery codes.', 'Enable multi-factor authentication for important accounts.', 'Keep an encrypted backup in a secure location.']).map(rule => <li key={rule} style={{ marginBottom: '7px' }}>{rule}</li>)}
+            </ul>
+          </section>
+
+          <section style={{ borderTop: '1px solid #cbd5e1', paddingTop: '15px', color: '#64748b', fontSize: '10px' }}>
+            <strong style={{ color: '#334155' }}>{lang === 'ar' ? 'الشروط وإخلاء المسؤولية' : 'Terms & Disclaimer'}</strong>
+            <p>{lang === 'ar' ? 'هذا التقرير أداة مساعدة للتقييم ولا يُعد تدقيقاً أمنياً مستقلاً أو ضماناً ضد الاختراق. لا تتضمنه كلمات المرور أو الملاحظات السرية. تقع مسؤولية مراجعة البيانات وحماية كلمة المرور الرئيسية على مالك الخزنة. يجب عدم مشاركة هذا التقرير إذا كان يحتوي على أسماء حسابات حساسة.' : 'This report is an assessment aid, not an independent security audit or a guarantee against compromise. It excludes passwords and private notes. The vault owner is responsible for reviewing the data and protecting the master password. Do not share this report if account names are sensitive.'}</p>
+            <p style={{ marginBottom: 0 }}>{lang === 'ar' ? 'تم إنشاء التقرير محلياً داخل المتصفح بواسطة Pass-Guard.' : 'Generated locally in the browser by Pass-Guard.'}</p>
+          </section>
+        </div>
+
         {/* شاشة الترحيب الرئيسية */}
         {!isUnlocked && currentView === 'welcome' && (
           <div className="landing-welcome flex flex-col items-center justify-center px-4 max-w-4xl mx-auto text-center my-auto space-y-12 py-8">
@@ -2646,6 +2721,9 @@ export default function App() {
                   </button>
                   <div className={`mobile-vault-backups backup-sections rounded-2xl border p-2.5 space-y-1.5 ${isDark ? 'bg-indigo-500/5 border-indigo-400/20' : 'bg-indigo-50 border-indigo-200'}`}>
                     <p className={`px-1 text-[10px] font-bold ${isDark ? 'text-indigo-300' : 'text-indigo-700'}`}>{t.encryptedBackupTitle}</p>
+                    <button onClick={handleExportSecurityReport} disabled={reportGenerating} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-wait ${isDark ? 'bg-slate-900/80 border-emerald-500/30 text-emerald-300 hover:bg-slate-800' : 'bg-white border-emerald-300 text-emerald-700 hover:bg-slate-50'}`}>
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /><span>{reportGenerating ? t.reportGenerating : t.exportSecurityReport}</span>
+                    </button>
                     <button onClick={() => { const vaultData = currentEncryptedVault ? JSON.stringify(currentEncryptedVault) : localStorage.getItem(`passguard_vault_${identifier.trim().toLowerCase()}`); if (!vaultData) return; const blob = new Blob([typeof vaultData === 'string' ? vaultData : JSON.stringify(vaultData)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `passguard_backup_${identifier.trim().toLowerCase()}.json`; a.click(); URL.revokeObjectURL(url); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-sky-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-sky-700 hover:bg-slate-50'}`}>
                       <Download className="w-3.5 h-3.5 text-sky-400" /><span>{t.exportBtn}</span>
                     </button>
