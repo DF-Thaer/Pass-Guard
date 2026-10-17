@@ -6,7 +6,8 @@ import {
   Info, Shield, Zap, Download, Upload, Sliders, Eye, EyeOff, ExternalLink, 
   BarChart3, Activity, ArrowRight, RotateCcw, Laptop, Smartphone, Wifi, 
   Clock, Server, ArrowLeft, Save, CheckSquare, Square, Scissors, Clipboard, 
-  FolderPlus, Folder, Edit3, Settings, MessageSquare, Send, Phone, Mail
+  FolderPlus, Folder, Edit3, Settings, MessageSquare, Send, Phone, Mail,
+  LayoutGrid, List, Paperclip, X, FileText, Apple, Monitor
 } from 'lucide-react';
 
 // ==================== التشفير وفك التشفير (Client-Side AES-GCM 256-bit) ====================
@@ -32,6 +33,7 @@ const importCryptoKey = async (password, salt, iterations = CURRENT_KDF_ITERATIO
 };
 
 async function encryptData(secretData, password) {
+  if (!password) throw new Error("Master password is required for encryption.");
   const salt = window.crypto.getRandomValues(new Uint8Array(16));
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
   const key = await importCryptoKey(password, salt, CURRENT_KDF_ITERATIONS);
@@ -62,6 +64,19 @@ async function decryptData(encryptedObj, password) {
     return null; 
   }
 }
+
+// دالة ذكية لاستخراج الحسابات والملاحظات
+const extractVaultData = (decryptedData) => {
+  if (Array.isArray(decryptedData)) {
+    // توافق مع البيانات القديمة (حسابات فقط)
+    return { items: decryptedData, notes: [] };
+  }
+  if (decryptedData && typeof decryptedData === 'object') {
+    // البيانات الجديدة (حسابات + ملاحظات)
+    return { items: decryptedData.items || [], notes: decryptedData.notes || [] };
+  }
+  return { items: [], notes: [] };
+};
 
 const isValidPassword = (pass) => !!(pass && pass.length >= 8 && /[A-Z]/.test(pass) && /[0-9]/.test(pass) && /[^A-Za-z0-9]/.test(pass));
 
@@ -177,15 +192,21 @@ const cacheVaultLocally = (identifier, encrypted, meta = {}) => {
 
 const cloudSaveVault = async ({ vaultId, identifier, masterPassword, encryptedData, sessionToken, email = null, phone = null }) => {
   if (!supabaseConfigured) return { error: new Error('Supabase is not configured.') };
-  return await supabase.rpc('save_vault_secure', {
-    p_vault_id: vaultId,
-    p_identifier: identifier,
-    p_master_password: masterPassword,
-    p_encrypted_data: encryptedData,
-    p_session_token: sessionToken,
-    p_email: email,
-    p_phone: phone,
-  });
+  try {
+    const { data, error } = await supabase.rpc('save_vault_secure', {
+      p_vault_id: vaultId,
+      p_identifier: identifier,
+      p_master_password: masterPassword,
+      p_encrypted_data: encryptedData,
+      p_session_token: sessionToken,
+      p_email: email,
+      p_phone: phone,
+    });
+    if (error) throw new Error(error.message);
+    return { data };
+  } catch (err) {
+    return { error: err };
+  }
 };
 
 const generateSecurePassword = (length, includeSymbols, includeNumbers) => {
@@ -264,7 +285,7 @@ const translations = {
     noUsers: "No registered vaults found.", accountSuspended: "Security Locked", securityAlertBadge: "Security Warning",
     localCryptoNote: "Cloud-Synced Encrypted Vault", unblockBtn: "Lift Suspension", manageUserBtn: "Manage Account",
     deleteAccountBtn: "Delete Vault", confirmationTitle: "Confirm action", deleteAccountConfirm: "Are you sure you want to permanently delete this vault?",
-    vaultTitlePrefix: "Encrypted Password Vault:", vaultDossierBtn: "Vault Security Audit", vaultItemsBtn: "Accounts View",
+    vaultTitlePrefix: "Encrypted Password Vault:", vaultDossierBtn: "Vault Security Audit", vaultItemsBtn: "Accounts View", notesBtn: "Notes View",
     manageVaultBtn: "Vault Management", encryptedBackupTitle: "Pass-Guard encrypted backup", exportBtn: "Export encrypted backup", encryptedImportBtn: "Import encrypted backup", securityReportTitle: "Security report", exportSecurityReport: "Export security report (PDF)", reportGenerating: "Preparing PDF...", lastPassTitle: "LastPass compatibility", lastPassExportBtn: "Export to LastPass", lastPassImportBtn: "Import from LastPass", noRecordsToExportAlert: "There are no records to export.", addAccountBtn: "Add New Record",
     logoutBtn: "Sign Out", searchPlaceholder: "Search saved records...", showHidePass: "Toggle Visibility", copyBtn: "Copy",
     detailsBtn: "Record Details & Edit", deleteRecordBtn: "Delete Record", auditModalTitle: "Vault Security Audit & Telemetry",
@@ -275,8 +296,8 @@ const translations = {
     rec2: "• Ensure passwords are at least 16 characters in length, incorporating symbols, numerals, and mixed-case letters.",
     rec3: "• Vault records are encrypted in the browser before being stored. Remote support access is enabled by the trusted administrator model.",
     noDeviceLogs: "No device login records captured yet.", currentSessionBadge: "Active Session",
-    revokedSessionBadge: "Revoked", revokeSessionBtn: "Revoke session",
-    sessionRevokedNotice: "Session revoked.",
+    revokedSessionBadge: "Revoked", revokeSessionBtn: "Revoke session", revokeAllSessionsBtn: "Revoke All Other Sessions",
+    sessionRevokedNotice: "Session revoked.", allSessionsRevokedNotice: "All other sessions revoked successfully.",
     aboutModalTitle: "About Pass-Guard: Simple Secure Vault",
     toolsModalTitle: "Password Strength Auditor", toolsPlaceholder: "Type any password to evaluate its resistance...",
     checkPwnedBtn: "Check for known breaches", checkingPwned: "Checking breach database...",
@@ -313,7 +334,12 @@ const translations = {
     contactEmailLabel: "Email Address", contactMsgLabel: "Your Message", contactPrefLabel: "Preferred Reply Channel",
     prefEmail: "Email", prefWhatsapp: "WhatsApp", prefOther: "Other Location / Method", prefOtherPlaceholder: "Specify method or location...",
     contactSubmitBtn: "Send Message to Admin", contactSuccessNotice: "Your message has been sent successfully and will be answered ASAP!",
-    adminMessagesBtn: "Incoming Messages", noContactMessages: "No incoming messages found."
+    adminMessagesBtn: "Incoming Messages", noContactMessages: "No incoming messages found.",
+    // Added Translations
+    notesTitle: "Notes", addNoteTitle: "Add New Note", noteTitleLabel: "Note Title", noteContentLabel: "Note Content",
+    attachmentsLabel: "Attachments (Images, PDFs)", deleteNoteBtn: "Delete Note", noNotes: "No notes currently.",
+    viewGrid: "Grid", viewList: "List", fileSizeError: "File size exceeds the allowed limit (5MB).", noteSaved: "Note saved successfully.", noteDeleted: "Note deleted.",
+    syncError: "Cloud sync failed. Saved locally on this device.",
   },
   ar: {
     appName: "Pass-Guard", toolsBtn: "فاحص كلمة السر", contactBtn: "تواصل مع المشرف", aboutBtn: "عن الموقع", installApp: "تثبيت التطبيق", installUnavailable: "استخدم قائمة المتصفح لتثبيت التطبيق.", toggleTheme: "تبديل المظهر",
@@ -332,7 +358,7 @@ const translations = {
     noUsers: "لا توجد أي خزنة مسجلة.", accountSuspended: "موقوف أمنياً", securityAlertBadge: "إنذار أمني",
     localCryptoNote: "خزنة مشفرة ومتزامنة سحابياً", unblockBtn: "فك الحظر", manageUserBtn: "إدارة الخزنة",
     deleteAccountBtn: "حذف الخزنة", confirmationTitle: "تأكيد العملية", deleteAccountConfirm: "هل أنت متأكد من حذف هذه الخزنة نهائياً؟",
-    vaultTitlePrefix: "خزنة كلمات المرور المشفرة:", vaultDossierBtn: "معلومات وأمان الخزنة", vaultItemsBtn: "عرض الحسابات",
+    vaultTitlePrefix: "خزنة كلمات المرور المشفرة:", vaultDossierBtn: "معلومات وأمان الخزنة", vaultItemsBtn: "عرض الحسابات", notesBtn: "عرض الملاحظات",
     manageVaultBtn: "إدارة الخزنة", encryptedBackupTitle: "نسخة Pass-Guard المشفرة", exportBtn: "تصدير نسخة مشفرة", encryptedImportBtn: "استيراد نسخة مشفرة", securityReportTitle: "تقرير الأمان", exportSecurityReport: "تصدير تقرير الأمان PDF", reportGenerating: "جارٍ تجهيز التقرير...", lastPassTitle: "التوافق مع LastPass", lastPassExportBtn: "تصدير إلى LastPass", lastPassImportBtn: "استيراد من LastPass", noRecordsToExportAlert: "لا توجد حسابات لتصديرها.", addAccountBtn: "إضافة حساب جديد",
     logoutBtn: "تسجيل الخروج", searchPlaceholder: "بحث في الحسابات المحفوظة...", showHidePass: "إظهار/إخفاء", copyBtn: "نسخ",
     detailsBtn: "تفاصيل وتعديل", deleteRecordBtn: "حذف", auditModalTitle: "الملف الأمني الشامل ومعلومات الخزنة",
@@ -343,8 +369,8 @@ const translations = {
     rec2: "• احرص ألا يقل طول كلمة المرور عن 16 خانة، مع احتوائها على رموز خاصة، وأرقام، وأحرف كبيرة وصغيرة.",
     rec3: "• يتم تشفير سجلات الخزنة داخل المتصفح قبل تخزينها. تم تفعيل دعم المشرف عن بُعد وفق نموذج الثقة الإداري للمشروع.",
     noDeviceLogs: "لا يوجد سجل أجهزة ملتقط حتى الآن.", currentSessionBadge: "الجلسة الحالية",
-    revokedSessionBadge: "ملغاة", revokeSessionBtn: "إلغاء الجلسة",
-    sessionRevokedNotice: "تم إلغاء الجلسة بنجاح.",
+    revokedSessionBadge: "ملغاة", revokeSessionBtn: "إلغاء الجلسة", revokeAllSessionsBtn: "إنهاء جميع الجلسات الأخرى",
+    sessionRevokedNotice: "تم إلغاء الجلسة بنجاح.", allSessionsRevokedNotice: "تم إلغاء جميع الجلسات الأخرى بنجاح.",
     aboutModalTitle: "عن Pass-Guard: خزنتك الآمنة بلا تعقيد",
     toolsModalTitle: "فاحص متانة كلمات المرور", toolsPlaceholder: "اكتب أي كلمة مرور لفحص مدى صمودها...",
     checkPwnedBtn: "افحص التسريبات المعروفة", checkingPwned: "جارٍ فحص قاعدة بيانات التسريبات...",
@@ -381,7 +407,12 @@ const translations = {
     contactEmailLabel: "البريد الإلكتروني", contactMsgLabel: "نص الرسالة المطلوبة", contactPrefLabel: "أفضلية وسيلة الرد",
     prefEmail: "البريد الإلكتروني", prefWhatsapp: "الواتساب", prefOther: "غير ذلك (حدد المكان)", prefOtherPlaceholder: "اكتب المكان أو الطريقة المفضلة...",
     contactSubmitBtn: "إرسال الرسالة إلى المشرف", contactSuccessNotice: "تم إرسال رسالتك إلى المشرف بنجاح وسيتم الرد عليك في أقرب وقت ممكن!",
-    adminMessagesBtn: "رسائل التواصل الواردة", noContactMessages: "لا توجد أي رسائل تواصل واردة حالياً."
+    adminMessagesBtn: "رسائل التواصل الواردة", noContactMessages: "لا توجد أي رسائل تواصل واردة حالياً.",
+    // Added Translations
+    notesTitle: "الملاحظات", addNoteTitle: "إضافة ملاحظة جديدة", noteTitleLabel: "عنوان الملاحظة", noteContentLabel: "محتوى الملاحظة",
+    attachmentsLabel: "المرفقات (صور، ملفات PDF)", deleteNoteBtn: "حذف الملاحظة", noNotes: "لا توجد ملاحظات حالياً.",
+    viewGrid: "شبكة", viewList: "قائمة", fileSizeError: "حجم الملفات يتجاوز الحد المسموح (5 ميجابايت).", noteSaved: "تم حفظ الملاحظة بنجاح.", noteDeleted: "تم حذف الملاحظة.",
+    syncError: "فشلت المزامنة السحابية. تم الحفظ محلياً على هذا الجهاز.",
   }
 };
 
@@ -475,9 +506,50 @@ export default function App() {
   const [mfaEnrollmentCode, setMfaEnrollmentCode] = useState('');
   const [mfaEnrollmentBusy, setMfaEnrollmentBusy] = useState(false);
   const [mfaFactorStatus, setMfaFactorStatus] = useState('unknown');
+  
+  // Notes states
+  const [vaultNotes, setVaultNotes] = useState([]);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState('');
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [newNoteFiles, setNewNoteFiles] = useState([]); // Array of { name, type, base64 }
+  const [isSavingNote, setIsSavingNote] = useState(false); // New state to prevent double clicks
+
+  // View Mode States
+  const [accountsViewMode, setAccountsViewMode] = useState('grid'); 
+  const [notesViewMode, setNotesViewMode] = useState('grid'); 
 
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
+
+  // Helper to save both items and notes securely (With graceful fallback)
+  const saveVaultState = async (itemsToSave, notesToSave, pwd = masterPassword) => {
+    if (!pwd) throw new Error("Master password is missing.");
+    const payload = { items: itemsToSave, notes: notesToSave };
+    const encrypted = await encryptData(payload, pwd);
+    
+    let syncFailed = false;
+    if (supabaseConfigured && currentVaultId) {
+      try {
+        const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword: pwd, encryptedData: encrypted, sessionToken });
+        if (saveError) throw new Error(saveError.message);
+      } catch (err) {
+        console.error("Cloud sync failed:", err);
+        syncFailed = true;
+        // Fallback: Save locally so no data is lost
+        localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+        cacheVaultLocally(identifier, encrypted);
+      }
+    } else {
+      localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+    }
+    
+    setCurrentEncryptedVault(encrypted);
+    if (!syncFailed) {
+      cacheVaultLocally(identifier, encrypted);
+    }
+    return syncFailed; // Return true if failed, false if success
+  };
 
   useEffect(() => {
     const handleInstallPrompt = (event) => {
@@ -654,20 +726,25 @@ export default function App() {
     const ua = navigator.userAgent;
     let os = lang === 'ar' ? "نظام غير معروف" : "Unknown OS";
     let model = "";
+    let isIOS = false;
+    let isAndroid = false;
 
     if (/android/i.test(ua)) {
-      os = "Android Mobile";
+      isAndroid = true;
+      os = "Android OS";
       const match = ua.match(/\b(SM-[A-Za-z0-9]+|X(7[Cc]|6[Cc]|8[Cc])|Honor\s[A-Za-z0-9\s]+|Pixel\s[0-9a-zA-Z\s]+|Redmi\s[A-Za-z0-9\s]+|POCO\s[A-Za-z0-9]+|V2[0-9]{3}[A-Za-z]*|CPH[0-9]{4}|M2[0-9]{3}[A-Za-z0-9]+)\b/i);
       if (match && match[0]) model = match[0].trim();
       else {
         const altMatch = ua.match(/;\s([^;)]+)\sBuild\//);
         if (altMatch && altMatch[1]) model = altMatch[1].trim();
-        else model = "Android Phone";
+        else model = "Android Device";
       }
     } else if (/iphone|ipad|ipod/i.test(ua)) {
+      isIOS = true;
       os = "Apple iOS";
       if (/iphone/i.test(ua)) model = "iPhone";
       else if (/ipad/i.test(ua)) model = "iPad";
+      else model = "Apple Device";
     } else if (/win/i.test(ua)) {
       os = "Windows PC";
       model = "Windows Desktop";
@@ -688,7 +765,7 @@ export default function App() {
     const screenRes = `${window.screen.width}x${window.screen.height}`;
     const uniqueToken = `${model}-${os}-${browser}-${screenRes}-${window.navigator.maxTouchPoints || 0}`;
     const deviceId = `DEV-${Math.abs(uniqueToken.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(16).toUpperCase()}`;
-    return { os: model ? `${model} (${os})` : os, browser, screenRes, deviceId };
+    return { os: model ? `${model} (${os})` : os, browser, screenRes, deviceId, isIOS, isAndroid };
   };
 
   const getNetworkInfo = async () => {
@@ -739,8 +816,10 @@ export default function App() {
       return false;
     }
     const device = parseDeviceInfo();
+    const { items, notes } = extractVaultData(decrypted); // Extract data safely
 
-    setVaultItems(decrypted);
+    setVaultItems(items);
+    setVaultNotes(notes); // Set notes
     setCurrentVaultId(row.id);
     setCurrentEncryptedVault(row.encrypted_data);
     setSessionToken(openedSession.session_token);
@@ -756,7 +835,7 @@ export default function App() {
       is_current: true,
     }]);
     let customGroups = ['شخصي', 'عمل'];
-    decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
+    items.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
     setGroups(customGroups);
     setIsAdmin(false);
     setIsUnlocked(true);
@@ -1239,11 +1318,14 @@ export default function App() {
     const encryptedObj = JSON.parse(savedVault);
     const decrypted = await decryptData(encryptedObj, masterPassword);
     if (decrypted) {
-      setVaultItems(decrypted); 
+      const { items, notes } = extractVaultData(decrypted); // Extract data safely
+      
+      setVaultItems(items); 
+      setVaultNotes(notes); // Set notes
       setCurrentVaultId(null); 
       setCurrentEncryptedVault(encryptedObj);
       let customGroups = ['شخصي', 'عمل'];
-      decrypted.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
+      items.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
       setGroups(customGroups); 
       setIsAdmin(false); 
       setIsUnlocked(true); 
@@ -1267,8 +1349,8 @@ export default function App() {
     if (/[^\x00-\x7F]/.test(masterPassword)) { setError(t.englishOnlyAlert); return; }
     if (!isValidPassword(masterPassword)) { setError(t.passwordComplexityAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
-    const initialItems = [];
-    const encrypted = await encryptData(initialItems, masterPassword);
+    const initialData = { items: [], notes: [] }; // New Structure
+    const encrypted = await encryptData(initialData, masterPassword);
 
     if (supabaseConfigured) {
       const { data, error: rpcError } = await supabase.rpc('register_vault_secure', {
@@ -1296,7 +1378,9 @@ export default function App() {
     localStorage.setItem(storageKey, JSON.stringify(encrypted));
     localStorage.setItem(`passguard_meta_${cleanId}`, JSON.stringify({ isLocked: false, alert: false, identifier: cleanId, email: '', phone: '', createdAt: new Date().toISOString() }));
     setCurrentVaultId(null); setCurrentEncryptedVault(encrypted);
-    setGroups(['شخصي', 'عمل']); setVaultItems(initialItems);
+    setGroups(['شخصي', 'عمل']); 
+    setVaultItems([]);
+    setVaultNotes([]); // Init notes
     setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
     setConfirmMasterPassword('');
     registerDeviceLogin(cleanId);
@@ -1333,6 +1417,137 @@ export default function App() {
     triggerNotice(t.contactSuccessNotice);
     setContactName(''); setContactPhone(''); setContactEmail(''); setContactMessage(''); setContactOtherText('');
     setShowContactModal(false);
+  };
+
+  // ==================== NOTE HANDLERS (Multiple Files) ====================
+  const handleNotePaste = (e) => {
+    const items = e.clipboardData.items;
+    let hasFiles = false;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        hasFiles = true;
+        const blob = items[i].getAsFile();
+        if (blob.size > 5 * 1024 * 1024) {
+          triggerNotice(t.fileSizeError);
+          continue;
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setNewNoteFiles(prev => [...prev, {
+            name: `pasted-image-${Date.now()}.png`,
+            type: blob.type,
+            base64: event.target.result
+          }]);
+        };
+        reader.readAsDataURL(blob);
+      }
+    }
+    if (hasFiles) e.preventDefault();
+  };
+
+  const handleNoteFilesChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    let currentTotalSize = newNoteFiles.reduce((acc, curr) => {
+      return acc + (curr.base64.length * 3) / 4;
+    }, 0);
+
+    const validFiles = [];
+
+    for (const file of files) {
+      if (currentTotalSize + file.size > 5 * 1024 * 1024) {
+        triggerNotice(t.fileSizeError);
+        break;
+      }
+      currentTotalSize += file.size;
+      validFiles.push(file);
+    }
+
+    const readPromises = validFiles.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          resolve({
+            name: file.name,
+            type: file.type,
+            base64: event.target.result
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(readPromises).then(results => {
+      setNewNoteFiles(prev => [...prev, ...results]);
+    });
+    e.target.value = '';
+  };
+
+  const removeNoteFile = (index) => {
+    setNewNoteFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddNote = async (e) => {
+    e.preventDefault();
+    if (!masterPassword) {
+        triggerNotice(lang === 'ar' ? 'الرجاء تسجيل الدخول مجدداً لحفظ البيانات.' : 'Please log in again to save data.');
+        return;
+    }
+    if (!newNoteTitle.trim() || !newNoteContent.trim() || isSavingNote) return;
+
+    // 1. Optimistic UI Update: Close modal & reset fields immediately
+    const newNote = {
+      id: crypto.randomUUID ? crypto.randomUUID() : Date.now(),
+      title: newNoteTitle,
+      content: newNoteContent,
+      attachments: newNoteFiles,
+      date: new Date().toISOString()
+    };
+    
+    const updatedNotes = [newNote, ...vaultNotes];
+    setVaultNotes(updatedNotes);
+    
+    // Save current state before clearing inputs
+    const currentItems = vaultItems; 
+    
+    setNewNoteTitle('');
+    setNewNoteContent('');
+    setNewNoteFiles([]);
+    setShowNoteModal(false);
+    setIsSavingNote(true); 
+    triggerNotice(t.noteSaved); 
+
+    // 2. Save in background
+    try {
+      const syncFailed = await saveVaultState(currentItems, updatedNotes);
+      if (syncFailed) {
+        triggerNotice(t.syncError); // Warn user if cloud sync failed but keep local copy
+      }
+    } catch (error) {
+      console.error("Failed to save note:", error);
+      triggerNotice(t.syncError);
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    askConfirm(lang === 'ar' ? 'هل أنت متأكد من حذف هذه الملاحظة؟' : 'Are you sure you want to delete this note?', async () => {
+      const updatedNotes = vaultNotes.filter(n => n.id !== noteId);
+      setVaultNotes(updatedNotes);
+      triggerNotice(t.noteDeleted);
+
+      try {
+        const syncFailed = await saveVaultState(vaultItems, updatedNotes);
+        if (syncFailed) {
+          triggerNotice(t.syncError);
+        }
+      } catch (error) {
+        console.error("Failed to delete note:", error);
+        triggerNotice(t.syncError);
+      }
+    });
   };
 
   const openDirectAction = (mode) => {
@@ -1386,7 +1601,7 @@ export default function App() {
           if (importedData.ciphertext && importedData.salt && importedData.iv) {
             const decrypted = await decryptData(importedData, masterPassword);
             if (!decrypted) { triggerNotice(t.importPasswordMismatchAlert); return; }
-            importedItems = decrypted;
+            importedItems = extractVaultData(decrypted).items; // Handle array or object
           } else {
             triggerNotice(t.importFormatErrorAlert);
             return;
@@ -1399,19 +1614,23 @@ export default function App() {
 
         const isEncryptedBackup = Boolean(importedData?.ciphertext && importedData?.salt && importedData?.iv);
         const nextItems = isEncryptedBackup ? importedItems : [...vaultItems, ...importedItems];
-        const encrypted = isEncryptedBackup ? importedData : await encryptData(nextItems, masterPassword);
-        if (supabaseConfigured && currentVaultId) {
-          const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken });
-          if (saveError) { triggerNotice(saveError.message); return; }
+        
+        if (isEncryptedBackup) {
+           // If restoring a full backup, update both items and notes
+           const { items: backupItems, notes: backupNotes } = extractVaultData(await decryptData(importedData, masterPassword));
+           await saveVaultState(backupItems, backupNotes);
+           setVaultItems(backupItems);
+           setVaultNotes(backupNotes);
+           const customGroups = ['شخصي', 'عمل', ...backupItems.map(item => item.group).filter(Boolean)];
+           setGroups([...new Set(customGroups)]);
         } else {
-          localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+           // Just importing CSV items
+           await saveVaultState(nextItems, vaultNotes);
+           setVaultItems(nextItems);
+           const customGroups = ['شخصي', 'عمل', ...nextItems.map(item => item.group).filter(Boolean)];
+           setGroups([...new Set(customGroups)]);
         }
 
-        setCurrentEncryptedVault(encrypted);
-        cacheVaultLocally(identifier, encrypted);
-        const customGroups = ['شخصي', 'عمل', ...nextItems.map(item => item.group).filter(Boolean)];
-        setGroups([...new Set(customGroups)]);
-        setVaultItems(nextItems);
         triggerNotice(t.importSuccessAlert);
       } catch (err) { triggerNotice(t.importReadErrorAlert); }
     };
@@ -1435,16 +1654,14 @@ export default function App() {
     const updatedRecord = { ...editableRecord, lastUpdated: new Date().toISOString() };
     const updatedItems = vaultItems.map(item => item.id === editableRecord.id ? updatedRecord : item);
     setVaultItems(updatedItems); setEditableRecord(updatedRecord);
-    const encrypted = await encryptData(updatedItems, masterPassword);
-    if (supabaseConfigured && currentVaultId) {
-      const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken });
-      if (saveError) { triggerNotice(saveError.message); return; }
-    } else {
-      localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+    
+    try {
+      const syncFailed = await saveVaultState(updatedItems, vaultNotes);
+      if (syncFailed) triggerNotice(t.syncError);
+      else triggerNotice(t.updateSuccessNotice);
+    } catch (error) {
+      triggerNotice(error.message);
     }
-    setCurrentEncryptedVault(encrypted);
-    cacheVaultLocally(identifier, encrypted);
-    triggerNotice(t.updateSuccessNotice);
   };
 
   const submitNewGroup = (e) => {
@@ -1466,17 +1683,15 @@ export default function App() {
     const updatedItems = vaultItems.map(item => item.group === oldName ? { ...item, group: trimmed } : item);
     setVaultItems(updatedItems);
     if (selectedGroup === oldName) setSelectedGroup(trimmed);
-    const encrypted = await encryptData(updatedItems, masterPassword);
-    if (supabaseConfigured && currentVaultId) { 
-      const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken }); 
-      if (saveError) { triggerNotice(saveError.message); return; } 
-    } else {
-      localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+    
+    try {
+      const syncFailed = await saveVaultState(updatedItems, vaultNotes);
+      setEditingGroupOldName(null); 
+      if (syncFailed) triggerNotice(t.syncError);
+      else triggerNotice(t.updateSuccessNotice);
+    } catch (error) {
+      triggerNotice(error.message);
     }
-    setCurrentEncryptedVault(encrypted); 
-    cacheVaultLocally(identifier, encrypted);
-    setEditingGroupOldName(null); 
-    triggerNotice(t.updateSuccessNotice);
   };
 
   const deleteGroup = (groupName) => {
@@ -1485,16 +1700,14 @@ export default function App() {
       const updatedItems = vaultItems.map(item => item.group === groupName ? { ...item, group: '' } : item);
       setVaultItems(updatedItems);
       if (selectedGroup === groupName) setSelectedGroup('ALL_GROUPS');
-      const encrypted = await encryptData(updatedItems, masterPassword);
-      if (supabaseConfigured && currentVaultId) { 
-        const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken }); 
-        if (saveError) { triggerNotice(saveError.message); return; } 
-      } else {
-        localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+      
+      try {
+        const syncFailed = await saveVaultState(updatedItems, vaultNotes);
+        if (syncFailed) triggerNotice(t.syncError);
+        else triggerNotice(t.groupDeletedNotice);
+      } catch (error) {
+        triggerNotice(error.message);
       }
-      setCurrentEncryptedVault(encrypted); 
-      cacheVaultLocally(identifier, encrypted);
-      triggerNotice(t.groupDeletedNotice);
     });
   };
 
@@ -1520,13 +1733,15 @@ export default function App() {
     const remaining = vaultItems.filter(i => !selectedAccountIds.includes(i.id));
     setVaultItems(remaining); setSelectedAccountIds([]);
     const doSave = async () => {
-      const enc = await encryptData(remaining, masterPassword);
-      if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc, sessionToken }); if (saveError) { triggerNotice(saveError.message); return; } }
-      else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc));
-      setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc);
+      try {
+        const syncFailed = await saveVaultState(remaining, vaultNotes);
+        if (syncFailed) triggerNotice(t.syncError);
+        else triggerNotice(lang === 'ar' ? `تم قص ${itemsToCut.length} حساب.` : `Cut ${itemsToCut.length} accounts.`);
+      } catch (error) {
+        triggerNotice(error.message);
+      }
     };
     doSave();
-    triggerNotice(lang === 'ar' ? `تم قص ${itemsToCut.length} حساب.` : `Cut ${itemsToCut.length} accounts.`);
   };
 
   const handleBulkPaste = async () => {
@@ -1534,11 +1749,14 @@ export default function App() {
     const pastedItems = clipboardBuffer.map(i => ({ ...i, id: crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random(), title: i.title, group: selectedGroup === 'ALL_GROUPS' ? '' : selectedGroup }));
     const updated = [...vaultItems, ...pastedItems];
     setVaultItems(updated);
-    const encrypted = await encryptData(updated, masterPassword);
-    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken }); if (saveError) { triggerNotice(saveError.message); return; } }
-    else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
-    setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
-    triggerNotice(lang === 'ar' ? `تم لصق ${pastedItems.length} حساب بنجاح.` : `Pasted ${pastedItems.length} accounts successfully.`);
+    
+    try {
+      const syncFailed = await saveVaultState(updated, vaultNotes);
+      if (syncFailed) triggerNotice(t.syncError);
+      else triggerNotice(lang === 'ar' ? `تم لصق ${pastedItems.length} حساب بنجاح.` : `Pasted ${pastedItems.length} accounts successfully.`);
+    } catch (error) {
+      triggerNotice(error.message);
+    }
   };
 
   const handleBulkDelete = () => {
@@ -1555,31 +1773,20 @@ export default function App() {
         setVaultItems(remaining);
         setSelectedAccountIds([]);
 
-        const enc = await encryptData(remaining, masterPassword);
-        if (supabaseConfigured && currentVaultId) {
-          const { error: saveError } = await cloudSaveVault({
-            vaultId: currentVaultId,
-            identifier: normalizeIdentifier(identifier),
-            masterPassword,
-            encryptedData: enc,
-            sessionToken
-          });
-          if (saveError) {
-            triggerNotice(saveError.message);
-            return;
-          }
-        } else {
-          localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc));
+        try {
+          const syncFailed = await saveVaultState(remaining, vaultNotes);
+          if (syncFailed) triggerNotice(t.syncError);
+          else triggerNotice(lang === 'ar' ? 'تم حذف الحسابات المحددة بنجاح.' : 'Selected accounts deleted successfully.');
+        } catch (error) {
+          triggerNotice(error.message);
         }
-        setCurrentEncryptedVault(enc);
-        cacheVaultLocally(identifier, enc);
-        triggerNotice(lang === 'ar' ? 'تم حذف الحسابات المحددة بنجاح.' : 'Selected accounts deleted successfully.');
       }
     );
   };
 
   const lockRevokedVault = () => {
     setVaultItems([]);
+    setVaultNotes([]); // Clear notes
     setCurrentVaultId(null);
     setCurrentEncryptedVault(null);
     setSessionToken(null);
@@ -1622,6 +1829,20 @@ export default function App() {
     } else {
       triggerNotice(t.sessionRevokedNotice);
     }
+  };
+
+  const revokeAllOtherSessions = () => {
+    askConfirm(t.revokeAllSessionsBtn + "?", async () => {
+      const otherSessions = vaultDeviceLogs.filter(d => !d.revoked_at && !(d.is_current || d.isCurrent) && (d.session_id || d.id));
+      if (otherSessions.length === 0) {
+        triggerNotice(lang === 'ar' ? 'لا توجد جلسات أخرى نشطة لإلغائها.' : 'No other active sessions to revoke.');
+        return;
+      }
+      for (const sess of otherSessions) {
+        await revokeVaultSession(sess.session_id || sess.id, false);
+      }
+      triggerNotice(t.allSessionsRevokedNotice);
+    });
   };
 
   useEffect(() => {
@@ -1702,7 +1923,9 @@ export default function App() {
     if (!manageData.identifier || !manageData.masterPassword) { triggerNotice(t.missingFieldsAlert); return; }
     if (!isValidPassword(manageData.masterPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
     const newIdClean = normalizeIdentifier(manageData.identifier);
-    const encrypted = await encryptData(vaultItems, manageData.masterPassword);
+    
+    const payload = { items: vaultItems, notes: vaultNotes };
+    const encrypted = await encryptData(payload, manageData.masterPassword);
 
     if (supabaseConfigured && currentVaultId) {
       const { data, error: updateError } = await supabase.rpc('update_vault_profile_secure', {
@@ -1755,6 +1978,7 @@ export default function App() {
     if (!supabaseConfigured) { triggerNotice(lang === 'ar' ? 'أعد إعداد Supabase لاستخدام الإدارة العالمية.' : 'Configure Supabase for global administration.'); return; }
     const decrypted = await decryptData(manageData.encryptedData, manageData.oldPass);
     if (!decrypted) { triggerNotice(lang === 'ar' ? 'فشل فك التشفير - كلمة المرور الحالية للمشرف غير صحيحة.' : 'Decryption failed - current support password mismatch.'); return; }
+    
     const encrypted = await encryptData(decrypted, manageData.masterPassword);
     const newIdClean = normalizeIdentifier(manageData.identifier);
     const { data, error: updateError } = await supabase.rpc('admin_update_vault_secure', {
@@ -1842,6 +2066,8 @@ export default function App() {
           .mobile-vault-sidebar > .mobile-vault-logout { margin-top: auto !important; }
           .backup-sections { margin-top: 1rem !important; }
         }
+        .grid-cards { align-items: start; }
+        .break-word-custom { word-break: break-all; }
       `}</style>
 
       <div className="fixed inset-0 -z-10 pointer-events-none">
@@ -1918,6 +2144,58 @@ export default function App() {
                 <button type="button" onClick={() => setShowContactModal(false)} className={`px-5 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-200 border-slate-300 text-slate-700 hover:bg-slate-300'}`}>{t.cancelBtn}</button>
                 <button type="submit" className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg flex items-center gap-2">
                   <Send className="w-3.5 h-3.5" /><span>{t.contactSubmitBtn}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Note Modal */}
+      {showNoteModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
+          <div className={`w-full max-w-lg rounded-3xl border p-6 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <div className="flex items-center justify-between border-b border-slate-800/60 pb-3 mb-4">
+              <h3 className={`text-lg font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <MessageSquare className="w-5 h-5 text-indigo-500" />
+                {t.addNoteTitle}
+              </h3>
+              <button onClick={() => setShowNoteModal(false)} className={`font-bold px-2 py-1 transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
+            </div>
+            <form onSubmit={handleAddNote} className="space-y-3">
+              <div>
+                <label className={`block mb-1 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.noteTitleLabel}</label>
+                <input type="text" placeholder={t.noteTitleLabel} value={newNoteTitle} onChange={e => setNewNoteTitle(e.target.value)} className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
+              </div>
+              <div>
+                <label className={`block mb-1 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.noteContentLabel}</label>
+                <textarea placeholder={lang === 'ar' ? 'اكتب محتوى الملاحظة هنا... (يمكنك لصق الصور مباشرة)' : 'Write note content here... (You can paste images directly)'} value={newNoteContent} onChange={e => setNewNoteContent(e.target.value)} onPaste={handleNotePaste} className={`w-full px-4 py-2.5 rounded-xl border text-sm h-32 resize-none focus:outline-none focus:border-indigo-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
+              </div>
+              <div>
+                <label className={`block mb-1 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.attachmentsLabel}</label>
+                <input type="file" multiple accept="image/*,application/pdf" onChange={handleNoteFilesChange} className={`w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
+                
+                {newNoteFiles.length > 0 && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {newNoteFiles.map((file, idx) => (
+                      <div key={idx} className={`relative p-2 border rounded-lg flex flex-col items-center gap-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                        <button type="button" onClick={() => removeNoteFile(idx)} className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-md hover:bg-rose-600"><X className="w-3 h-3" /></button>
+                        {file.type.startsWith('image/') ? (
+                          <img src={file.base64} alt="Preview" className="w-full h-20 object-cover rounded" />
+                        ) : (
+                          <FileText className="w-8 h-8 text-indigo-400 my-4" />
+                        )}
+                        <span className={`text-[10px] truncate w-full text-center break-word-custom ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{file.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowNoteModal(false)} className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>{t.cancelBtn}</button>
+                <button type="submit" disabled={isSavingNote} className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-wait cursor-pointer shadow-lg flex items-center gap-2">
+                   {isSavingNote && <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-3 h-3"></span>}
+                   {t.saveNotesBtn}
                 </button>
               </div>
             </form>
@@ -2684,45 +2962,29 @@ export default function App() {
                 </div>
                 <div className="mobile-vault-actions space-y-1.5">
                   <span className={`text-[11px] font-bold block px-1 mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.vaultActionsTitle}</span>
+                  
                   <button onClick={() => setVaultSubView('items')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'items' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Users className={`w-3.5 h-3.5 ${vaultSubView === 'items' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultItemsBtn}</span>
                   </button>
-                  <button onClick={() => setVaultSubView('add')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'add' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
-                    <Plus className={`w-3.5 h-3.5 ${vaultSubView === 'add' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.addAccountBtn}</span>
+
+                  <button onClick={() => setVaultSubView('notes')} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'notes' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
+                    <MessageSquare className={`w-3.5 h-3.5 ${vaultSubView === 'notes' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.notesBtn}</span>
                   </button>
-                  <button onClick={() => setShowManageGroupsModal(true)} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-indigo-700'}`}>
+
+                  <button onClick={() => setShowManageGroupsModal(true)} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <FolderPlus className="w-3.5 h-3.5 text-indigo-400" /><span>{t.manageGroupsBtn}</span>
                   </button>
-                  <button onClick={async () => {
-                    setVaultSubView('audit');
-                    if (supabaseConfigured && currentVaultId) {
-                      try {
-                        const { data } = await supabase.rpc('get_vault_sessions_secure', { p_session_token: sessionToken });
-                        if (data && data.length > 0) {
-                          setVaultDeviceLogs(data.map(d => ({
-                            ...d,
-                            id: d.session_id,
-                            deviceId: d.device_id,
-                            screenRes: d.screen_res,
-                            lastLogin: d.last_seen,
-                            isCurrent: d.is_current
-                          })));
-                        } else {
-                          setVaultDeviceLogs([]);
-                        }
-                      } catch (e) { }
-                    }
-                  }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
+
+                  <button onClick={async () => { setVaultSubView('audit'); if (supabaseConfigured && currentVaultId) { try { const { data } = await supabase.rpc('get_vault_sessions_secure', { p_session_token: sessionToken }); if (data && data.length > 0) { setVaultDeviceLogs(data.map(d => ({ ...d, id: d.session_id, deviceId: d.device_id, screenRes: d.screen_res, lastLogin: d.last_seen, isCurrent: d.is_current }))); } else { setVaultDeviceLogs([]); } } catch (e) { } } }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Activity className={`w-3.5 h-3.5 ${vaultSubView === 'audit' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultDossierBtn}</span>
                   </button>
+
                   <button onClick={openVaultSettings} className={`mobile-vault-manage w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'settings' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Settings className={`w-3.5 h-3.5 ${vaultSubView === 'settings' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.manageVaultBtn}</span>
                   </button>
+
                   <div className={`mobile-vault-backups backup-sections rounded-2xl border p-2.5 space-y-1.5 ${isDark ? 'bg-indigo-500/5 border-indigo-400/20' : 'bg-indigo-50 border-indigo-200'}`}>
                     <p className={`px-1 text-[10px] font-bold ${isDark ? 'text-indigo-300' : 'text-indigo-700'}`}>{t.encryptedBackupTitle}</p>
-                    <button onClick={handleExportSecurityReport} disabled={reportGenerating} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-wait ${isDark ? 'bg-slate-900/80 border-emerald-500/30 text-emerald-300 hover:bg-slate-800' : 'bg-white border-emerald-300 text-emerald-700 hover:bg-slate-50'}`}>
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /><span>{reportGenerating ? t.reportGenerating : t.exportSecurityReport}</span>
-                    </button>
                     <button onClick={() => { const vaultData = currentEncryptedVault ? JSON.stringify(currentEncryptedVault) : localStorage.getItem(`passguard_vault_${identifier.trim().toLowerCase()}`); if (!vaultData) return; const blob = new Blob([typeof vaultData === 'string' ? vaultData : JSON.stringify(vaultData)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `passguard_backup_${identifier.trim().toLowerCase()}.json`; a.click(); URL.revokeObjectURL(url); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-slate-900/80 border-slate-800 text-sky-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-sky-700 hover:bg-slate-50'}`}>
                       <Download className="w-3.5 h-3.5 text-sky-400" /><span>{t.exportBtn}</span>
                     </button>
@@ -2741,6 +3003,11 @@ export default function App() {
                       <input type="file" accept=".csv,.txt,text/csv,text/plain" onChange={handleImportVault} className="hidden" />
                     </label>
                   </div>
+                  <div className="mt-2">
+                    <button onClick={handleExportSecurityReport} disabled={reportGenerating} className={`w-full py-2.5 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-wait ${isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20' : 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'}`}>
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /><span>{reportGenerating ? t.reportGenerating : t.exportSecurityReport}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="mobile-vault-logout pt-3 border-t border-slate-800/60 mt-3">
@@ -2752,11 +3019,20 @@ export default function App() {
 
             {/* عرض محتوى الخزنة بحسب التبويب المختار */}
             <section className="mobile-vault-content flex-1 flex flex-col overflow-hidden">
+              
               {vaultSubView === 'items' && (
                 <div className="flex-1 flex flex-col overflow-hidden animate-fadeIn">
                   <div className={`p-3.5 border-b flex items-center justify-between gap-3 shrink-0 transition-colors ${isDark ? 'bg-slate-950/30 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <div className="relative flex-1">
                       <input type="text" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full px-4 py-2 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                    </div>
+                    <div className="flex items-center gap-1 border rounded-xl p-1 shrink-0 transition-colors bg-slate-100 border-slate-300 dark:bg-slate-900 dark:border-slate-800">
+                      <button onClick={() => setAccountsViewMode('grid')} title={t.viewGrid} className={`p-1.5 rounded-lg transition-colors ${accountsViewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                        <LayoutGrid className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setAccountsViewMode('list')} title={t.viewList} className={`p-1.5 rounded-lg transition-colors ${accountsViewMode === 'list' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                        <List className="w-4 h-4" />
+                      </button>
                     </div>
                     {copyStatusMsg && <span className="text-[11px] text-emerald-400 font-bold shrink-0 animate-pulse bg-emerald-500/10 px-2 py-1.5 rounded-lg border border-emerald-500/20">{copyStatusMsg}</span>}
                   </div>
@@ -2779,6 +3055,9 @@ export default function App() {
                       <button onClick={handleSelectAll} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-indigo-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-indigo-700 hover:bg-slate-50'}`}>
                         <CheckSquare className="w-3.5 h-3.5" /><span>{t.selectBtn} ({selectedAccountIds.length})</span>
                       </button>
+                      <button onClick={() => setVaultSubView('add')} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-emerald-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-emerald-700 hover:bg-slate-50'}`}>
+                        <Plus className="w-3.5 h-3.5" /><span>{t.addAccountBtn}</span>
+                      </button>
                       <button onClick={handleBulkCopy} className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-sky-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-sky-700 hover:bg-slate-50'}`}>
                         <Copy className="w-3.5 h-3.5" /><span>{t.copyBtnAction}</span>
                       </button>
@@ -2793,12 +3072,44 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-2.5">
+                  <div className={`flex-1 overflow-y-auto p-3 sm:p-5 ${accountsViewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start auto-rows-max' : 'space-y-2.5'}`}>
                     {vaultItems
                       .filter(item => selectedGroup === 'ALL_GROUPS' || item.group === selectedGroup)
                       .filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase()) || item.username.toLowerCase().includes(searchTerm.toLowerCase()))
                       .map((item) => {
                         const isSelected = selectedAccountIds.includes(item.id);
+                        if (accountsViewMode === 'grid') {
+                          return (
+                            <div key={item.id} className={`p-4 border rounded-2xl flex flex-col justify-between gap-3 transition-colors ${isSelected ? (isDark ? 'bg-indigo-950/40 border-indigo-500/60' : 'bg-indigo-50 border-indigo-300') : (isDark ? 'bg-slate-950/50 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-300 hover:bg-white')}`}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                  <button onClick={() => toggleSelectAccount(item.id)} className="text-indigo-400 cursor-pointer shrink-0">
+                                    {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-400" /> : <Square className="w-4 h-4 text-slate-500" />}
+                                  </button>
+                                  {item.url && getSiteIconUrl(item.url) && <img src={getSiteIconUrl(item.url)} alt="" aria-hidden="true" className={`w-8 h-8 rounded-lg object-contain shrink-0 p-0.5 border ${isDark ? 'brightness-125 bg-slate-900 border-slate-700' : 'bg-white border-slate-300'}`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
+                                  <div className="min-w-0">
+                                    <h3 className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.title}</h3>
+                                    <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{item.username}</p>
+                                  </div>
+                                </div>
+                                {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 shrink-0"><ExternalLink className="w-3.5 h-3.5" /></a>}
+                              </div>
+                              
+                              <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-slate-800/40">
+                                <span className={`px-2.5 py-1 border text-[11px] rounded-lg font-mono truncate max-w-[120px] transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}>
+                                  {visiblePasswords[item.id] ? item.password : '••••••••'}
+                                </span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button onClick={() => togglePasswordVisibility(item.id)} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white' : 'bg-white border-slate-300 text-slate-600 hover:text-slate-900'}`}>
+                                    {visiblePasswords[item.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                  </button>
+                                  <button onClick={() => copyToClipboard(item.password, item.id)} aria-label={t.copyBtn} title={t.copyBtn} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-slate-700 hover:bg-indigo-50'}`}>{copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}</button>
+                                  <button onClick={() => { setEditableRecord({ ...item }); setVaultSubView('details'); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-indigo-600 hover:bg-indigo-50'}`}><Info className="w-3.5 h-3.5" /></button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
                         return (
                           <div key={item.id} className={`p-3.5 border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 transition-colors ${isSelected ? (isDark ? 'bg-indigo-950/40 border-indigo-500/60' : 'bg-indigo-50 border-indigo-300') : (isDark ? 'bg-slate-950/50 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-300 hover:bg-white')}`}>
                             <div className="flex items-center gap-3 w-full md:w-auto">
@@ -2825,13 +3136,76 @@ export default function App() {
                                 </button>
                                 <button onClick={() => copyToClipboard(item.password, item.id)} aria-label={t.copyBtn} title={t.copyBtn} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-slate-700 hover:bg-indigo-50'}`}>{copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}</button>
                                 <button onClick={() => { setEditableRecord({ ...item }); setVaultSubView('details'); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400 hover:bg-indigo-600/20' : 'bg-white border-slate-300 text-indigo-600 hover:bg-indigo-50'}`}><Info className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => { askConfirm(t.deleteRecordBtn + (lang === 'ar' ? '؟' : '?'), () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { const enc = await encryptData(updated, masterPassword); if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: enc, sessionToken }); if (saveError) { triggerNotice(saveError.message); return; } } else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(enc)); setCurrentEncryptedVault(enc); cacheVaultLocally(identifier, enc); }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50'}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => { askConfirm(t.deleteRecordBtn + (lang === 'ar' ? '؟' : '?'), () => { const updated = vaultItems.filter(i => i.id !== item.id); setVaultItems(updated); const doSave = async () => { try { const syncFailed = await saveVaultState(updated, vaultNotes); if (syncFailed) triggerNotice(t.syncError); } catch (error) { triggerNotice(error.message); } }; doSave(); }); }} className={`p-1.5 border rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/20' : 'bg-white border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50'}`}><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
                           </div>
                         );
                       })}
                   </div>
+                </div>
+              )}
+
+              {/* عرض الملاحظات */}
+              {vaultSubView === 'notes' && (
+                <div className="flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto space-y-4 animate-fadeIn">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 shrink-0">
+                    <h3 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <MessageSquare className="w-5 h-5 text-indigo-500" />
+                      {t.notesTitle}
+                    </h3>
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                      <div className={`flex items-center gap-1 border rounded-xl p-1 shrink-0 transition-colors bg-slate-100 border-slate-300 dark:bg-slate-900 dark:border-slate-800`}>
+                        <button onClick={() => setNotesViewMode('grid')} title={t.viewGrid} className={`p-1.5 rounded-lg transition-colors ${notesViewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                          <LayoutGrid className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setNotesViewMode('list')} title={t.viewList} className={`p-1.5 rounded-lg transition-colors ${notesViewMode === 'list' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                          <List className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <button onClick={() => setShowNoteModal(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md">
+                        <Plus className="w-4 h-4" /> {t.addNoteTitle}
+                      </button>
+                    </div>
+                  </div>
+                  {vaultNotes.length === 0 ? (
+                    <p className={`text-center py-12 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      {t.noNotes}
+                    </p>
+                  ) : (
+                    <div className={notesViewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start auto-rows-max" : "flex flex-col space-y-3"}>
+                      {vaultNotes.map(note => (
+                        <div key={note.id} className={`p-4 rounded-2xl border flex flex-col ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}>
+                          <div className="flex justify-between items-start mb-2">
+                            <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{note.title}</h4>
+                            <span className={`text-[10px] font-mono whitespace-nowrap ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{formatDate(note.date)}</span>
+                          </div>
+                          <p className={`text-xs mb-3 whitespace-pre-wrap flex-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{note.content}</p>
+                          
+                          {note.attachments && note.attachments.length > 0 && (
+                            <div className="mb-3 grid grid-cols-2 gap-2">
+                              {note.attachments.map((file, idx) => (
+                                <div key={idx} className={`p-1.5 border rounded-lg flex flex-col items-center gap-1 ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                                  {file.type.startsWith('image/') ? (
+                                    <img src={file.base64} alt={file.name} className="w-full h-20 object-cover rounded" />
+                                  ) : (
+                                    <FileText className="w-8 h-8 text-indigo-400 my-4" />
+                                  )}
+                                  <a href={file.base64} download={file.name} className={`text-[10px] truncate w-full text-center hover:underline break-word-custom ${isDark ? 'text-slate-400 hover:text-indigo-400' : 'text-slate-600 hover:text-indigo-600'}`}>
+                                    {file.name}
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          <button onClick={() => handleDeleteNote(note.id)} className="self-end text-xs text-rose-500 font-semibold hover:underline mt-auto cursor-pointer flex items-center gap-1">
+                            <Trash2 className="w-3 h-3" /> {t.deleteNoteBtn}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2850,13 +3224,16 @@ export default function App() {
                     const newItem = { id: crypto.randomUUID ? crypto.randomUUID() : Date.now(), title: newTitle, username: newUsername, password: newPassword, url: newUrl || `https://${newTitle.toLowerCase().replace(/\s+/g, '')}.com`, email: newEmail || '', phone: newPhone || '', lastUpdated: new Date().toISOString(), notes: newNotes || '', group: newGroupSelection || '' };
                     const updatedItems = [...vaultItems, newItem];
                     setVaultItems(updatedItems);
-                    const encrypted = await encryptData(updatedItems, masterPassword);
-                    if (supabaseConfigured && currentVaultId) { const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword, encryptedData: encrypted, sessionToken }); if (saveError) { triggerNotice(saveError.message); return; } }
-                    else localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
-                    setCurrentEncryptedVault(encrypted); cacheVaultLocally(identifier, encrypted);
-                    setNewTitle(''); setNewUsername(''); setNewPassword(''); setNewUrl(''); setNewEmail(''); setNewPhone(''); setNewNotes(''); setNewGroupSelection('');
-                    setShowGenOptions(false); setVaultSubView('items');
-                    triggerNotice(lang === 'ar' ? 'تم حفظ الحساب في الخزنة بنجاح' : 'Account saved in vault successfully');
+                    
+                    try {
+                      const syncFailed = await saveVaultState(updatedItems, vaultNotes);
+                      setNewTitle(''); setNewUsername(''); setNewPassword(''); setNewUrl(''); setNewEmail(''); setNewPhone(''); setNewNotes(''); setNewGroupSelection('');
+                      setShowGenOptions(false); setVaultSubView('items');
+                      if (syncFailed) triggerNotice(t.syncError);
+                      else triggerNotice(lang === 'ar' ? 'تم حفظ الحساب في الخزنة بنجاح' : 'Account saved in vault successfully');
+                    } catch (error) {
+                      triggerNotice(error.message);
+                    }
                   }} className="space-y-3 text-xs">
                     <div>
                       <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.siteTitlePlaceholder}</label>
@@ -3035,43 +3412,55 @@ export default function App() {
                     </div>
                   )}
                   {auditTab === 'devices' && (
-                    <div className="space-y-3 animate-fadeIn">
-                      {vaultDeviceLogs.length === 0 ? (
-                        <p className={`text-xs text-center py-8 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.noDeviceLogs}</p>
-                      ) : (
-                        vaultDeviceLogs.map((dev, idx) => (
-                          <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-colors ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-white border-slate-300'}`}>
-                            <div className="flex items-start gap-3">
-                              <div className={`p-2.5 rounded-xl border shrink-0 transition-colors ${isDark ? 'bg-slate-900 border-slate-800 text-indigo-400' : 'bg-slate-50 border-slate-300 text-indigo-600'}`}>
-                                {(dev.os || '').includes("Android") || (dev.os || '').includes("iOS") || (dev.os || '').includes("iPhone") || (dev.os || '').includes("Samsung") || (dev.os || '').includes("Honor") ? <Smartphone className="w-5 h-5" /> : <Laptop className="w-5 h-5" />}
-                              </div>
-                              <div className="space-y-0.5 text-xs">
-                                <h4 className={`font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                  <span>{dev.os} ({dev.browser})</span>
-                                  {dev.revoked_at && <span className="text-[10px] px-2 py-0.5 rounded-full border bg-rose-500/10 text-rose-400 border-rose-500/30">{t.revokedSessionBadge}</span>}
-                                  {(dev.is_current || dev.isCurrent) && !dev.revoked_at && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300'}`}>{t.currentSessionBadge}</span>}
-                                </h4>
-                                <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-mono pt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                  <span className="flex items-center gap-1"><Wifi className="w-3 h-3 text-indigo-400" /> IP: {dev.ip}</span>
-                                  <span className="flex items-center gap-1"><Server className="w-3 h-3 text-amber-400" /> {dev.isp}</span>
-                                  <span className="flex items-center gap-1"><Globe className="w-3 h-3 text-emerald-400" /> {dev.location}</span>
-                                  <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> {dev.device_id || dev.deviceId}</span>
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="flex justify-end">
+                        <button onClick={revokeAllOtherSessions} className="px-4 py-2 border border-rose-500/30 text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl text-xs font-bold cursor-pointer flex items-center gap-2 transition-colors">
+                          <ShieldAlert className="w-4 h-4" />
+                          <span>{t.revokeAllSessionsBtn}</span>
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {vaultDeviceLogs.length === 0 ? (
+                          <p className={`text-xs text-center py-8 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.noDeviceLogs}</p>
+                        ) : (
+                          vaultDeviceLogs.map((dev, idx) => {
+                            const isIOS = (dev.os || '').toLowerCase().includes('ios') || (dev.os || '').toLowerCase().includes('iphone') || (dev.os || '').toLowerCase().includes('ipad') || (dev.os || '').toLowerCase().includes('macos');
+                            const isAndroid = (dev.os || '').toLowerCase().includes('android');
+                            return (
+                              <div key={idx} className={`p-4 border rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-colors ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-white border-slate-300'}`}>
+                                <div className="flex items-start gap-3">
+                                  <div className={`p-2.5 rounded-xl border shrink-0 transition-colors ${isIOS ? (isDark ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-800') : isAndroid ? (isDark ? 'bg-slate-900 border-slate-800 text-emerald-400' : 'bg-slate-50 border-slate-300 text-emerald-600') : (isDark ? 'bg-slate-900 border-slate-800 text-sky-400' : 'bg-slate-50 border-slate-300 text-sky-600')}`}>
+                                    {isIOS ? <Apple className="w-5 h-5" /> : isAndroid ? <Smartphone className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                                  </div>
+                                  <div className="space-y-0.5 text-xs">
+                                    <h4 className={`font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                      <span>{dev.os} ({dev.browser})</span>
+                                      {dev.revoked_at && <span className="text-[10px] px-2 py-0.5 rounded-full border bg-rose-500/10 text-rose-400 border-rose-500/30">{t.revokedSessionBadge}</span>}
+                                      {(dev.is_current || dev.isCurrent) && !dev.revoked_at && <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300'}`}>{t.currentSessionBadge}</span>}
+                                    </h4>
+                                    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-mono pt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                      <span className="flex items-center gap-1"><Wifi className="w-3 h-3 text-indigo-400" /> IP: {dev.ip}</span>
+                                      <span className="flex items-center gap-1"><Server className="w-3 h-3 text-amber-400" /> {dev.isp}</span>
+                                      <span className="flex items-center gap-1"><Globe className="w-3 h-3 text-emerald-400" /> {dev.location}</span>
+                                      <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> {dev.device_id || dev.deviceId}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                                  <span className={`text-[11px] font-mono flex items-center gap-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    <Clock className="w-3.5 h-3.5" /><span>{formatDate(dev.last_seen || dev.last_login || dev.lastLogin)}</span>
+                                  </span>
+                                  {(!dev.revoked_at && (dev.session_id || dev.id)) && (
+                                    <button type="button" onClick={() => askConfirm(lang === 'ar' ? 'هل تريد إلغاء هذه الجلسة؟' : 'Revoke this session?', () => revokeVaultSession(dev.session_id || dev.id, dev.is_current || dev.isCurrent))} className="px-2.5 py-1.5 border border-rose-500/30 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg text-[10px] font-bold cursor-pointer">
+                                      {t.revokeSessionBtn}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                              <span className={`text-[11px] font-mono flex items-center gap-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                <Clock className="w-3.5 h-3.5" /><span>{formatDate(dev.last_seen || dev.last_login || dev.lastLogin)}</span>
-                              </span>
-                              {(!dev.revoked_at && (dev.session_id || dev.id)) && (
-                                <button type="button" onClick={() => askConfirm(lang === 'ar' ? 'هل تريد إلغاء هذه الجلسة؟' : 'Revoke this session?', () => revokeVaultSession(dev.session_id || dev.id, dev.is_current || dev.isCurrent))} className="px-2.5 py-1.5 border border-rose-500/30 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg text-[10px] font-bold cursor-pointer">
-                                  {t.revokeSessionBtn}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      )}
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
