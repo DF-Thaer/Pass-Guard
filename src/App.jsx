@@ -524,32 +524,46 @@ export default function App() {
 
   // Helper to save both items and notes securely (With graceful fallback)
   const saveVaultState = async (itemsToSave, notesToSave, pwd = masterPassword) => {
-    if (!pwd) throw new Error("Master password is missing.");
-    const payload = { items: itemsToSave, notes: notesToSave };
-    const encrypted = await encryptData(payload, pwd);
-    
-    let syncFailed = false;
-    if (supabaseConfigured && currentVaultId) {
-      try {
-        const { error: saveError } = await cloudSaveVault({ vaultId: currentVaultId, identifier: normalizeIdentifier(identifier), masterPassword: pwd, encryptedData: encrypted, sessionToken });
-        if (saveError) throw new Error(saveError.message);
-      } catch (err) {
-        console.error("Cloud sync failed:", err);
-        syncFailed = true;
-        // Fallback: Save locally so no data is lost
-        localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
-        cacheVaultLocally(identifier, encrypted);
+  if (!pwd) throw new Error("Master password is missing.");
+  const payload = { items: itemsToSave, notes: notesToSave };
+  const encrypted = await encryptData(payload, pwd);
+  
+  let syncFailed = false;
+  if (supabaseConfigured && currentVaultId) {
+    try {
+      console.log("Attempting to sync with Supabase..."); // للتشخيص
+      const { error: saveError } = await cloudSaveVault({ 
+        vaultId: currentVaultId, 
+        identifier: normalizeIdentifier(identifier), 
+        masterPassword: pwd, 
+        encryptedData: encrypted, 
+        sessionToken 
+      });
+      
+      if (saveError) {
+        console.error("Supabase sync error:", saveError); // طباعة الخطأ الحقيقي
+        throw new Error(saveError.message);
       }
-    } else {
+      console.log("Sync successful!"); // للتشخيص
+    } catch (err) {
+      console.error("Cloud sync failed:", err);
+      syncFailed = true;
+      // الحفظ المحلي كخطة بديلة
       localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
-    }
-    
-    setCurrentEncryptedVault(encrypted);
-    if (!syncFailed) {
       cacheVaultLocally(identifier, encrypted);
     }
-    return syncFailed; // Return true if failed, false if success
-  };
+  } else {
+    // إذا لم يتم تكوين Supabase أو لا يوجد معرف خزنة
+    console.warn("Supabase not configured or currentVaultId is missing. Saving locally.");
+    localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+  }
+  
+  setCurrentEncryptedVault(encrypted);
+  if (!syncFailed) {
+    cacheVaultLocally(identifier, encrypted);
+  }
+  return syncFailed;
+};
 
   useEffect(() => {
     const handleInstallPrompt = (event) => {
