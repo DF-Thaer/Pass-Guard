@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from './supabaseClient';
 import { 
   ShieldCheck, Lock, Copy, Check, Plus, Search, LogOut, Trash2, KeyRound, 
@@ -65,17 +66,19 @@ async function decryptData(encryptedObj, password) {
   }
 }
 
-// دالة ذكية لاستخراج الحسابات والملاحظات
+// دالة ذكية لاستخراج الحسابات والملاحظات (مع دعم بيانات 2FA)
 const extractVaultData = (decryptedData) => {
   if (Array.isArray(decryptedData)) {
-    // توافق مع البيانات القديمة (حسابات فقط)
-    return { items: decryptedData, notes: [] };
+    return { items: decryptedData, notes: [], twoFactor: { enabled: false, secret: '' } };
   }
   if (decryptedData && typeof decryptedData === 'object') {
-    // البيانات الجديدة (حسابات + ملاحظات)
-    return { items: decryptedData.items || [], notes: decryptedData.notes || [] };
+    return { 
+      items: decryptedData.items || [], 
+      notes: decryptedData.notes || [],
+      twoFactor: decryptedData.twoFactor || { enabled: false, secret: '' }
+    };
   }
-  return { items: [], notes: [] };
+  return { items: [], notes: [], twoFactor: { enabled: false, secret: '' } };
 };
 
 const isValidPassword = (pass) => !!(pass && pass.length >= 8 && /[A-Z]/.test(pass) && /[0-9]/.test(pass) && /[^A-Za-z0-9]/.test(pass));
@@ -97,6 +100,92 @@ const checkPwnedPassword = async (password) => {
   const suffix = hash.slice(5);
   const match = (await response.text()).split(/\r?\n/).find(line => line.slice(0, 35).toUpperCase() === suffix);
   return match ? Number(match.slice(36)) || 0 : 0;
+};
+
+// ==================== TOTP / Two-Factor Authentication Helpers (RFC 6238) ====================
+const TOTP_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+const base32Decode = (input) => {
+  const clean = (input || '').toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');
+  let bits = 0;
+  let value = 0;
+  const output = [];
+  for (let i = 0; i < clean.length; i += 1) {
+    const idx = TOTP_ALPHABET.indexOf(clean[i]);
+    if (idx === -1) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      output.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  return new Uint8Array(output);
+};
+
+const base32Encode = (bytes) => {
+  let bits = 0;
+  let value = 0;
+  let output = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    value = (value << 8) | bytes[i];
+    bits += 8;
+    while (bits >= 5) {
+      output += TOTP_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) {
+    output += TOTP_ALPHABET[(value << (5 - bits)) & 31];
+  }
+  return output;
+};
+
+const generateTotpSecret = (byteLength = 20) => {
+  const bytes = new Uint8Array(byteLength);
+  window.crypto.getRandomValues(bytes);
+  return base32Encode(bytes);
+};
+
+const hmacSha1Bytes = async (keyBytes, messageBytes) => {
+  const cryptoKey = await window.crypto.subtle.importKey(
+    'raw',
+    keyBytes,
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign']
+  );
+  const signature = await window.crypto.subtle.sign('HMAC', cryptoKey, messageBytes);
+  return new Uint8Array(signature);
+};
+
+const generateTotpCode = async (secret, timestamp = Date.now(), timeStep = 30) => {
+  const keyBytes = base32Decode(secret);
+  if (!keyBytes.length) return '';
+  let counter = Math.floor(timestamp / 1000 / timeStep);
+  const counterBytes = new Uint8Array(8);
+  for (let i = 7; i >= 0; i -= 1) {
+    counterBytes[i] = counter & 0xff;
+    counter = Math.floor(counter / 256);
+  }
+  const hmac = await hmacSha1Bytes(keyBytes, counterBytes);
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const binary = ((hmac[offset] & 0x7f) << 24)
+    | ((hmac[offset + 1] & 0xff) << 16)
+    | ((hmac[offset + 2] & 0xff) << 8)
+    | (hmac[offset + 3] & 0xff);
+  return (binary % 1000000).toString().padStart(6, '0');
+};
+
+const verifyTotpCode = async (secret, code, window = 1) => {
+  const normalized = String(code || '').replace(/\D/g, '');
+  if (!secret || normalized.length !== 6) return false;
+  const now = Date.now();
+  for (let i = -window; i <= window; i += 1) {
+    const expected = await generateTotpCode(secret, now + (i * 30000));
+    if (expected && expected === normalized) return true;
+  }
+  return false;
 };
 
 const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -207,6 +296,30 @@ const cloudSaveVault = async ({ vaultId, identifier, masterPassword, encryptedDa
   } catch (err) {
     return { error: err };
   }
+};
+
+// ==================== Local Revoked Sessions Tracking ====================
+const getRevokedSessionsStorageKey = (vaultId, identifier) =>
+  `passguard_revoked_sessions_${vaultId || normalizeIdentifier(identifier) || 'unknown'}`;
+
+const getLocallyRevokedSessionIds = (vaultId, identifier) => {
+  try {
+    const stored = localStorage.getItem(getRevokedSessionsStorageKey(vaultId, identifier));
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) { return []; }
+};
+
+const addLocallyRevokedSessionId = (vaultId, identifier, sessionId) => {
+  if (!sessionId) return;
+  try {
+    const key = getRevokedSessionsStorageKey(vaultId, identifier);
+    const existing = getLocallyRevokedSessionIds(vaultId, identifier);
+    if (!existing.includes(sessionId)) {
+      existing.push(sessionId);
+      const trimmed = existing.slice(-100);
+      localStorage.setItem(key, JSON.stringify(trimmed));
+    }
+  } catch (e) { }
 };
 
 const generateSecurePassword = (length, includeSymbols, includeNumbers) => {
@@ -335,11 +448,36 @@ const translations = {
     prefEmail: "Email", prefWhatsapp: "WhatsApp", prefOther: "Other Location / Method", prefOtherPlaceholder: "Specify method or location...",
     contactSubmitBtn: "Send Message to Admin", contactSuccessNotice: "Your message has been sent successfully and will be answered ASAP!",
     adminMessagesBtn: "Incoming Messages", noContactMessages: "No incoming messages found.",
-    // Added Translations
     notesTitle: "Notes", addNoteTitle: "Add New Note", noteTitleLabel: "Note Title", noteContentLabel: "Note Content",
     attachmentsLabel: "Attachments (Images, PDFs)", deleteNoteBtn: "Delete Note", noNotes: "No notes currently.",
     viewGrid: "Grid", viewList: "List", fileSizeError: "File size exceeds the allowed limit (5MB).", noteSaved: "Note saved successfully.", noteDeleted: "Note deleted.",
     syncError: "Cloud sync failed. Saved locally on this device.",
+    totpSectionTitle: "Two-Factor Authentication (2FA)",
+    totpSectionDesc: "Add an extra layer of security. When enabled, you'll need to enter a 6-digit code from Google Authenticator, Authy, or Microsoft Authenticator when unlocking your vault.",
+    totpEnabledLabel: "Two-Factor Authentication is enabled",
+    totpDisabledLabel: "Two-Factor Authentication is not enabled",
+    totpEnableBtn: "Enable Two-Factor Authentication",
+    totpDisableBtn: "Disable Two-Factor Authentication",
+    totpSetupTitle: "Set Up Two-Factor Authentication",
+    totpSetupScanLabel: "Scan this QR code with your authenticator app",
+    totpSetupOrLabel: "Or enter this secret key manually:",
+    totpSetupUriLabel: "Advanced: otpauth:// URI",
+    totpSetupCodeLabel: "Enter the 6-digit code shown in your app",
+    totpSetupConfirmBtn: "Verify & Enable 2FA",
+    totpSetupSuccess: "Two-Factor Authentication has been enabled successfully!",
+    totpSetupError: "Could not verify the code. Make sure your device time is correct and try again.",
+    totpDisableTitle: "Disable Two-Factor Authentication",
+    totpDisableDesc: "Enter your current 6-digit 2FA code to confirm disabling two-factor authentication.",
+    totpDisableConfirmBtn: "Confirm Disable 2FA",
+    totpDisabledSuccess: "Two-Factor Authentication has been disabled.",
+    totpLoginTitle: "Two-Factor Verification",
+    totpLoginDesc: "Enter the 6-digit code from your authenticator app to unlock your vault.",
+    totpLoginVerifyBtn: "Unlock Vault",
+    totpInvalidCode: "Invalid or expired code. Please try again.",
+    totpLoginMaxAttempts: "Login cancelled after 3 failed verification attempts.",
+    totpCopySecret: "Copy secret key",
+    totpSecurityNote: "Keep your 2FA secret safe. If you lose access to your authenticator app, you may be locked out of your vault.",
+    totpCancelSetup: "Cancel Setup",
   },
   ar: {
     appName: "Pass-Guard", toolsBtn: "فاحص كلمة السر", contactBtn: "تواصل مع المشرف", aboutBtn: "عن الموقع", installApp: "تثبيت التطبيق", installUnavailable: "استخدم قائمة المتصفح لتثبيت التطبيق.", toggleTheme: "تبديل المظهر",
@@ -408,11 +546,36 @@ const translations = {
     prefEmail: "البريد الإلكتروني", prefWhatsapp: "الواتساب", prefOther: "غير ذلك (حدد المكان)", prefOtherPlaceholder: "اكتب المكان أو الطريقة المفضلة...",
     contactSubmitBtn: "إرسال الرسالة إلى المشرف", contactSuccessNotice: "تم إرسال رسالتك إلى المشرف بنجاح وسيتم الرد عليك في أقرب وقت ممكن!",
     adminMessagesBtn: "رسائل التواصل الواردة", noContactMessages: "لا توجد أي رسائل تواصل واردة حالياً.",
-    // Added Translations
     notesTitle: "الملاحظات", addNoteTitle: "إضافة ملاحظة جديدة", noteTitleLabel: "عنوان الملاحظة", noteContentLabel: "محتوى الملاحظة",
     attachmentsLabel: "المرفقات (صور، ملفات PDF)", deleteNoteBtn: "حذف الملاحظة", noNotes: "لا توجد ملاحظات حالياً.",
     viewGrid: "شبكة", viewList: "قائمة", fileSizeError: "حجم الملفات يتجاوز الحد المسموح (5 ميجابايت).", noteSaved: "تم حفظ الملاحظة بنجاح.", noteDeleted: "تم حذف الملاحظة.",
     syncError: "فشلت المزامنة السحابية. تم الحفظ محلياً على هذا الجهاز.",
+    totpSectionTitle: "المصادقة الثنائية (2FA)",
+    totpSectionDesc: "أضف طبقة حماية إضافية. عند التفعيل، ستحتاج إلى إدخال رمز من 6 أرقام من تطبيق Google Authenticator أو Authy أو Microsoft Authenticator عند فتح خزنتك.",
+    totpEnabledLabel: "المصادقة الثنائية مفعّلة",
+    totpDisabledLabel: "المصادقة الثنائية غير مفعّلة",
+    totpEnableBtn: "تفعيل المصادقة الثنائية",
+    totpDisableBtn: "تعطيل المصادقة الثنائية",
+    totpSetupTitle: "إعداد المصادقة الثنائية",
+    totpSetupScanLabel: "امسح رمز QR التالي باستخدام تطبيق المصادقة",
+    totpSetupOrLabel: "أو أدخل هذا المفتاح السري يدوياً:",
+    totpSetupUriLabel: "متقدم: رابط otpauth://",
+    totpSetupCodeLabel: "أدخل الرمز المكوّن من 6 أرقام من تطبيقك",
+    totpSetupConfirmBtn: "تحقق وفعّل 2FA",
+    totpSetupSuccess: "تم تفعيل المصادقة الثنائية بنجاح!",
+    totpSetupError: "تعذر التحقق من الرمز. تأكد من ضبط وقت جهازك ثم حاول مجدداً.",
+    totpDisableTitle: "تعطيل المصادقة الثنائية",
+    totpDisableDesc: "أدخل رمز 2FA الحالي المكوّن من 6 أرقام لتأكيد تعطيل المصادقة الثنائية.",
+    totpDisableConfirmBtn: "تأكيد تعطيل 2FA",
+    totpDisabledSuccess: "تم تعطيل المصادقة الثنائية.",
+    totpLoginTitle: "التحقق بخطوتين",
+    totpLoginDesc: "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة لفتح خزنتك.",
+    totpLoginVerifyBtn: "فتح الخزنة",
+    totpInvalidCode: "الرمز غير صحيح أو منتهي الصلاحية. حاول مجدداً.",
+    totpLoginMaxAttempts: "تم إلغاء تسجيل الدخول بعد 3 محاولات تحقق فاشلة.",
+    totpCopySecret: "نسخ المفتاح السري",
+    totpSecurityNote: "احتفظ بمفتاح 2FA السري في مكان آمن. إذا فقدت الوصول إلى تطبيق المصادقة، قد تفقد الوصول إلى خزنتك.",
+    totpCancelSetup: "إلغاء الإعداد",
   }
 };
 
@@ -507,63 +670,75 @@ export default function App() {
   const [mfaEnrollmentBusy, setMfaEnrollmentBusy] = useState(false);
   const [mfaFactorStatus, setMfaFactorStatus] = useState('unknown');
   
-  // Notes states
   const [vaultNotes, setVaultNotes] = useState([]);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
-  const [newNoteFiles, setNewNoteFiles] = useState([]); // Array of { name, type, base64 }
-  const [isSavingNote, setIsSavingNote] = useState(false); // New state to prevent double clicks
+  const [newNoteFiles, setNewNoteFiles] = useState([]);
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
-  // View Mode States
   const [accountsViewMode, setAccountsViewMode] = useState('grid'); 
   const [notesViewMode, setNotesViewMode] = useState('grid'); 
+
+  const [twoFactorState, setTwoFactorState] = useState({ enabled: false, secret: '' });
+  const [pendingUnlock, setPendingUnlock] = useState(null);
+  const [showTotpModal, setShowTotpModal] = useState(false);
+  const [totpInputCode, setTotpInputCode] = useState('');
+  const [totpError, setTotpError] = useState('');
+  const [totpBusy, setTotpBusy] = useState(false);
+  const [totpFailedAttempts, setTotpFailedAttempts] = useState(0);
+  const [totpSetupData, setTotpSetupData] = useState(null);
+  const [totpSetupCode, setTotpSetupCode] = useState('');
+  const [totpSetupBusy, setTotpSetupBusy] = useState(false);
+  const [totpSetupError, setTotpSetupError] = useState('');
+  const [showDisableTotpModal, setShowDisableTotpModal] = useState(false);
+  const [disableTotpCode, setDisableTotpCode] = useState('');
+  const [disableTotpBusy, setDisableTotpBusy] = useState(false);
+  const [disableTotpError, setDisableTotpError] = useState('');
 
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
 
-  // Helper to save both items and notes securely (With graceful fallback)
-  const saveVaultState = async (itemsToSave, notesToSave, pwd = masterPassword) => {
-  if (!pwd) throw new Error("Master password is missing.");
-  const payload = { items: itemsToSave, notes: notesToSave };
-  const encrypted = await encryptData(payload, pwd);
-  
-  let syncFailed = false;
-  if (supabaseConfigured && currentVaultId) {
-    try {
-      console.log("Attempting to sync with Supabase..."); // للتشخيص
-      const { error: saveError } = await cloudSaveVault({ 
-        vaultId: currentVaultId, 
-        identifier: normalizeIdentifier(identifier), 
-        masterPassword: pwd, 
-        encryptedData: encrypted, 
-        sessionToken 
-      });
-      
-      if (saveError) {
-        console.error("Supabase sync error:", saveError); // طباعة الخطأ الحقيقي
-        throw new Error(saveError.message);
+  const saveVaultState = async (itemsToSave, notesToSave, pwd = masterPassword, twoFactorOverride = null) => {
+    if (!pwd) throw new Error("Master password is missing.");
+    const twoFactorToSave = twoFactorOverride !== null ? twoFactorOverride : twoFactorState;
+    const payload = { items: itemsToSave, notes: notesToSave, twoFactor: twoFactorToSave };
+    const encrypted = await encryptData(payload, pwd);
+    
+    let syncFailed = false;
+    if (supabaseConfigured && currentVaultId) {
+      try {
+        console.log("Attempting to sync with Supabase...");
+        const { error: saveError } = await cloudSaveVault({ 
+          vaultId: currentVaultId, 
+          identifier: normalizeIdentifier(identifier), 
+          masterPassword: pwd, 
+          encryptedData: encrypted, 
+          sessionToken 
+        });
+        
+        if (saveError) {
+          console.error("Supabase sync error:", saveError);
+          throw new Error(saveError.message);
+        }
+        console.log("Sync successful!");
+      } catch (err) {
+        console.error("Cloud sync failed:", err);
+        syncFailed = true;
+        localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+        cacheVaultLocally(identifier, encrypted);
       }
-      console.log("Sync successful!"); // للتشخيص
-    } catch (err) {
-      console.error("Cloud sync failed:", err);
-      syncFailed = true;
-      // الحفظ المحلي كخطة بديلة
+    } else {
+      console.warn("Supabase not configured or currentVaultId is missing. Saving locally.");
       localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
+    }
+    
+    setCurrentEncryptedVault(encrypted);
+    if (!syncFailed) {
       cacheVaultLocally(identifier, encrypted);
     }
-  } else {
-    // إذا لم يتم تكوين Supabase أو لا يوجد معرف خزنة
-    console.warn("Supabase not configured or currentVaultId is missing. Saving locally.");
-    localStorage.setItem(`passguard_vault_${identifier.trim().toLowerCase()}`, JSON.stringify(encrypted));
-  }
-  
-  setCurrentEncryptedVault(encrypted);
-  if (!syncFailed) {
-    cacheVaultLocally(identifier, encrypted);
-  }
-  return syncFailed;
-};
+    return syncFailed;
+  };
 
   useEffect(() => {
     const handleInstallPrompt = (event) => {
@@ -818,22 +993,11 @@ export default function App() {
     });
   };
 
-  const finishCloudVaultLogin = async (openedSession, cleanId, loginPassword) => {
-    const row = openedSession?.vault;
-    if (!row?.encrypted_data || !openedSession?.session_token || !openedSession?.session_id) return false;
-    const decrypted = await decryptData(row.encrypted_data, loginPassword);
-    if (!decrypted) {
-      await supabase.rpc('revoke_vault_session_secure', {
-        p_session_token: openedSession.session_token,
-        p_session_id: openedSession.session_id,
-      });
-      return false;
-    }
+  const loadCloudVaultIntoUI = ({ items, notes, twoFactor, openedSession, row, cleanId }) => {
     const device = parseDeviceInfo();
-    const { items, notes } = extractVaultData(decrypted); // Extract data safely
-
     setVaultItems(items);
-    setVaultNotes(notes); // Set notes
+    setVaultNotes(notes);
+    setTwoFactorState(twoFactor || { enabled: false, secret: '' });
     setCurrentVaultId(row.id);
     setCurrentEncryptedVault(row.encrypted_data);
     setSessionToken(openedSession.session_token);
@@ -859,6 +1023,50 @@ export default function App() {
     setCaptchaPassed(false);
     setPostCaptchaAttempts(0);
     cacheVaultLocally(cleanId, row.encrypted_data, row);
+  };
+
+  const loadLocalVaultIntoUI = ({ items, notes, twoFactor, encryptedObj, cleanId }) => {
+    setVaultItems(items);
+    setVaultNotes(notes);
+    setTwoFactorState(twoFactor || { enabled: false, secret: '' });
+    setCurrentVaultId(null);
+    setCurrentEncryptedVault(encryptedObj);
+    let customGroups = ['شخصي', 'عمل'];
+    items.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
+    setGroups(customGroups);
+    setIsAdmin(false);
+    setIsUnlocked(true);
+    setVaultSubView('items');
+    setError('');
+    setFailedAttempts(0);
+    setCaptchaPassed(false);
+    setPostCaptchaAttempts(0);
+    registerDeviceLogin(cleanId);
+  };
+
+  const finishCloudVaultLogin = async (openedSession, cleanId, loginPassword) => {
+    const row = openedSession?.vault;
+    if (!row?.encrypted_data || !openedSession?.session_token || !openedSession?.session_id) return false;
+    const decrypted = await decryptData(row.encrypted_data, loginPassword);
+    if (!decrypted) {
+      await supabase.rpc('revoke_vault_session_secure', {
+        p_session_token: openedSession.session_token,
+        p_session_id: openedSession.session_id,
+      });
+      return false;
+    }
+    const { items, notes, twoFactor } = extractVaultData(decrypted);
+
+    if (twoFactor?.enabled && twoFactor?.secret) {
+      setPendingUnlock({ type: 'cloud', items, notes, twoFactor, openedSession, row, cleanId, loginPassword });
+      setTotpInputCode('');
+      setTotpError('');
+      setTotpFailedAttempts(0);
+      setShowTotpModal(true);
+      return 'pending-2fa';
+    }
+
+    loadCloudVaultIntoUI({ items, notes, twoFactor, openedSession, row, cleanId });
     return true;
   };
 
@@ -1045,7 +1253,6 @@ export default function App() {
 
   useEffect(() => { if (showGenOptions) triggerLiveGeneration(genLength, useSymbols, useNumbers); }, [genLength, useSymbols, useNumbers, showGenOptions]);
 
-  // Interactive starfield and flowing signal background
   const canvasRef = useRef(null);
   const themeRef = useRef(theme);
   useEffect(() => { themeRef.current = theme; }, [theme]);
@@ -1290,7 +1497,8 @@ export default function App() {
       }
       if (data?.error === 'locked') { setError(t.lockedAccountAlert); return; }
       if (data?.vault?.encrypted_data) {
-        if (await finishCloudVaultLogin(data, cleanId, masterPassword)) {
+        const loginResult = await finishCloudVaultLogin(data, cleanId, masterPassword);
+        if (loginResult) {
           return;
         }
         await triggerFailedAttempt();
@@ -1309,9 +1517,12 @@ export default function App() {
             const migratedRow = Array.isArray(migrated) ? migrated[0] : migrated;
             if (migratedRow?.id) {
               const { data: migratedSession, error: sessionError } = await openCloudVaultSession(cleanId, masterPassword);
-              if (!sessionError && await finishCloudVaultLogin(migratedSession, cleanId, masterPassword)) {
-                triggerNotice(lang === 'ar' ? 'تمت مزامنة خزنتك القديمة إلى الخادم بنجاح.' : 'Your legacy vault was successfully migrated to the cloud.');
-                return;
+              if (!sessionError) {
+                const migratedResult = await finishCloudVaultLogin(migratedSession, cleanId, masterPassword);
+                if (migratedResult) {
+                  triggerNotice(lang === 'ar' ? 'تمت مزامنة خزنتك القديمة إلى الخادم بنجاح.' : 'Your legacy vault was successfully migrated to the cloud.');
+                  return;
+                }
               }
             }
           }
@@ -1332,23 +1543,18 @@ export default function App() {
     const encryptedObj = JSON.parse(savedVault);
     const decrypted = await decryptData(encryptedObj, masterPassword);
     if (decrypted) {
-      const { items, notes } = extractVaultData(decrypted); // Extract data safely
-      
-      setVaultItems(items); 
-      setVaultNotes(notes); // Set notes
-      setCurrentVaultId(null); 
-      setCurrentEncryptedVault(encryptedObj);
-      let customGroups = ['شخصي', 'عمل'];
-      items.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
-      setGroups(customGroups); 
-      setIsAdmin(false); 
-      setIsUnlocked(true); 
-      setVaultSubView('items'); 
-      setError('');
-      setFailedAttempts(0); 
-      setCaptchaPassed(false); 
-      setPostCaptchaAttempts(0);
-      registerDeviceLogin(cleanId);
+      const { items, notes, twoFactor } = extractVaultData(decrypted);
+
+      if (twoFactor?.enabled && twoFactor?.secret) {
+        setPendingUnlock({ type: 'local', items, notes, twoFactor, encryptedObj, cleanId });
+        setTotpInputCode('');
+        setTotpError('');
+        setTotpFailedAttempts(0);
+        setShowTotpModal(true);
+        return;
+      }
+
+      loadLocalVaultIntoUI({ items, notes, twoFactor, encryptedObj, cleanId });
     } else {
       await triggerFailedAttempt();
     }
@@ -1363,7 +1569,7 @@ export default function App() {
     if (/[^\x00-\x7F]/.test(masterPassword)) { setError(t.englishOnlyAlert); return; }
     if (!isValidPassword(masterPassword)) { setError(t.passwordComplexityAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
-    const initialData = { items: [], notes: [] }; // New Structure
+    const initialData = { items: [], notes: [], twoFactor: { enabled: false, secret: '' } };
     const encrypted = await encryptData(initialData, masterPassword);
 
     if (supabaseConfigured) {
@@ -1394,7 +1600,8 @@ export default function App() {
     setCurrentVaultId(null); setCurrentEncryptedVault(encrypted);
     setGroups(['شخصي', 'عمل']); 
     setVaultItems([]);
-    setVaultNotes([]); // Init notes
+    setVaultNotes([]);
+    setTwoFactorState({ enabled: false, secret: '' });
     setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
     setConfirmMasterPassword('');
     registerDeviceLogin(cleanId);
@@ -1433,7 +1640,6 @@ export default function App() {
     setShowContactModal(false);
   };
 
-  // ==================== NOTE HANDLERS (Multiple Files) ====================
   const handleNotePaste = (e) => {
     const items = e.clipboardData.items;
     let hasFiles = false;
@@ -1510,7 +1716,6 @@ export default function App() {
     }
     if (!newNoteTitle.trim() || !newNoteContent.trim() || isSavingNote) return;
 
-    // 1. Optimistic UI Update: Close modal & reset fields immediately
     const newNote = {
       id: crypto.randomUUID ? crypto.randomUUID() : Date.now(),
       title: newNoteTitle,
@@ -1522,7 +1727,6 @@ export default function App() {
     const updatedNotes = [newNote, ...vaultNotes];
     setVaultNotes(updatedNotes);
     
-    // Save current state before clearing inputs
     const currentItems = vaultItems; 
     
     setNewNoteTitle('');
@@ -1532,11 +1736,10 @@ export default function App() {
     setIsSavingNote(true); 
     triggerNotice(t.noteSaved); 
 
-    // 2. Save in background
     try {
       const syncFailed = await saveVaultState(currentItems, updatedNotes);
       if (syncFailed) {
-        triggerNotice(t.syncError); // Warn user if cloud sync failed but keep local copy
+        triggerNotice(t.syncError);
       }
     } catch (error) {
       console.error("Failed to save note:", error);
@@ -1615,7 +1818,7 @@ export default function App() {
           if (importedData.ciphertext && importedData.salt && importedData.iv) {
             const decrypted = await decryptData(importedData, masterPassword);
             if (!decrypted) { triggerNotice(t.importPasswordMismatchAlert); return; }
-            importedItems = extractVaultData(decrypted).items; // Handle array or object
+            importedItems = extractVaultData(decrypted).items;
           } else {
             triggerNotice(t.importFormatErrorAlert);
             return;
@@ -1630,7 +1833,6 @@ export default function App() {
         const nextItems = isEncryptedBackup ? importedItems : [...vaultItems, ...importedItems];
         
         if (isEncryptedBackup) {
-           // If restoring a full backup, update both items and notes
            const { items: backupItems, notes: backupNotes } = extractVaultData(await decryptData(importedData, masterPassword));
            await saveVaultState(backupItems, backupNotes);
            setVaultItems(backupItems);
@@ -1638,7 +1840,6 @@ export default function App() {
            const customGroups = ['شخصي', 'عمل', ...backupItems.map(item => item.group).filter(Boolean)];
            setGroups([...new Set(customGroups)]);
         } else {
-           // Just importing CSV items
            await saveVaultState(nextItems, vaultNotes);
            setVaultItems(nextItems);
            const customGroups = ['شخصي', 'عمل', ...nextItems.map(item => item.group).filter(Boolean)];
@@ -1800,7 +2001,7 @@ export default function App() {
 
   const lockRevokedVault = () => {
     setVaultItems([]);
-    setVaultNotes([]); // Clear notes
+    setVaultNotes([]);
     setCurrentVaultId(null);
     setCurrentEncryptedVault(null);
     setSessionToken(null);
@@ -1812,17 +2013,30 @@ export default function App() {
     setIsAdmin(false);
     setCurrentView('welcome');
     setInAppNotice(t.sessionRevokedNotice);
+    setTwoFactorState({ enabled: false, secret: '' });
+    setPendingUnlock(null);
+    setShowTotpModal(false);
+    setTotpInputCode('');
+    setTotpError('');
+    setTotpFailedAttempts(0);
+    setTotpSetupData(null);
+    setShowDisableTotpModal(false);
   };
 
   const revokeVaultSession = async (sessionId, isCurrentSession = false) => {
+    addLocallyRevokedSessionId(currentVaultId, identifier, sessionId);
+
     if (supabaseConfigured && sessionToken) {
-      const { data, error: revokeError } = await supabase.rpc('revoke_vault_session_secure', {
-        p_session_token: sessionToken,
-        p_session_id: sessionId,
-      });
-      if (revokeError || !data) {
-        triggerNotice(revokeError?.message || t.sessionRevokedNotice);
-        return;
+      try {
+        const { error: revokeError } = await supabase.rpc('revoke_vault_session_secure', {
+          p_session_token: sessionToken,
+          p_session_id: sessionId,
+        });
+        if (revokeError) {
+          console.error('Session revoke RPC failed:', revokeError);
+        }
+      } catch (err) {
+        console.error('Session revoke error:', err);
       }
     } else {
       const cleanId = normalizeIdentifier(identifier);
@@ -1938,7 +2152,7 @@ export default function App() {
     if (!isValidPassword(manageData.masterPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
     const newIdClean = normalizeIdentifier(manageData.identifier);
     
-    const payload = { items: vaultItems, notes: vaultNotes };
+    const payload = { items: vaultItems, notes: vaultNotes, twoFactor: twoFactorState };
     const encrypted = await encryptData(payload, manageData.masterPassword);
 
     if (supabaseConfigured && currentVaultId) {
@@ -1992,8 +2206,10 @@ export default function App() {
     if (!supabaseConfigured) { triggerNotice(lang === 'ar' ? 'أعد إعداد Supabase لاستخدام الإدارة العالمية.' : 'Configure Supabase for global administration.'); return; }
     const decrypted = await decryptData(manageData.encryptedData, manageData.oldPass);
     if (!decrypted) { triggerNotice(lang === 'ar' ? 'فشل فك التشفير - كلمة المرور الحالية للمشرف غير صحيحة.' : 'Decryption failed - current support password mismatch.'); return; }
-    
-    const encrypted = await encryptData(decrypted, manageData.masterPassword);
+
+    const { items: dItems, notes: dNotes, twoFactor: dTwoFactor } = extractVaultData(decrypted);
+    const payloadToEncrypt = { items: dItems, notes: dNotes, twoFactor: dTwoFactor };
+    const encrypted = await encryptData(payloadToEncrypt, manageData.masterPassword);
     const newIdClean = normalizeIdentifier(manageData.identifier);
     const { data, error: updateError } = await supabase.rpc('admin_update_vault_secure', {
       p_vault_id: manageData.vaultId,
@@ -2024,6 +2240,145 @@ export default function App() {
     setNewAdminPassword(''); setConfirmAdminPassword('');
     triggerNotice(lang === 'ar' ? 'تم تحديث كلمة مرور المشرف بنجاح.' : 'Admin password updated successfully.');
     setAdminSubView('dashboard');
+  };
+
+  const startTotpSetup = () => {
+    const secret = generateTotpSecret();
+    const accountLabel = `Pass-Guard:${identifier || 'vault'}`;
+    const uri = `otpauth://totp/${encodeURIComponent(accountLabel)}?secret=${secret}&issuer=Pass-Guard&algorithm=SHA1&digits=6&period=30`;
+    setTotpSetupData({ secret, uri });
+    setTotpSetupCode('');
+    setTotpSetupError('');
+  };
+
+  const cancelTotpSetup = () => {
+    setTotpSetupData(null);
+    setTotpSetupCode('');
+    setTotpSetupError('');
+  };
+
+  const verifyTotpSetup = async () => {
+    if (!totpSetupData || totpSetupBusy) return;
+    const cleanCode = String(totpSetupCode || '').replace(/\D/g, '');
+    if (cleanCode.length !== 6) {
+      setTotpSetupError(t.totpInvalidCode);
+      return;
+    }
+    setTotpSetupBusy(true);
+    setTotpSetupError('');
+    try {
+      const isValid = await verifyTotpCode(totpSetupData.secret, cleanCode);
+      if (!isValid) {
+        setTotpSetupError(t.totpSetupError);
+        setTotpSetupBusy(false);
+        return;
+      }
+      const newTwoFactor = { enabled: true, secret: totpSetupData.secret, enabledAt: new Date().toISOString() };
+      const pwd = masterPassword;
+      await saveVaultState(vaultItems, vaultNotes, pwd, newTwoFactor);
+      setTwoFactorState(newTwoFactor);
+      setTotpSetupData(null);
+      setTotpSetupCode('');
+      triggerNotice(t.totpSetupSuccess);
+    } catch (err) {
+      console.error('2FA setup failed:', err);
+      setTotpSetupError(err.message || 'Failed to save 2FA settings');
+    } finally {
+      setTotpSetupBusy(false);
+    }
+  };
+
+  const confirmDisableTotp = async () => {
+    if (disableTotpBusy || !twoFactorState?.enabled) return;
+    const cleanCode = String(disableTotpCode || '').replace(/\D/g, '');
+    if (cleanCode.length !== 6) {
+      setDisableTotpError(t.totpInvalidCode);
+      return;
+    }
+    setDisableTotpBusy(true);
+    setDisableTotpError('');
+    try {
+      const isValid = await verifyTotpCode(twoFactorState.secret, cleanCode);
+      if (!isValid) {
+        setDisableTotpError(t.totpInvalidCode);
+        setDisableTotpBusy(false);
+        return;
+      }
+      const newTwoFactor = { enabled: false, secret: '' };
+      const pwd = masterPassword;
+      await saveVaultState(vaultItems, vaultNotes, pwd, newTwoFactor);
+      setTwoFactorState(newTwoFactor);
+      setShowDisableTotpModal(false);
+      setDisableTotpCode('');
+      triggerNotice(t.totpDisabledSuccess);
+    } catch (err) {
+      console.error('2FA disable failed:', err);
+      setDisableTotpError(err.message || 'Failed to disable 2FA');
+    } finally {
+      setDisableTotpBusy(false);
+    }
+  };
+
+  const cancelTotpLogin = async () => {
+    if (pendingUnlock?.type === 'cloud' && pendingUnlock?.openedSession) {
+      try {
+        await supabase.rpc('revoke_vault_session_secure', {
+          p_session_token: pendingUnlock.openedSession.session_token,
+          p_session_id: pendingUnlock.openedSession.session_id,
+        });
+      } catch (e) { }
+    }
+    setPendingUnlock(null);
+    setShowTotpModal(false);
+    setTotpInputCode('');
+    setTotpError('');
+    setTotpFailedAttempts(0);
+    setCurrentView('auth');
+  };
+
+  const handleVerifyTotpLogin = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!pendingUnlock || totpBusy) return;
+    const cleanCode = String(totpInputCode || '').replace(/\D/g, '');
+    if (cleanCode.length !== 6) {
+      setTotpError(t.totpInvalidCode);
+      return;
+    }
+    setTotpBusy(true);
+    setTotpError('');
+    try {
+      const isValid = await verifyTotpCode(pendingUnlock.twoFactor.secret, cleanCode);
+      if (!isValid) {
+        const nextAttempts = totpFailedAttempts + 1;
+        setTotpFailedAttempts(nextAttempts);
+        if (nextAttempts >= 3) {
+          setTotpBusy(false);
+          await cancelTotpLogin();
+          triggerNotice(t.totpLoginMaxAttempts);
+          return;
+        }
+        setTotpError(`${t.totpInvalidCode} (${nextAttempts}/3)`);
+        setTotpBusy(false);
+        return;
+      }
+
+      if (pendingUnlock.type === 'cloud') {
+        loadCloudVaultIntoUI(pendingUnlock);
+      } else {
+        loadLocalVaultIntoUI(pendingUnlock);
+      }
+
+      setShowTotpModal(false);
+      setPendingUnlock(null);
+      setTotpInputCode('');
+      setTotpError('');
+      setTotpFailedAttempts(0);
+      setTotpBusy(false);
+    } catch (err) {
+      console.error('TOTP verify error:', err);
+      setTotpError(t.totpInvalidCode);
+      setTotpBusy(false);
+    }
   };
 
   const metrics = calculateVaultMetrics();
@@ -2107,6 +2462,69 @@ export default function App() {
                 <button onClick={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null })} className={`w-full rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer sm:w-auto ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'}`}>{t.cancelBtn}</button>
                 <button onClick={() => { const onConfirm = confirmDialog.onConfirm; setConfirmDialog({ isOpen: false, message: '', onConfirm: null }); if (onConfirm) onConfirm(); }} className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer sm:w-auto ${isDark ? 'bg-red-500 hover:bg-red-400' : 'bg-red-600 hover:bg-red-700'}`}>{t.confirmBtn}</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA Login Verification Modal */}
+      {showTotpModal && pendingUnlock && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
+          <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              <h3 className="text-base font-bold">{t.totpLoginTitle}</h3>
+            </div>
+            <p className={`text-xs mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.totpLoginDesc}</p>
+            <form onSubmit={handleVerifyTotpLogin} className="space-y-3">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                pattern="[0-9]{6}"
+                value={totpInputCode}
+                onChange={(event) => setTotpInputCode(event.target.value.replace(/\D/g, ''))}
+                placeholder={t.mfaCodePlaceholder}
+                className={`w-full px-4 py-3 border rounded-xl text-center text-lg tracking-[0.35em] font-mono focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                autoFocus
+                required
+              />
+              {totpError && <p className="text-rose-500 text-xs font-semibold">{totpError}</p>}
+              <div className="flex gap-2">
+                <button type="button" onClick={cancelTotpLogin} disabled={totpBusy} className={`flex-1 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>{t.cancelBtn}</button>
+                <button type="submit" disabled={totpBusy || totpInputCode.length !== 6} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer disabled:cursor-wait">{totpBusy ? '...' : t.totpLoginVerifyBtn}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA Disable Modal */}
+      {showDisableTotpModal && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
+          <div className={`border p-6 rounded-3xl w-full max-w-sm shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldAlert className="w-5 h-5 text-amber-400" />
+              <h3 className="text-base font-bold">{t.totpDisableTitle}</h3>
+            </div>
+            <p className={`text-xs mb-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.totpDisableDesc}</p>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              pattern="[0-9]{6}"
+              value={disableTotpCode}
+              onChange={(event) => setDisableTotpCode(event.target.value.replace(/\D/g, ''))}
+              placeholder={t.mfaCodePlaceholder}
+              className={`w-full px-4 py-3 border rounded-xl text-center text-lg tracking-[0.35em] font-mono focus:outline-none focus:border-amber-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+              autoFocus
+            />
+            {disableTotpError && <p className="text-rose-500 text-xs font-semibold mt-2">{disableTotpError}</p>}
+            <div className="flex gap-2 mt-4">
+              <button type="button" onClick={() => { setShowDisableTotpModal(false); setDisableTotpCode(''); setDisableTotpError(''); }} disabled={disableTotpBusy} className={`flex-1 py-2.5 border rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>{t.cancelBtn}</button>
+              <button type="button" onClick={confirmDisableTotp} disabled={disableTotpBusy || disableTotpCode.length !== 6} className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold cursor-pointer disabled:cursor-wait">{disableTotpBusy ? '...' : t.totpDisableConfirmBtn}</button>
             </div>
           </div>
         </div>
@@ -2989,7 +3407,7 @@ export default function App() {
                     <FolderPlus className="w-3.5 h-3.5 text-indigo-400" /><span>{t.manageGroupsBtn}</span>
                   </button>
 
-                  <button onClick={async () => { setVaultSubView('audit'); if (supabaseConfigured && currentVaultId) { try { const { data } = await supabase.rpc('get_vault_sessions_secure', { p_session_token: sessionToken }); if (data && data.length > 0) { setVaultDeviceLogs(data.map(d => ({ ...d, id: d.session_id, deviceId: d.device_id, screenRes: d.screen_res, lastLogin: d.last_seen, isCurrent: d.is_current }))); } else { setVaultDeviceLogs([]); } } catch (e) { } } }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
+                  <button onClick={async () => { setVaultSubView('audit'); if (supabaseConfigured && currentVaultId) { try { const { data } = await supabase.rpc('get_vault_sessions_secure', { p_session_token: sessionToken }); const localRevoked = getLocallyRevokedSessionIds(currentVaultId, identifier); if (data && data.length > 0) { setVaultDeviceLogs(data.map(d => ({ ...d, id: d.session_id, deviceId: d.device_id, screenRes: d.screen_res, lastLogin: d.last_seen, isCurrent: d.is_current, revoked_at: d.revoked_at || (d.session_id && localRevoked.includes(d.session_id) ? new Date().toISOString() : null) }))); } else { setVaultDeviceLogs([]); } } catch (e) { } } }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center gap-2 text-xs font-bold transition-colors ${vaultSubView === 'audit' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500 shadow-md scale-[1.02]' : isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-700'}`}>
                     <Activity className={`w-3.5 h-3.5 ${vaultSubView === 'audit' ? 'text-white' : 'text-indigo-400'}`} /><span>{t.vaultDossierBtn}</span>
                   </button>
 
@@ -3025,13 +3443,12 @@ export default function App() {
                 </div>
               </div>
               <div className="mobile-vault-logout pt-3 border-t border-slate-800/60 mt-3">
-                <button onClick={async () => { if (sessionToken && currentSessionId && supabaseConfigured) await supabase.rpc('revoke_vault_session_secure', { p_session_token: sessionToken, p_session_id: currentSessionId }); if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setSessionToken(null); setCurrentSessionId(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'}`}>
+                <button onClick={async () => { if (sessionToken && currentSessionId && supabaseConfigured) await supabase.rpc('revoke_vault_session_secure', { p_session_token: sessionToken, p_session_id: currentSessionId }); if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setSessionToken(null); setCurrentSessionId(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); setTwoFactorState({ enabled: false, secret: '' }); setPendingUnlock(null); setShowTotpModal(false); setTotpSetupData(null); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'}`}>
                   <LogOut className="w-3.5 h-3.5" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
             </aside>
 
-            {/* عرض محتوى الخزنة بحسب التبويب المختار */}
             <section className="mobile-vault-content flex-1 flex flex-col overflow-hidden">
               
               {vaultSubView === 'items' && (
@@ -3160,7 +3577,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* عرض الملاحظات */}
               {vaultSubView === 'notes' && (
                 <div className="flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto space-y-4 animate-fadeIn">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 shrink-0">
@@ -3223,7 +3639,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* إضافة حساب جديد */}
               {vaultSubView === 'add' && (
                 <div className="flex-1 flex flex-col p-4 sm:p-7 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 shrink-0">
@@ -3324,7 +3739,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* تفاصيل وتعديل حساب محدد */}
               {vaultSubView === 'details' && editableRecord && (
                 <div className="flex-1 flex flex-col p-4 sm:p-7 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4 shrink-0">
@@ -3398,7 +3812,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* التدقيق الأمني الشامل وسجل الأجهزة والجلسات */}
               {vaultSubView === 'audit' && (
                 <div className="flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto space-y-6 animate-fadeIn">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 shrink-0">
@@ -3480,7 +3893,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* إعدادات أمان الخزنة ومفاتيح المرور */}
               {vaultSubView === 'settings' && (
                 <div className="flex-1 flex flex-col p-4 sm:p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
@@ -3516,6 +3928,140 @@ export default function App() {
                       <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.saveSettingsBtn}</button>
                     </div>
                   </form>
+
+                  {/* ==================== Two-Factor Authentication (2FA) Section ==================== */}
+                  <div className={`mt-5 p-4 sm:p-5 rounded-2xl border space-y-3 transition-colors ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-xl border shrink-0 ${twoFactorState.enabled ? (isDark ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-100 border-emerald-300 text-emerald-700') : (isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-300 text-slate-600')}`}>
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className={`text-sm font-bold flex items-center gap-2 flex-wrap ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {t.totpSectionTitle}
+                          {twoFactorState.enabled && (
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${isDark ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300'}`}>
+                              {lang === 'ar' ? 'مفعّلة' : 'Active'}
+                            </span>
+                          )}
+                        </h4>
+                        <p className={`text-[11px] mt-1 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.totpSectionDesc}</p>
+                      </div>
+                    </div>
+
+                    {/* Not enabled, no setup in progress */}
+                    {!twoFactorState.enabled && !totpSetupData && (
+                      <button type="button" onClick={startTotpSetup} className="w-full py-2.5 rounded-xl text-xs font-bold cursor-pointer shadow-md flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white">
+                        <ShieldCheck className="w-4 h-4" />
+                        {t.totpEnableBtn}
+                      </button>
+                    )}
+
+                    {/* Setup flow */}
+                    {totpSetupData && (
+                      <div className="space-y-3 pt-1">
+                        <h5 className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                          <KeyRound className="w-4 h-4" />
+                          {t.totpSetupTitle}
+                        </h5>
+
+                        <div className={`rounded-2xl border p-4 text-center ${isDark ? 'bg-white/5 border-slate-800' : 'bg-white border-slate-300'}`}>
+                          <p className={`text-[11px] mb-2 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.totpSetupScanLabel}</p>
+                          <QRCodeSVG
+                            value={totpSetupData.uri}
+                            size={180}
+                            level="H"
+                            marginSize={2}
+                            className="mx-auto rounded-xl bg-white p-2 border border-slate-200 shadow-sm"
+                            aria-label="TOTP QR Code"
+                          />
+                        </div>
+
+                        <div>
+                          <p className={`text-[11px] mb-1.5 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.totpSetupOrLabel}</p>
+                          <div className={`flex items-center gap-2 p-3 rounded-xl border font-mono text-[11px] sm:text-xs break-all ${isDark ? 'bg-slate-950 border-slate-800 text-emerald-400' : 'bg-white border-slate-300 text-emerald-700'}`}>
+                            <code className="flex-1 select-all">{totpSetupData.secret}</code>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(totpSetupData.secret, 'totp-setup-secret')}
+                              className={`shrink-0 p-1.5 rounded-lg border cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+                              title={t.totpCopySecret}
+                            >
+                              {copiedId === 'totp-setup-secret' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className={`text-[11px] mb-1.5 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.totpSetupUriLabel}</p>
+                          <div className={`flex items-center gap-2 p-2.5 rounded-xl border font-mono text-[10px] break-all ${isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-white border-slate-300 text-slate-500'}`}>
+                            <code className="flex-1 select-all">{totpSetupData.uri}</code>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(totpSetupData.uri, 'totp-setup-uri')}
+                              className={`shrink-0 p-1.5 rounded-lg border cursor-pointer transition-colors ${isDark ? 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+                            >
+                              {copiedId === 'totp-setup-uri' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={`p-3 rounded-xl border text-[11px] leading-relaxed ${isDark ? 'bg-amber-500/5 border-amber-500/20 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                          ⚠️ {t.totpSecurityNote}
+                        </div>
+
+                        <div>
+                          <label className={`block mb-1 text-[11px] font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.totpSetupCodeLabel}</label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            maxLength={6}
+                            pattern="[0-9]{6}"
+                            value={totpSetupCode}
+                            onChange={(event) => setTotpSetupCode(event.target.value.replace(/\D/g, ''))}
+                            placeholder={t.mfaCodePlaceholder}
+                            className={`w-full px-4 py-2.5 border rounded-xl text-center text-base tracking-[0.35em] font-mono focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                          />
+                        </div>
+
+                        {totpSetupError && <p className="text-rose-500 text-[11px] font-semibold">{totpSetupError}</p>}
+
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <button
+                            type="button"
+                            onClick={cancelTotpSetup}
+                            disabled={totpSetupBusy}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 ${isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                          >
+                            {t.totpCancelSetup}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={verifyTotpSetup}
+                            disabled={totpSetupBusy || totpSetupCode.length !== 6}
+                            className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-wait cursor-pointer shadow-lg"
+                          >
+                            {totpSetupBusy ? '...' : t.totpSetupConfirmBtn}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Enabled state - disable button */}
+                    {twoFactorState.enabled && !totpSetupData && (
+                      <div className="space-y-2">
+                        <p className={`text-[11px] font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>✓ {t.totpEnabledLabel}</p>
+                        <button
+                          type="button"
+                          onClick={() => { setShowDisableTotpModal(true); setDisableTotpCode(''); setDisableTotpError(''); }}
+                          className={`w-full py-2.5 rounded-xl text-xs font-bold cursor-pointer shadow-md flex items-center justify-center gap-2 ${isDark ? 'bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border border-rose-300 text-rose-600 hover:bg-rose-100'}`}
+                        >
+                          <ShieldAlert className="w-4 h-4" />
+                          {t.totpDisableBtn}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </section>

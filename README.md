@@ -29,23 +29,6 @@ A local, client-side encrypted password manager built with **React**, **Vite**, 
 
 ---
 
-## 🛠️ Local Development
-
-Clone and run the application locally:
-
-```bash
-# Clone repository
-git clone [https://github.com/DF-Thaer/Pass-Guard.git](https://github.com/DF-Thaer/Pass-Guard.git)
-
-# Navigate to directory
-cd Pass-Guard
-
-# Install dependencies
-npm install --legacy-peer-deps
-
-# Start dev server
-npm run dev
-```
 
 ## Secure Sessions And Passkeys
 
