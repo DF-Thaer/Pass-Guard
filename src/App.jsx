@@ -29,6 +29,23 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
+const createNoteAttachmentUrl = (attachment) => {
+  const separator = attachment.base64.indexOf(',');
+  if (!attachment.base64.startsWith('data:') || separator === -1) {
+    throw new Error('Invalid note attachment data.');
+  }
+
+  const metadata = attachment.base64.slice(0, separator);
+  if (!metadata.toLowerCase().includes(';base64')) {
+    throw new Error('Unsupported note attachment encoding.');
+  }
+
+  const mimeType = attachment.type || metadata.match(/^data:([^;,]+)/i)?.[1] || 'application/octet-stream';
+  const binary = atob(attachment.base64.slice(separator + 1));
+  const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+  return { url: URL.createObjectURL(new Blob([bytes], { type: mimeType })), type: mimeType };
+};
+
 const compressNoteImage = async (file) => {
   if (!['image/jpeg', 'image/png', 'image/bmp'].includes(file.type.toLowerCase())) return file;
   if (typeof window.createImageBitmap !== 'function') throw new Error('Image compression is not supported in this browser.');
@@ -851,6 +868,8 @@ export default function App() {
   
   const [vaultNotes, setVaultNotes] = useState([]);
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [attachmentPreview, setAttachmentPreview] = useState(null);
+  const attachmentPreviewUrlRef = useRef(null);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteFiles, setNewNoteFiles] = useState([]);
@@ -880,6 +899,32 @@ export default function App() {
 
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
+  const openAttachmentPreview = (attachment) => {
+    try {
+      const { url, type } = createNoteAttachmentUrl(attachment);
+      if (attachmentPreviewUrlRef.current) URL.revokeObjectURL(attachmentPreviewUrlRef.current);
+      attachmentPreviewUrlRef.current = url;
+      setAttachmentPreview({ name: attachment.name, type, url });
+    } catch (previewError) {
+      console.error('Failed to preview note attachment:', previewError);
+      triggerNotice(lang === 'ar' ? 'تعذرت معاينة الملف.' : 'Unable to preview this file.');
+    }
+  };
+
+  useEffect(() => {
+    if (!attachmentPreview) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setAttachmentPreview(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      if (attachmentPreviewUrlRef.current === attachmentPreview.url) {
+        URL.revokeObjectURL(attachmentPreview.url);
+        attachmentPreviewUrlRef.current = null;
+      }
+    };
+  }, [attachmentPreview]);
 
   const persistVaultSession = async (session, cryptoKey) => {
     const keyId = session.type === 'cloud' ? `cloud:${session.vaultId}` : `local:${session.identifier}`;
@@ -3243,6 +3288,38 @@ export default function App() {
       )}
 
       {/* Note Modal */}
+      {attachmentPreview && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 p-3 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={attachmentPreview.name}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setAttachmentPreview(null);
+          }}
+        >
+          <div className={`flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'border-slate-700 bg-slate-950' : 'border-slate-300 bg-white'}`}>
+            <div className={`flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <span className={`min-w-0 truncate text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{attachmentPreview.name}</span>
+              <button type="button" onClick={() => setAttachmentPreview(null)} className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold ${isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'}`}>
+                <X className="h-4 w-4" />
+                {t.closeBtn}
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-4">
+              {attachmentPreview.type?.startsWith('image/') ? (
+                <img src={attachmentPreview.url} alt={attachmentPreview.name} className="max-h-full max-w-full rounded-lg object-contain" />
+              ) : attachmentPreview.type === 'application/pdf' ? (
+                <iframe title={attachmentPreview.name} src={attachmentPreview.url} className="h-full w-full rounded-lg bg-white" />
+              ) : (
+                <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  {lang === 'ar' ? 'نوع هذا الملف لا يدعم المعاينة.' : 'Preview is not available for this file type.'}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {showNoteModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999] animate-fadeIn">
           <div className={`w-full max-w-lg rounded-3xl border p-6 shadow-2xl ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -3280,9 +3357,9 @@ export default function App() {
                         <span className={`text-[10px] truncate w-full text-center break-word-custom ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{file.name}</span>
                         {file.base64 && (
                           <div className="flex items-center gap-3 text-[10px]">
-                            <a href={file.base64} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-indigo-400 hover:underline">
+                            <button type="button" onClick={() => openAttachmentPreview(file)} className="flex items-center gap-1 text-indigo-400 hover:underline">
                               <Eye className="w-3 h-3" />{lang === 'ar' ? 'معاينة' : 'Preview'}
-                            </a>
+                            </button>
                             <a href={file.base64} download={file.name} className="flex items-center gap-1 text-emerald-400 hover:underline">
                               <Download className="w-3 h-3" />{lang === 'ar' ? 'تنزيل' : 'Download'}
                             </a>
@@ -4455,9 +4532,9 @@ export default function App() {
                                   <span className={`min-w-0 truncate text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{attachment.name}</span>
                                   {attachment.base64 && (
                                     <div className="flex shrink-0 items-center gap-2">
-                                      <a href={attachment.base64} target="_blank" rel="noreferrer" aria-label={lang === 'ar' ? `معاينة ${attachment.name}` : `Preview ${attachment.name}`} title={lang === 'ar' ? 'معاينة' : 'Preview'} className="text-indigo-400 hover:text-indigo-300">
+                                      <button type="button" onClick={() => openAttachmentPreview(attachment)} aria-label={lang === 'ar' ? `معاينة ${attachment.name}` : `Preview ${attachment.name}`} title={lang === 'ar' ? 'معاينة' : 'Preview'} className="text-indigo-400 hover:text-indigo-300">
                                         <Eye className="h-4 w-4" />
-                                      </a>
+                                      </button>
                                       <a href={attachment.base64} download={attachment.name} aria-label={lang === 'ar' ? `تنزيل ${attachment.name}` : `Download ${attachment.name}`} title={lang === 'ar' ? 'تنزيل' : 'Download'} className="text-emerald-400 hover:text-emerald-300">
                                         <Download className="h-4 w-4" />
                                       </a>

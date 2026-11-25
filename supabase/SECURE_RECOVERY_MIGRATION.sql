@@ -38,17 +38,31 @@ where not exists (
   select 1 from vault.secrets where name = 'passguard_recovery_key'
 );
 
--- Migrate existing plaintext recovery passwords before removing them.
-update public.vaults
-set
-  master_password_hash = crypt(support_master_password, gen_salt('bf', 12)),
-  recovery_password_encrypted = encode(
-    pgp_sym_encrypt(support_master_password, public.passguard_recovery_key()),
-    'base64'
-  )
-where support_master_password is not null
-  and support_master_password <> ''
-  and master_password_hash is null;
+-- Migrate legacy plaintext recovery passwords only when the legacy column exists.
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'vaults'
+      and column_name = 'support_master_password'
+  ) then
+    execute $migration$
+      update public.vaults
+      set
+        master_password_hash = crypt(support_master_password, gen_salt('bf', 12)),
+        recovery_password_encrypted = encode(
+          pgp_sym_encrypt(support_master_password, public.passguard_recovery_key()),
+          'base64'
+        )
+      where support_master_password is not null
+        and support_master_password <> ''
+        and master_password_hash is null
+    $migration$;
+  end if;
+end;
+$$;
 
 alter table public.vaults drop column if exists support_master_password;
 
@@ -291,7 +305,8 @@ $$;
 
 -- Add the real Supabase Auth user ID of the trusted administrator:
 insert into public.passguard_admins (user_id)
-values ('088982d6-56e4-41b5-9a9e-1941aa9e19e7');
+values ('088982d6-56e4-41b5-9a9e-1941aa9e19e7')
+on conflict (user_id) do nothing;
 revoke all on function public.passguard_recovery_key() from public;
 revoke all on function public.admin_reveal_vault(uuid) from public;
 revoke all on function public.admin_update_vault_secure(uuid, text, text, text, text, boolean, boolean, jsonb) from public;
