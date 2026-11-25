@@ -361,6 +361,49 @@ begin
 end;
 $$;
 
+create or replace function public.resume_vault_session_secure(p_session_token text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_session public.passguard_vault_sessions%rowtype;
+  v_vault public.vaults%rowtype;
+begin
+  select s.* into v_session
+  from public.passguard_vault_sessions s
+  where s.token_hash = public.passguard_hash_token(p_session_token)
+    and s.revoked_at is null
+    and s.expires_at > now();
+  if not found or not public.passguard_session_is_valid(v_session.vault_id, p_session_token) then
+    return null;
+  end if;
+
+  select v.* into v_vault
+  from public.vaults v
+  where v.id = v_session.vault_id;
+  if not found or v_vault.is_locked then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'vault', jsonb_build_object(
+      'id', v_vault.id,
+      'identifier', v_vault.identifier,
+      'email', v_vault.email,
+      'phone', v_vault.phone,
+      'is_locked', v_vault.is_locked,
+      'alert', v_vault.alert,
+      'created_at', v_vault.created_at,
+      'updated_at', v_vault.updated_at,
+      'encrypted_data', v_vault.encrypted_data
+    ),
+    'session_id', v_session.id
+  );
+end;
+$$;
+
 create or replace function public.get_vault_sessions_secure(p_session_token text)
 returns table (
   session_id uuid, device_id text, os text, browser text, screen_res text,
@@ -411,9 +454,41 @@ begin
   end if;
 
   update public.passguard_vault_sessions s
-  set revoked_at = now()
+  set revoked_at = now(), expires_at = now()
   where s.id = p_session_id and s.vault_id = v_vault_id and s.revoked_at is null;
   return found;
+end;
+$$;
+
+create or replace function public.revoke_other_vault_sessions_secure(p_session_token text)
+returns integer
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_vault_id uuid;
+  v_token_hash text;
+  v_revoked_count integer;
+begin
+  v_token_hash := public.passguard_hash_token(p_session_token);
+  select s.vault_id into v_vault_id
+  from public.passguard_vault_sessions s
+  where s.token_hash = v_token_hash
+    and s.revoked_at is null
+    and s.expires_at > now();
+  if not found or not public.passguard_session_is_valid(v_vault_id, p_session_token) then
+    raise exception 'vault session revoked or expired';
+  end if;
+
+  update public.passguard_vault_sessions s
+  set revoked_at = now(), expires_at = now()
+  where s.vault_id = v_vault_id
+    and s.token_hash <> v_token_hash
+    and s.revoked_at is null
+    and s.expires_at > now();
+  get diagnostics v_revoked_count = row_count;
+  return v_revoked_count;
 end;
 $$;
 
@@ -515,8 +590,10 @@ $$;
 revoke all on function public.open_vault_session_secure(text, text, text, text, text, text, text, text, text, text) from public;
 revoke all on function public.create_vault_session_secure(uuid, text, text, text, text, text, text, text, text, text) from public;
 revoke all on function public.validate_vault_session_secure(text) from public;
+revoke all on function public.resume_vault_session_secure(text) from public;
 revoke all on function public.get_vault_sessions_secure(text) from public;
 revoke all on function public.revoke_vault_session_secure(text, uuid) from public;
+revoke all on function public.revoke_other_vault_sessions_secure(text) from public;
 revoke all on function public.get_vault_passkeys_secure(text) from public;
 revoke all on function public.remove_vault_passkey_secure(text, text) from public;
 revoke all on function public.save_vault_secure(uuid, text, text, jsonb, text, text, text) from public;
@@ -526,8 +603,10 @@ revoke all on function public.admin_update_vault_secure(uuid, text, text, text, 
 grant execute on function public.open_vault_session_secure(text, text, text, text, text, text, text, text, text, text) to anon, authenticated;
 grant execute on function public.create_vault_session_secure(uuid, text, text, text, text, text, text, text, text, text) to anon, authenticated;
 grant execute on function public.validate_vault_session_secure(text) to anon, authenticated;
+grant execute on function public.resume_vault_session_secure(text) to anon, authenticated;
 grant execute on function public.get_vault_sessions_secure(text) to anon, authenticated;
 grant execute on function public.revoke_vault_session_secure(text, uuid) to anon, authenticated;
+grant execute on function public.revoke_other_vault_sessions_secure(text) to anon, authenticated;
 grant execute on function public.get_vault_passkeys_secure(text) to anon, authenticated;
 grant execute on function public.remove_vault_passkey_secure(text, text) to anon, authenticated;
 grant execute on function public.save_vault_secure(uuid, text, text, jsonb, text, text, text) to anon, authenticated;

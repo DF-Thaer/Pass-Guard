@@ -80,11 +80,12 @@ const importCryptoKey = async (password, salt, iterations = CURRENT_KDF_ITERATIO
   );
 };
 
-async function encryptData(secretData, password) {
+async function encryptData(secretData, password, onDerivedKey) {
   if (!password) throw new Error("Master password is required for encryption.");
   const salt = window.crypto.getRandomValues(new Uint8Array(16));
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
   const key = await importCryptoKey(password, salt, CURRENT_KDF_ITERATIONS);
+  onDerivedKey?.(key);
   const enc = new TextEncoder();
   const encrypted = await window.crypto.subtle.encrypt(
     { name: "AES-GCM", iv }, 
@@ -103,15 +104,76 @@ async function decryptData(encryptedObj, password) {
   try {
     if (!encryptedObj || !Array.isArray(encryptedObj.salt) || encryptedObj.salt.length !== 16 || !Array.isArray(encryptedObj.iv) || encryptedObj.iv.length !== 12 || !Array.isArray(encryptedObj.ciphertext)) return null;
     const salt = new Uint8Array(encryptedObj.salt);
-    const iv = new Uint8Array(encryptedObj.iv);
-    const data = new Uint8Array(encryptedObj.ciphertext);
     const key = await importCryptoKey(password, salt, getSafeKdfIterations(encryptedObj.kdfIterations));
-    const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
-    return JSON.parse(new TextDecoder().decode(decrypted));
+    return await decryptDataWithKey(encryptedObj, key);
   } catch (e) { 
     return null; 
   }
 }
+
+async function decryptDataWithKey(encryptedObj, key) {
+  try {
+    if (!encryptedObj || !Array.isArray(encryptedObj.iv) || encryptedObj.iv.length !== 12 || !Array.isArray(encryptedObj.ciphertext)) return null;
+    const decrypted = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: new Uint8Array(encryptedObj.iv) },
+      key,
+      new Uint8Array(encryptedObj.ciphertext)
+    );
+    return JSON.parse(new TextDecoder().decode(decrypted));
+  } catch (e) {
+    return null;
+  }
+}
+
+const SESSION_RESUME_STORAGE_KEY = 'passguard_active_vault_session';
+const SESSION_KEY_DATABASE = 'passguard_session_keys';
+const SESSION_KEY_STORE = 'vault_keys';
+const hasSavedVaultSession = () => {
+  try { return Boolean(sessionStorage.getItem(SESSION_RESUME_STORAGE_KEY)); } catch (error) { return false; }
+};
+
+const openSessionKeyDatabase = () => new Promise((resolve, reject) => {
+  const request = window.indexedDB.open(SESSION_KEY_DATABASE, 1);
+  request.onupgradeneeded = () => request.result.createObjectStore(SESSION_KEY_STORE);
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error || new Error('Could not open session key storage.'));
+});
+
+const saveSessionKey = async (keyId, cryptoKey) => {
+  const database = await openSessionKeyDatabase();
+  await new Promise((resolve, reject) => {
+    const transaction = database.transaction(SESSION_KEY_STORE, 'readwrite');
+    transaction.objectStore(SESSION_KEY_STORE).put(cryptoKey, keyId);
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error || new Error('Could not save session key.'));
+    transaction.onabort = () => reject(transaction.error || new Error('Could not save session key.'));
+  });
+  database.close();
+};
+
+const readSessionKey = async (keyId) => {
+  const database = await openSessionKeyDatabase();
+  const key = await new Promise((resolve, reject) => {
+    const transaction = database.transaction(SESSION_KEY_STORE, 'readonly');
+    const request = transaction.objectStore(SESSION_KEY_STORE).get(keyId);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error || new Error('Could not read session key.'));
+  });
+  database.close();
+  return key;
+};
+
+const removeSessionKey = async (keyId) => {
+  const database = await openSessionKeyDatabase();
+  await new Promise((resolve, reject) => {
+    const transaction = database.transaction(SESSION_KEY_STORE, 'readwrite');
+    transaction.objectStore(SESSION_KEY_STORE).delete(keyId);
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error || new Error('Could not remove session key.'));
+    transaction.onabort = () => reject(transaction.error || new Error('Could not remove session key.'));
+  });
+  database.close();
+};
 
 const DEFAULT_GROUPS = ['شخصي', 'عمل'];
 
@@ -684,6 +746,7 @@ export default function App() {
   const [theme, setTheme] = useState('dark');
   const t = translations[lang];
   const [currentView, setCurrentView] = useState('welcome');
+  const [isRestoringSession, setIsRestoringSession] = useState(hasSavedVaultSession);
   const [authMode, setAuthMode] = useState('login');
   const [identifier, setIdentifier] = useState('');
   const [masterPassword, setMasterPassword] = useState('');
@@ -784,6 +847,7 @@ export default function App() {
   const [adminMfaDisableCode, setAdminMfaDisableCode] = useState('');
   const [adminMfaDisableBusy, setAdminMfaDisableBusy] = useState(false);
   const [adminMfaDisableError, setAdminMfaDisableError] = useState('');
+  const adminRecoveryPasswordRef = useRef('');
   
   const [vaultNotes, setVaultNotes] = useState([]);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -817,13 +881,33 @@ export default function App() {
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
 
+  const persistVaultSession = async (session, cryptoKey) => {
+    const keyId = session.type === 'cloud' ? `cloud:${session.vaultId}` : `local:${session.identifier}`;
+    await saveSessionKey(keyId, cryptoKey);
+    sessionStorage.setItem(SESSION_RESUME_STORAGE_KEY, JSON.stringify({ ...session, keyId }));
+  };
+
+  const clearVaultSession = async () => {
+    let session = null;
+    try { session = JSON.parse(sessionStorage.getItem(SESSION_RESUME_STORAGE_KEY) || 'null'); } catch (error) { }
+    sessionStorage.removeItem(SESSION_RESUME_STORAGE_KEY);
+    if (session?.keyId) {
+      try {
+        await removeSessionKey(session.keyId);
+      } catch (error) {
+        console.error('Failed to remove the stored vault session key:', error);
+      }
+    }
+  };
+
   const saveVaultState = async (itemsToSave, notesToSave, pwd = masterPassword, twoFactorOverride = null, groupsOverride = null, logoIdOverride = null) => {
     if (!pwd) throw new Error("Master password is missing.");
     const twoFactorToSave = twoFactorOverride !== null ? twoFactorOverride : twoFactorState;
     const groupsToSave = groupsOverride !== null ? groupsOverride : groups;
     const logoIdToSave = logoIdOverride !== null ? getValidVaultLogoId(logoIdOverride) : vaultLogoId;
     const payload = { items: itemsToSave, notes: notesToSave, groups: groupsToSave, twoFactor: twoFactorToSave, logoId: logoIdToSave };
-    const encrypted = await encryptData(payload, pwd);
+    let cryptoKey;
+    const encrypted = await encryptData(payload, pwd, key => { cryptoKey = key; });
     
     let syncFailed = false;
     if (supabaseConfigured && currentVaultId) {
@@ -854,6 +938,12 @@ export default function App() {
     }
     
     setCurrentEncryptedVault(encrypted);
+    try {
+      const activeSession = JSON.parse(sessionStorage.getItem(SESSION_RESUME_STORAGE_KEY) || 'null');
+      if (activeSession?.keyId) await saveSessionKey(activeSession.keyId, cryptoKey);
+    } catch (error) {
+      console.error('Failed to update the vault refresh key:', error);
+    }
     if (!syncFailed) {
       cacheVaultLocally(identifier, encrypted);
     }
@@ -1155,9 +1245,21 @@ export default function App() {
     });
   };
 
-  const loadCloudVaultIntoUI = ({ items, notes, groups: savedGroups, twoFactor, logoId, openedSession, row, cleanId }) => {
+  const loadCloudVaultIntoUI = async ({ items, notes, groups: savedGroups, twoFactor, logoId, openedSession, row, cleanId, cryptoKey }) => {
     const device = parseDeviceInfo();
     const vaultIdentifier = normalizeIdentifier(row.identifier || cleanId);
+    try {
+      await persistVaultSession({
+        type: 'cloud',
+        identifier: vaultIdentifier,
+        vaultId: row.id,
+        sessionId: openedSession.session_id,
+        token: openedSession.session_token,
+      }, cryptoKey);
+    } catch (storageError) {
+      console.error('Failed to preserve the cloud vault session:', storageError);
+      triggerNotice(lang === 'ar' ? 'تعذر حفظ جلسة الاستعادة على هذا الجهاز.' : 'Could not preserve this vault session on this device.');
+    }
     setVaultItems(items);
     setVaultNotes(notes);
     setIdentifier(vaultIdentifier);
@@ -1188,7 +1290,13 @@ export default function App() {
     cacheVaultLocally(vaultIdentifier, row.encrypted_data, row);
   };
 
-  const loadLocalVaultIntoUI = ({ items, notes, groups: savedGroups, twoFactor, logoId, encryptedObj, cleanId }) => {
+  const loadLocalVaultIntoUI = async ({ items, notes, groups: savedGroups, twoFactor, logoId, encryptedObj, cleanId, cryptoKey }) => {
+    try {
+      await persistVaultSession({ type: 'local', identifier: cleanId }, cryptoKey);
+    } catch (storageError) {
+      console.error('Failed to preserve the local vault session:', storageError);
+      triggerNotice(lang === 'ar' ? 'تعذر حفظ جلسة الاستعادة على هذا الجهاز.' : 'Could not preserve this vault session on this device.');
+    }
     setVaultItems(items);
     setVaultNotes(notes);
     setIdentifier(cleanId);
@@ -1210,7 +1318,13 @@ export default function App() {
   const finishCloudVaultLogin = async (openedSession, cleanId, loginPassword) => {
     const row = openedSession?.vault;
     if (!row?.encrypted_data || !openedSession?.session_token || !openedSession?.session_id) return false;
-    const decrypted = await decryptData(row.encrypted_data, loginPassword);
+    if (!Array.isArray(row.encrypted_data.salt) || row.encrypted_data.salt.length !== 16) return false;
+    const cryptoKey = await importCryptoKey(
+      loginPassword,
+      new Uint8Array(row.encrypted_data.salt || []),
+      getSafeKdfIterations(row.encrypted_data.kdfIterations)
+    );
+    const decrypted = await decryptDataWithKey(row.encrypted_data, cryptoKey);
     if (!decrypted) {
       await supabase.rpc('revoke_vault_session_secure', {
         p_session_token: openedSession.session_token,
@@ -1221,7 +1335,7 @@ export default function App() {
     const { items, notes, groups, twoFactor, logoId } = extractVaultData(decrypted);
 
     if (twoFactor?.enabled && twoFactor?.secret) {
-      setPendingUnlock({ type: 'cloud', items, notes, groups, twoFactor, logoId, openedSession, row, cleanId, loginPassword });
+      setPendingUnlock({ type: 'cloud', items, notes, groups, twoFactor, logoId, openedSession, row, cleanId, cryptoKey });
       setTotpInputCode('');
       setTotpError('');
       setTotpFailedAttempts(0);
@@ -1229,7 +1343,7 @@ export default function App() {
       return 'pending-2fa';
     }
 
-    loadCloudVaultIntoUI({ items, notes, groups, twoFactor, logoId, openedSession, row, cleanId });
+    await loadCloudVaultIntoUI({ items, notes, groups, twoFactor, logoId, openedSession, row, cleanId, cryptoKey });
     return true;
   };
 
@@ -1271,6 +1385,102 @@ export default function App() {
     try { localStorage.setItem(logKey, JSON.stringify(updated)); } catch (e) { }
     setVaultDeviceLogs(updated);
   };
+
+  useEffect(() => {
+    let active = true;
+    const restoreSession = async () => {
+      let savedSession;
+      try {
+        savedSession = JSON.parse(sessionStorage.getItem(SESSION_RESUME_STORAGE_KEY) || 'null');
+      } catch (error) {
+        sessionStorage.removeItem(SESSION_RESUME_STORAGE_KEY);
+      }
+
+      if (savedSession?.type === 'local') {
+        try {
+          const cryptoKey = await readSessionKey(savedSession.keyId || `local:${savedSession.identifier}`);
+          const encryptedObj = JSON.parse(localStorage.getItem(`passguard_vault_${savedSession.identifier}`) || 'null');
+          const decrypted = cryptoKey && encryptedObj ? await decryptDataWithKey(encryptedObj, cryptoKey) : null;
+          if (!active) return;
+          if (!decrypted) {
+            await clearVaultSession();
+            return;
+          }
+          const { items, notes, groups, twoFactor, logoId } = extractVaultData(decrypted);
+          await loadLocalVaultIntoUI({
+            items, notes, groups, twoFactor, logoId, encryptedObj,
+            cleanId: savedSession.identifier, cryptoKey,
+          });
+          return;
+        } catch (restoreError) {
+          console.error('Failed to restore the local vault session:', restoreError);
+          if (active) triggerNotice(lang === 'ar' ? 'تعذر استعادة جلسة الخزنة المحلية.' : 'Could not restore the local vault session.');
+          return;
+        }
+      }
+
+      if (savedSession?.type === 'cloud' && supabaseConfigured) {
+        try {
+          const [{ data, error: resumeError }, cryptoKey] = await Promise.all([
+            supabase.rpc('resume_vault_session_secure', { p_session_token: savedSession.token }),
+            readSessionKey(savedSession.keyId || `cloud:${savedSession.vaultId}`),
+          ]);
+          if (resumeError) throw resumeError;
+          if (!active) return;
+          const row = data?.vault;
+          if (!row?.encrypted_data || !cryptoKey) {
+            await clearVaultSession();
+            return;
+          }
+          const decrypted = await decryptDataWithKey(row.encrypted_data, cryptoKey);
+          if (!decrypted) {
+            await clearVaultSession();
+            return;
+          }
+          const { items, notes, groups, twoFactor, logoId } = extractVaultData(decrypted);
+          await loadCloudVaultIntoUI({
+            items, notes, groups, twoFactor, logoId, cryptoKey, row,
+            cleanId: row.identifier,
+            openedSession: { session_token: savedSession.token, session_id: savedSession.sessionId },
+          });
+          return;
+        } catch (restoreError) {
+          console.error('Failed to restore the cloud vault session:', restoreError);
+          if (active) triggerNotice(restoreError.message || (lang === 'ar' ? 'تعذر استعادة جلسة الخزنة السحابية.' : 'Could not restore the cloud vault session.'));
+          return;
+        }
+      }
+
+      if (savedSession) {
+        await clearVaultSession();
+        return;
+      }
+
+      if (!supabaseConfigured) return;
+      const { data: authData, error: authError } = await supabase.auth.getSession();
+      if (!active || authError || !authData?.session?.user?.email || authData.session.user.email.toLowerCase() !== ADMIN_EMAIL) return;
+      const { data: assuranceData, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!active || assuranceError || !assuranceData) return;
+      const { data: factorData, error: factorError } = await supabase.auth.mfa.listFactors();
+      if (!active || factorError) return;
+      const hasVerifiedFactor = [...(factorData?.all || []), ...(factorData?.totp || [])].some(factor => factor.status === 'verified');
+      if (!hasVerifiedFactor || assuranceData.currentLevel === 'aal2') {
+        await finishAdminLogin('');
+      }
+    };
+
+    void restoreSession()
+      .catch(restoreError => {
+        if (active) {
+          console.error('Session restoration failed:', restoreError);
+          triggerNotice(restoreError.message || (lang === 'ar' ? 'تعذرت استعادة الجلسة.' : 'Could not restore the session.'));
+        }
+      })
+      .finally(() => {
+        if (active) setIsRestoringSession(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1847,12 +2057,21 @@ export default function App() {
     const savedVault = localStorage.getItem(storageKey);
     if (!savedVault) { setError(t.accountNotFoundAlert); return; }
     const encryptedObj = JSON.parse(savedVault);
-    const decrypted = await decryptData(encryptedObj, masterPassword);
+    if (!Array.isArray(encryptedObj?.salt) || encryptedObj.salt.length !== 16) {
+      await triggerFailedAttempt();
+      return;
+    }
+    const cryptoKey = await importCryptoKey(
+      masterPassword,
+      new Uint8Array(encryptedObj.salt || []),
+      getSafeKdfIterations(encryptedObj.kdfIterations)
+    );
+    const decrypted = await decryptDataWithKey(encryptedObj, cryptoKey);
     if (decrypted) {
       const { items, notes, groups, twoFactor, logoId } = extractVaultData(decrypted);
 
       if (twoFactor?.enabled && twoFactor?.secret) {
-        setPendingUnlock({ type: 'local', items, notes, groups, twoFactor, logoId, encryptedObj, cleanId });
+        setPendingUnlock({ type: 'local', items, notes, groups, twoFactor, logoId, encryptedObj, cleanId, cryptoKey });
         setTotpInputCode('');
         setTotpError('');
         setTotpFailedAttempts(0);
@@ -1860,7 +2079,7 @@ export default function App() {
         return;
       }
 
-      loadLocalVaultIntoUI({ items, notes, groups, twoFactor, logoId, encryptedObj, cleanId });
+      await loadLocalVaultIntoUI({ items, notes, groups, twoFactor, logoId, encryptedObj, cleanId, cryptoKey });
     } else {
       await triggerFailedAttempt();
     }
@@ -1876,7 +2095,8 @@ export default function App() {
     if (!isValidPassword(masterPassword)) { setError(t.passwordComplexityAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
     const initialData = { items: [], notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' }, logoId: DEFAULT_VAULT_LOGO };
-    const encrypted = await encryptData(initialData, masterPassword);
+    let cryptoKey;
+    const encrypted = await encryptData(initialData, masterPassword, key => { cryptoKey = key; });
 
     if (supabaseConfigured) {
       const { data, error: rpcError } = await supabase.rpc('register_vault_secure', {
@@ -1909,6 +2129,12 @@ export default function App() {
     setVaultNotes([]);
     setTwoFactorState({ enabled: false, secret: '' });
     setVaultLogoId(DEFAULT_VAULT_LOGO);
+    try {
+      await persistVaultSession({ type: 'local', identifier: cleanId }, cryptoKey);
+    } catch (storageError) {
+      console.error('Failed to preserve the new local vault session:', storageError);
+      triggerNotice(lang === 'ar' ? 'تعذر حفظ جلسة الاستعادة على هذا الجهاز.' : 'Could not preserve this vault session on this device.');
+    }
     setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
     setConfirmMasterPassword('');
     registerDeviceLogin(cleanId);
@@ -2323,6 +2549,7 @@ export default function App() {
   };
 
   const lockRevokedVault = () => {
+    void clearVaultSession().catch(error => console.error('Failed to clear the revoked vault session:', error));
     setVaultItems([]);
     setVaultNotes([]);
     setCurrentVaultId(null);
@@ -2348,19 +2575,21 @@ export default function App() {
   };
 
   const revokeVaultSession = async (sessionId, isCurrentSession = false) => {
-    addLocallyRevokedSessionId(currentVaultId, identifier, sessionId);
-
     if (supabaseConfigured && sessionToken) {
       try {
-        const { error: revokeError } = await supabase.rpc('revoke_vault_session_secure', {
+        const { data: revoked, error: revokeError } = await supabase.rpc('revoke_vault_session_secure', {
           p_session_token: sessionToken,
           p_session_id: sessionId,
         });
-        if (revokeError) {
-          console.error('Session revoke RPC failed:', revokeError);
+        if (revokeError) throw revokeError;
+        if (!revoked) {
+          triggerNotice(lang === 'ar' ? 'تعذر العثور على الجلسة النشطة لإلغائها.' : 'The active session could not be found.');
+          return;
         }
       } catch (err) {
-        console.error('Session revoke error:', err);
+        console.error('Session revoke failed:', err);
+        triggerNotice(err.message || (lang === 'ar' ? 'تعذر إلغاء الجلسة.' : 'Could not revoke the session.'));
+        return;
       }
     } else {
       const cleanId = normalizeIdentifier(identifier);
@@ -2372,6 +2601,7 @@ export default function App() {
       } catch (e) { }
     }
 
+    addLocallyRevokedSessionId(currentVaultId, identifier, sessionId);
     setVaultDeviceLogs(current => current.map(session => (session.session_id === sessionId || session.id === sessionId)
       ? { ...session, revoked_at: new Date().toISOString() }
       : session));
@@ -2390,9 +2620,42 @@ export default function App() {
         triggerNotice(lang === 'ar' ? 'لا توجد جلسات أخرى نشطة لإلغائها.' : 'No other active sessions to revoke.');
         return;
       }
-      for (const sess of otherSessions) {
-        await revokeVaultSession(sess.session_id || sess.id, false);
+      if (supabaseConfigured && sessionToken) {
+        const { data: revokedCount, error: revokeError } = await supabase.rpc('revoke_other_vault_sessions_secure', {
+          p_session_token: sessionToken,
+        });
+        if (revokeError) {
+          triggerNotice(revokeError.message);
+          return;
+        }
+        if (!revokedCount) {
+          triggerNotice(lang === 'ar' ? 'لم يتم إلغاء أي جلسات أخرى.' : 'No other sessions were revoked.');
+          return;
+        }
+      } else {
+        const cleanId = normalizeIdentifier(identifier);
+        const logKey = `passguard_devices_${cleanId}`;
+        try {
+          const logs = JSON.parse(localStorage.getItem(logKey) || '[]');
+          const revokedAt = new Date().toISOString();
+          localStorage.setItem(logKey, JSON.stringify(logs.map(session =>
+            otherSessions.some(other => (other.id || other.session_id) === (session.id || session.session_id))
+              ? { ...session, revoked_at: revokedAt }
+              : session
+          )));
+        } catch (storageError) {
+          console.error('Failed to persist revoked local sessions:', storageError);
+          triggerNotice(lang === 'ar' ? 'تعذر حفظ إلغاء الجلسات المحلية.' : 'Could not save local session revocations.');
+          return;
+        }
       }
+      const revokedAt = new Date().toISOString();
+      otherSessions.forEach(session => addLocallyRevokedSessionId(currentVaultId, identifier, session.session_id || session.id));
+      setVaultDeviceLogs(current => current.map(session =>
+        otherSessions.some(other => (other.session_id || other.id) === (session.session_id || session.id))
+          ? { ...session, revoked_at: revokedAt }
+          : session
+      ));
       triggerNotice(t.allSessionsRevokedNotice);
     });
   };
@@ -2479,7 +2742,8 @@ export default function App() {
     const newLogoId = getValidVaultLogoId(manageData.logoId);
     
     const payload = { items: vaultItems, notes: vaultNotes, groups, twoFactor: twoFactorState, logoId: newLogoId };
-    const encrypted = await encryptData(payload, manageData.masterPassword);
+    let updatedCryptoKey;
+    const encrypted = await encryptData(payload, manageData.masterPassword, key => { updatedCryptoKey = key; });
 
     if (supabaseConfigured && currentVaultId) {
       const { data, error: updateError } = await supabase.rpc('update_vault_profile_secure', {
@@ -2510,6 +2774,19 @@ export default function App() {
       localStorage.setItem(`passguard_meta_${newIdClean}`, JSON.stringify({ isLocked: false, alert: false, identifier: newIdClean, email: manageData.email || '', phone: manageData.phone || '', createdAt: manageData.createdAt || new Date().toISOString() }));
     }
 
+    try {
+      const activeSession = JSON.parse(sessionStorage.getItem(SESSION_RESUME_STORAGE_KEY) || 'null');
+      if (activeSession) {
+        await persistVaultSession({ ...activeSession, identifier: newIdClean }, updatedCryptoKey);
+        if (activeSession.keyId && activeSession.keyId !== (activeSession.type === 'cloud' ? `cloud:${activeSession.vaultId}` : `local:${newIdClean}`)) {
+          await removeSessionKey(activeSession.keyId);
+        }
+      }
+    } catch (storageError) {
+      console.error('Failed to update the vault refresh key after changing its password:', storageError);
+      triggerNotice(lang === 'ar' ? 'تم حفظ التغييرات لكن تعذر تحديث جلسة الاستعادة.' : 'Changes were saved, but the refresh session could not be updated.');
+    }
+
     setCurrentEncryptedVault(encrypted);
     setVaultLogoId(newLogoId);
     setIdentifier(newIdClean); setMasterPassword(manageData.masterPassword);
@@ -2520,42 +2797,66 @@ export default function App() {
   };
 
   const openAdminManageUser = async (user) => {
-    setManageData({ oldId: user.username, identifier: user.username, masterPassword: '', oldPass: '', email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', vaultId: user.id, encryptedData: null, isLocked: user.isLocked, alert: user.alert, disableTwoFactor: false });
+    adminRecoveryPasswordRef.current = '';
+    setManageData({ oldId: user.username, identifier: user.username, masterPassword: '', oldPass: '', email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', vaultId: user.id, encryptedData: null, isLocked: user.isLocked, alert: user.alert, disableTwoFactor: false, twoFactorEnabled: null, twoFactorLoaded: false });
     setShowManageMasterPassword(false);
     setAdminSubView('manageUser');
+    setAdminLoading(true);
+    try {
+      const { data, error: revealError } = await supabase.rpc('admin_reveal_vault', { p_vault_id: user.id });
+      if (revealError) throw revealError;
+      const recovery = Array.isArray(data) ? data[0] : data;
+      if (!recovery?.master_password || !recovery.encrypted_data) {
+        throw new Error(lang === 'ar' ? 'تعذر تحميل حالة المصادقة الثنائية.' : 'Could not load two-factor status.');
+      }
+      const decrypted = await decryptData(recovery.encrypted_data, recovery.master_password);
+      if (!decrypted) throw new Error(lang === 'ar' ? 'تعذر قراءة بيانات الخزنة.' : 'Could not read the vault data.');
+      const { twoFactor } = extractVaultData(decrypted);
+      adminRecoveryPasswordRef.current = recovery.master_password;
+      setManageData(current => ({
+        ...current,
+        encryptedData: recovery.encrypted_data,
+        twoFactorEnabled: !!twoFactor?.enabled,
+        twoFactorLoaded: true,
+      }));
+    } catch (loadError) {
+      console.error('Failed to load managed vault two-factor status:', loadError);
+      triggerNotice(loadError.message || (lang === 'ar' ? 'تعذر تحميل حالة المصادقة الثنائية.' : 'Could not load two-factor status.'));
+    } finally {
+      setAdminLoading(false);
+    }
   };
 
   const revealAdminManagedPassword = async () => {
     if (!manageData.vaultId || adminLoading) return;
-    setAdminLoading(true);
-    const { data, error: revealError } = await supabase.rpc('admin_reveal_vault', { p_vault_id: manageData.vaultId });
-    setAdminLoading(false);
-    const recovery = Array.isArray(data) ? data[0] : data;
-    if (revealError || !recovery?.master_password) {
-      triggerNotice(revealError?.message || (lang === 'ar' ? 'تعذر تحميل كلمة المرور الرئيسية.' : 'Could not load the master password.'));
+    if (!adminRecoveryPasswordRef.current || !manageData.encryptedData) {
+      triggerNotice(lang === 'ar' ? 'تعذر تحميل كلمة المرور الرئيسية.' : 'Could not load the master password.');
       return;
     }
-    setManageData(prev => ({ ...prev, masterPassword: recovery.master_password, oldPass: recovery.master_password, encryptedData: recovery.encrypted_data }));
+    setManageData(prev => ({ ...prev, masterPassword: adminRecoveryPasswordRef.current, oldPass: adminRecoveryPasswordRef.current }));
     setShowManageMasterPassword(true);
   };
 
   const handleAdminSaveUser = async (e) => {
     e.preventDefault();
-    if (!manageData.identifier || !manageData.masterPassword) { triggerNotice(t.missingFieldsAlert); return; }
-    if (!isValidPassword(manageData.masterPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
+    if (!manageData.identifier || !manageData.encryptedData || !manageData.twoFactorLoaded) { triggerNotice(t.missingFieldsAlert); return; }
     if (!supabaseConfigured) { triggerNotice(lang === 'ar' ? 'أعد إعداد Supabase لاستخدام الإدارة العالمية.' : 'Configure Supabase for global administration.'); return; }
-    const decrypted = await decryptData(manageData.encryptedData, manageData.oldPass);
-    if (!decrypted) { triggerNotice(lang === 'ar' ? 'فشل فك التشفير - كلمة المرور الحالية للمشرف غير صحيحة.' : 'Decryption failed - current support password mismatch.'); return; }
+    const oldPassword = manageData.oldPass || adminRecoveryPasswordRef.current;
+    const updatedPassword = manageData.masterPassword || oldPassword;
+    if (!oldPassword || !updatedPassword) { triggerNotice(t.missingFieldsAlert); return; }
+    if (manageData.masterPassword && !isValidPassword(manageData.masterPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
+    const decrypted = await decryptData(manageData.encryptedData, oldPassword);
+    if (!decrypted) { triggerNotice(lang === 'ar' ? 'تعذر فك تشفير بيانات الخزنة.' : 'Could not decrypt the vault data.'); return; }
 
     const { items: dItems, notes: dNotes, groups: dGroups, twoFactor: dTwoFactor, logoId: dLogoId } = extractVaultData(decrypted);
     const twoFactorToSave = manageData.disableTwoFactor ? { enabled: false, secret: '' } : dTwoFactor;
     const payloadToEncrypt = { items: dItems, notes: dNotes, groups: dGroups, twoFactor: twoFactorToSave, logoId: dLogoId };
-    const encrypted = await encryptData(payloadToEncrypt, manageData.masterPassword);
+    const encrypted = await encryptData(payloadToEncrypt, updatedPassword);
     const newIdClean = normalizeIdentifier(manageData.identifier);
     const { data, error: updateError } = await supabase.rpc('admin_update_vault_secure', {
       p_vault_id: manageData.vaultId,
       p_identifier: newIdClean,
-      p_master_password: manageData.masterPassword,
+      p_master_password: updatedPassword,
       p_email: manageData.email || '',
       p_phone: manageData.phone || '',
       p_is_locked: !!manageData.isLocked,
@@ -2568,6 +2869,7 @@ export default function App() {
     triggerNotice(manageData.disableTwoFactor && dTwoFactor?.enabled
       ? lang === 'ar' ? 'تم تحديث الخزنة وإلغاء المصادقة الثنائية للمستخدم.' : 'Vault updated and user two-factor authentication disabled.'
       : lang === 'ar' ? 'تم تحديث بيانات المستخدم والخزنة بنجاح.' : 'User and vault data updated successfully.');
+    adminRecoveryPasswordRef.current = '';
     await loadAdminUsersData();
     setAdminSubView('dashboard');
   };
@@ -2714,9 +3016,9 @@ export default function App() {
       }
 
       if (pendingUnlock.type === 'cloud') {
-        loadCloudVaultIntoUI(pendingUnlock);
+        await loadCloudVaultIntoUI(pendingUnlock);
       } else {
-        loadLocalVaultIntoUI(pendingUnlock);
+        await loadLocalVaultIntoUI(pendingUnlock);
       }
 
       setShowTotpModal(false);
@@ -2970,12 +3272,22 @@ export default function App() {
                     {newNoteFiles.map((file, idx) => (
                       <div key={idx} className={`relative p-2 border rounded-lg flex flex-col items-center gap-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                         <button type="button" onClick={() => removeNoteFile(idx)} className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-md hover:bg-rose-600"><X className="w-3 h-3" /></button>
-                        {file.type.startsWith('image/') ? (
+                        {file.type?.startsWith('image/') ? (
                           <img src={file.base64} alt="Preview" className="w-full h-20 object-cover rounded" />
                         ) : (
                           <FileText className="w-8 h-8 text-indigo-400 my-4" />
                         )}
                         <span className={`text-[10px] truncate w-full text-center break-word-custom ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{file.name}</span>
+                        {file.base64 && (
+                          <div className="flex items-center gap-3 text-[10px]">
+                            <a href={file.base64} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-indigo-400 hover:underline">
+                              <Eye className="w-3 h-3" />{lang === 'ar' ? 'معاينة' : 'Preview'}
+                            </a>
+                            <a href={file.base64} download={file.name} className="flex items-center gap-1 text-emerald-400 hover:underline">
+                              <Download className="w-3 h-3" />{lang === 'ar' ? 'تنزيل' : 'Download'}
+                            </a>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -3371,8 +3683,14 @@ export default function App() {
           </section>
         </div>
 
+        {!isUnlocked && isRestoringSession && (
+          <div role="status" className={`my-auto rounded-2xl border px-6 py-5 text-center text-sm font-semibold ${isDark ? 'border-indigo-500/30 bg-slate-900 text-indigo-300' : 'border-indigo-200 bg-white text-indigo-700'}`}>
+            {lang === 'ar' ? 'جارٍ استعادة جلستك...' : 'Restoring your session...'}
+          </div>
+        )}
+
         {/* شاشة الترحيب الرئيسية */}
-        {!isUnlocked && currentView === 'welcome' && (
+        {!isUnlocked && !isRestoringSession && currentView === 'welcome' && (
           <div className="landing-welcome flex flex-col items-center justify-center px-4 max-w-4xl mx-auto text-center my-auto space-y-12 py-8">
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold mb-2 shadow-inner animate-pulse">
@@ -3452,7 +3770,7 @@ export default function App() {
         )}
 
         {/* شاشات تسجيل الدخول وإنشاء الخزنة وبوابة المشرف */}
-        {!isUnlocked && currentView === 'auth' && (
+        {!isUnlocked && !isRestoringSession && currentView === 'auth' && (
           <div className={`w-full max-w-md border p-6 sm:p-7 rounded-3xl shadow-2xl backdrop-blur-2xl transition-all duration-500 my-auto ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
             <div className="text-center mb-5">
               <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl border mb-3 shadow-xl ${authMode === 'admin' ? (isDark ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-amber-100 border-amber-200 text-amber-600') : (isDark ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-400' : 'bg-indigo-100 border-indigo-200 text-indigo-600')}`}>
@@ -3531,7 +3849,7 @@ export default function App() {
                 <button onClick={() => { setAdminSubView('adminSettings'); loadMfaStatus(); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'}`}>
                   <Settings className="w-4 h-4 inline me-1" /><span>{lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
                 </button>
-                <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setSessionToken(null); setCurrentSessionId(null); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'}`}>
+                <button onClick={async () => { if (supabaseConfigured) await supabase.auth.signOut(); await clearVaultSession(); setIsUnlocked(false); setIsAdmin(false); setSessionToken(null); setCurrentSessionId(null); setMasterPassword(''); setAdminPassword(''); setCurrentView('welcome'); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'}`}>
                   <LogOut className="w-4 h-4 inline me-1" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
@@ -3766,7 +4084,7 @@ export default function App() {
                       </div>
                       <div>
                         <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.passwordLabel}</label>
-                        <input type={showManageMasterPassword ? 'text' : 'password'} value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required autoComplete="new-password" />
+                        <input type={showManageMasterPassword ? 'text' : 'password'} value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} autoComplete="new-password" />
                         <button type="button" onClick={() => showManageMasterPassword ? setShowManageMasterPassword(false) : revealAdminManagedPassword()} disabled={adminLoading} className={`mt-1.5 flex items-center gap-1 text-[10px] font-semibold ${isDark ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-700 hover:text-indigo-600'}`}>
                           {showManageMasterPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                           {lang === 'ar' ? 'إظهار/تعديل كلمة المرور الرئيسية' : 'Show/Edit Master Password'}
@@ -3783,16 +4101,33 @@ export default function App() {
                         <input type="tel" value={manageData.phone} onChange={(e) => handlePhoneChange(e, (val) => setManageData({ ...manageData, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                     </div>
-                    {manageData.encryptedData && (
-                      <label className={`flex items-start gap-2 rounded-xl border p-3 text-[11px] ${isDark ? 'border-rose-500/30 bg-rose-500/5 text-rose-300' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
-                        <input
-                          type="checkbox"
-                          checked={!!manageData.disableTwoFactor}
-                          onChange={event => setManageData({ ...manageData, disableTwoFactor: event.target.checked })}
-                          className="mt-0.5 accent-rose-600"
-                        />
-                        <span>{lang === 'ar' ? 'إلغاء المصادقة الثنائية عن خزنة هذا المستخدم عند حفظ التعديلات (تحتاج أولاً إلى إظهار كلمة المرور الرئيسية).' : 'Disable two-factor authentication for this vault when saving (reveal the master password first).'}</span>
-                      </label>
+                    {manageData.twoFactorLoaded ? (
+                      <div className={`rounded-xl border p-3 text-[11px] ${manageData.twoFactorEnabled
+                        ? isDark ? 'border-amber-500/30 bg-amber-500/5 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700'
+                        : isDark ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-slate-300 bg-slate-50 text-slate-700'}`}>
+                        <p className="font-bold">
+                          {lang === 'ar'
+                            ? `المصادقة الثنائية: ${manageData.twoFactorEnabled ? 'مفعّلة' : 'غير مفعّلة'}`
+                            : `Two-factor authentication: ${manageData.twoFactorEnabled ? 'Enabled' : 'Disabled'}`}
+                        </p>
+                        {manageData.twoFactorEnabled && (
+                          <label className="mt-2 flex items-start gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!manageData.disableTwoFactor}
+                              onChange={event => setManageData({ ...manageData, disableTwoFactor: event.target.checked })}
+                              className="mt-0.5 accent-rose-600"
+                            />
+                            <span>{lang === 'ar' ? 'إلغاء المصادقة الثنائية عند حفظ التعديلات' : 'Disable two-factor authentication when saving changes'}</span>
+                          </label>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="rounded-xl border border-slate-700 bg-slate-900 p-3 text-[11px] text-slate-400">
+                        {adminLoading
+                          ? (lang === 'ar' ? 'جارٍ تحميل حالة المصادقة الثنائية...' : 'Loading two-factor status...')
+                          : (lang === 'ar' ? 'تعذر تحميل حالة المصادقة الثنائية. أعد فتح بيانات المستخدم.' : 'Could not load two-factor status. Reopen this user.')}
+                      </p>
                     )}
                     <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                       <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{t.creationDateLabel}</span>
@@ -3800,7 +4135,7 @@ export default function App() {
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
                       <button type="button" onClick={() => setAdminSubView('dashboard')} className={`px-4 py-2.5 border text-xs font-semibold rounded-xl cursor-pointer transition-colors ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-200 border-slate-300 text-slate-800 hover:bg-slate-300'}`}>{t.cancelBtn}</button>
-                      <button type="submit" className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg">{t.saveSettingsBtn}</button>
+                      <button type="submit" disabled={!manageData.twoFactorLoaded || adminLoading} className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-lg disabled:opacity-50">{t.saveSettingsBtn}</button>
                     </div>
                   </form>
                 </div>
@@ -3942,7 +4277,7 @@ export default function App() {
                 </div>
               </div>
               <div className="mobile-vault-logout pt-3 border-t border-slate-800/60 mt-3">
-                <button onClick={async () => { if (sessionToken && currentSessionId && supabaseConfigured) await supabase.rpc('revoke_vault_session_secure', { p_session_token: sessionToken, p_session_id: currentSessionId }); if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setSessionToken(null); setCurrentSessionId(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); setTwoFactorState({ enabled: false, secret: '' }); setPendingUnlock(null); setShowTotpModal(false); setTotpSetupData(null); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'}`}>
+                <button onClick={async () => { if (sessionToken && currentSessionId && supabaseConfigured) await supabase.rpc('revoke_vault_session_secure', { p_session_token: sessionToken, p_session_id: currentSessionId }); if (isAdmin && supabaseConfigured) await supabase.auth.signOut(); await clearVaultSession(); setIsUnlocked(false); setIsAdmin(false); setCurrentVaultId(null); setCurrentEncryptedVault(null); setSessionToken(null); setCurrentSessionId(null); setMasterPassword(''); setIdentifier(''); setCurrentView('welcome'); setTwoFactorState({ enabled: false, secret: '' }); setPendingUnlock(null); setShowTotpModal(false); setTotpSetupData(null); }} className={`w-full py-2 px-3 border rounded-xl cursor-pointer flex items-center justify-center gap-2 text-xs font-bold transition-colors ${isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' : 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'}`}>
                   <LogOut className="w-3.5 h-3.5" /><span>{t.logoutBtn}</span>
                 </button>
               </div>
@@ -4113,6 +4448,25 @@ export default function App() {
                             <Paperclip className="w-3.5 h-3.5" />
                             <span>{note.attachments?.length || 0} {lang === 'ar' ? 'مرفقات' : 'attachments'}</span>
                           </div>
+                          {!!note.attachments?.length && (
+                            <div className="space-y-2">
+                              {note.attachments.map((attachment, index) => (
+                                <div key={`${attachment.name}-${index}`} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 ${isDark ? 'border-slate-800 bg-slate-900/70' : 'border-slate-200 bg-slate-50'}`}>
+                                  <span className={`min-w-0 truncate text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{attachment.name}</span>
+                                  {attachment.base64 && (
+                                    <div className="flex shrink-0 items-center gap-2">
+                                      <a href={attachment.base64} target="_blank" rel="noreferrer" aria-label={lang === 'ar' ? `معاينة ${attachment.name}` : `Preview ${attachment.name}`} title={lang === 'ar' ? 'معاينة' : 'Preview'} className="text-indigo-400 hover:text-indigo-300">
+                                        <Eye className="h-4 w-4" />
+                                      </a>
+                                      <a href={attachment.base64} download={attachment.name} aria-label={lang === 'ar' ? `تنزيل ${attachment.name}` : `Download ${attachment.name}`} title={lang === 'ar' ? 'تنزيل' : 'Download'} className="text-emerald-400 hover:text-emerald-300">
+                                        <Download className="h-4 w-4" />
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           <div className="flex items-center justify-between gap-2 mt-auto">
                             <button onClick={() => { setEditingNoteId(note.id); setNewNoteTitle(note.title || ''); setNewNoteContent(note.content || ''); setNewNoteFiles(note.attachments || []); setShowNoteModal(true); }} className="text-xs text-indigo-500 font-semibold hover:underline cursor-pointer flex items-center gap-1">
                               <Eye className="w-3.5 h-3.5" />{lang === 'ar' ? 'فتح وتعديل الملاحظة' : 'Open & edit note'}

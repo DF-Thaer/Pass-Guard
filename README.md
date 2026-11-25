@@ -14,6 +14,8 @@ A local, client-side encrypted password manager built with **React**, **Vite**, 
 - **Optimized Note Images**: JPEG, PNG, and BMP attachments are resized to at most 1920px and converted to WebP in the browser before encrypted storage. Per-note attachments remain limited to 5 MB; original images are limited to 20 MB for safe processing. PDFs, GIFs, and SVGs are preserved without conversion.
 - **Telemetry & Session Auditing**: Tracks authorized login environments, network telemetry, and detected devices.
 - **Revocable Cloud Sessions**: Revoke active vault sessions remotely; revoked sessions stop cloud writes.
+- **Refresh-Safe Vault Sessions**: Keep the current device unlocked across a page refresh using a session-scoped, non-exportable encryption key stored locally.
+- **Note Attachments**: Preview and download attached images and PDFs from notes.
 - **Passkeys**: Optional WebAuthn second factor using device biometrics, PIN, or a security key.
 - **Configurable Two-Factor Authentication**: Vault owners can disable TOTP after confirming a current code, and admins can disable it for a managed vault. Admins can also remove their own Supabase Auth MFA after code verification.
 - **Encrypted Backup & Restore**: Full JSON import/export encrypted against your unique derived master key.
@@ -36,7 +38,7 @@ A local, client-side encrypted password manager built with **React**, **Vite**, 
 
 Cloud sessions and Passkeys require the Supabase setup below. Local-only vaults continue to work without these services, but cannot be revoked remotely.
 
-1. Run `supabase/SECURE_SESSIONS_AND_PASSKEYS.sql` in the Supabase SQL editor after `SECURE_RECOVERY_MIGRATION.sql`.
+1. Run `supabase/SECURE_SESSIONS_AND_PASSKEYS.sql` in the Supabase SQL editor after `SECURE_RECOVERY_MIGRATION.sql`. If the secure sessions migration was already applied, run it again to add refresh recovery and single-request bulk session revocation.
 2. Deploy the Edge Function from `supabase/functions/passkeys`.
 3. Set these Edge Function secrets:
 
