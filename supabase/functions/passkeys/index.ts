@@ -68,7 +68,21 @@ Deno.serve(async request => {
 
     if (action === "authentication-options") {
       const identifier = String(body.identifier || "").trim().toLowerCase();
-      const { data: vault } = await supabase.from("vaults").select("id,identifier").eq("identifier", identifier).maybeSingle();
+      const { data: usernameVault, error: usernameError } = await supabase.from("vaults")
+        .select("id,identifier")
+        .eq("identifier", identifier)
+        .maybeSingle();
+      if (usernameError) throw usernameError;
+      let vault = usernameVault;
+      if (!vault) {
+        const { data: emailMatches, error: emailError } = await supabase.from("vaults")
+          .select("id,identifier,email")
+          .ilike("email", identifier)
+          .limit(2);
+        if (emailError) throw emailError;
+        const matchingEmails = (emailMatches || []).filter(candidate => String(candidate.email || "").trim().toLowerCase() === identifier);
+        if (matchingEmails.length === 1) vault = matchingEmails[0];
+      }
       if (!vault) return json({ enabled: false }, 200, origin);
       const { data: credentials, error: credentialError } = await supabase
         .from("passguard_passkeys")

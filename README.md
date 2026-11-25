@@ -10,7 +10,7 @@ A local, client-side encrypted password manager built with **React**, **Vite**, 
 
 - **Zero-Knowledge Cryptography**: All encryption and decryption routines run locally in-memory using military-grade `AES-GCM 256-bit` and `PBKDF2` (100,000 iterations).
 - **Interactive Security Auditor**: Real-time evaluation of password entropy, strength scores, and reused credential detection.
-- **Categorization & Management**: Custom group tagging, multi-account actions (bulk copy, cut, paste), and search indexing.
+- **Categorization & Management**: Custom groups persist inside each encrypted vault, alongside multi-account actions (bulk copy, cut, paste) and search indexing.
 - **Telemetry & Session Auditing**: Tracks authorized login environments, network telemetry, and detected devices.
 - **Revocable Cloud Sessions**: Revoke active vault sessions remotely; revoked sessions stop cloud writes.
 - **Passkeys**: Optional WebAuthn second factor using device biometrics, PIN, or a security key.
@@ -46,3 +46,7 @@ PASSKEY_ORIGINS=https://df-thaer.github.io,https://your-custom-domain.example
 For local development use `PASSKEY_RP_ID=localhost` and include the exact local origin, such as `http://localhost:5173`, in `PASSKEY_ORIGINS`. The RP ID is the domain only, without `https://` or a path.
 
 The Edge Function uses `@simplewebauthn/server` through Deno's npm compatibility. Keep `SUPABASE_SERVICE_ROLE_KEY` available only as an Edge Function secret; never place it in Vite environment variables.
+
+## Announcements And Alternate Sign-In
+
+After both migrations above, run `supabase/PASSGUARD_FEATURES_MIGRATION.sql` in the Supabase SQL editor. This enables admin-managed site/user announcements, retired username protection after a rename, and sign-in using the vault's linked email address as an optional alternate to its current username. Run the migration before deploying the matching frontend.

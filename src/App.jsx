@@ -66,20 +66,30 @@ async function decryptData(encryptedObj, password) {
   }
 }
 
+const DEFAULT_GROUPS = ['شخصي', 'عمل'];
+
 // دالة ذكية لاستخراج الحسابات والملاحظات (مع دعم بيانات 2FA)
 const extractVaultData = (decryptedData) => {
   if (Array.isArray(decryptedData)) {
-    return { items: decryptedData, notes: [], twoFactor: { enabled: false, secret: '' } };
+    return { items: decryptedData, notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' } };
   }
   if (decryptedData && typeof decryptedData === 'object') {
     return { 
       items: decryptedData.items || [], 
       notes: decryptedData.notes || [],
+      groups: Array.isArray(decryptedData.groups)
+        ? [...new Set(decryptedData.groups.filter(group => typeof group === 'string' && group.trim()).map(group => group.trim()))]
+        : DEFAULT_GROUPS,
       twoFactor: decryptedData.twoFactor || { enabled: false, secret: '' }
     };
   }
-  return { items: [], notes: [], twoFactor: { enabled: false, secret: '' } };
+  return { items: [], notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' } };
 };
+
+const mergeVaultGroups = (savedGroups, items) => [...new Set([
+  ...(Array.isArray(savedGroups) ? savedGroups : DEFAULT_GROUPS),
+  ...items.map(item => item.group).filter(Boolean),
+])];
 
 const isValidPassword = (pass) => !!(pass && pass.length >= 8 && /[A-Z]/.test(pass) && /[0-9]/.test(pass) && /[^A-Za-z0-9]/.test(pass));
 
@@ -612,6 +622,12 @@ export default function App() {
   const [adminLoading, setAdminLoading] = useState(false);
   const [vaultSubView, setVaultSubView] = useState('items');
   const [adminSubView, setAdminSubView] = useState('dashboard');
+  const [announcements, setAnnouncements] = useState([]);
+  const [publicAnnouncements, setPublicAnnouncements] = useState([]);
+  const [vaultAnnouncements, setVaultAnnouncements] = useState([]);
+  const [announcementForm, setAnnouncementForm] = useState({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true });
+  const [announcementBusy, setAnnouncementBusy] = useState(false);
+  const [dismissedAnnouncementIds, setDismissedAnnouncementIds] = useState([]);
   const [auditTab, setAuditTab] = useState('metrics');
   const [vaultDeviceLogs, setVaultDeviceLogs] = useState([]);
   const [editableRecord, setEditableRecord] = useState(null);
@@ -657,6 +673,7 @@ export default function App() {
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
   const [manageData, setManageData] = useState({ oldId: '', identifier: '', masterPassword: '', oldPass: '', email: '', phone: '', createdAt: '' });
+  const [showManageMasterPassword, setShowManageMasterPassword] = useState(false);
   const [inAppNotice, setInAppNotice] = useState('');
   const [reportGenerating, setReportGenerating] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -675,6 +692,7 @@ export default function App() {
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteFiles, setNewNoteFiles] = useState([]);
+  const [editingNoteId, setEditingNoteId] = useState(null);
   const [isSavingNote, setIsSavingNote] = useState(false);
 
   const [accountsViewMode, setAccountsViewMode] = useState('grid'); 
@@ -699,10 +717,11 @@ export default function App() {
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
 
-  const saveVaultState = async (itemsToSave, notesToSave, pwd = masterPassword, twoFactorOverride = null) => {
+  const saveVaultState = async (itemsToSave, notesToSave, pwd = masterPassword, twoFactorOverride = null, groupsOverride = null) => {
     if (!pwd) throw new Error("Master password is missing.");
     const twoFactorToSave = twoFactorOverride !== null ? twoFactorOverride : twoFactorState;
-    const payload = { items: itemsToSave, notes: notesToSave, twoFactor: twoFactorToSave };
+    const groupsToSave = groupsOverride !== null ? groupsOverride : groups;
+    const payload = { items: itemsToSave, notes: notesToSave, groups: groupsToSave, twoFactor: twoFactorToSave };
     const encrypted = await encryptData(payload, pwd);
     
     let syncFailed = false;
@@ -993,10 +1012,12 @@ export default function App() {
     });
   };
 
-  const loadCloudVaultIntoUI = ({ items, notes, twoFactor, openedSession, row, cleanId }) => {
+  const loadCloudVaultIntoUI = ({ items, notes, groups: savedGroups, twoFactor, openedSession, row, cleanId }) => {
     const device = parseDeviceInfo();
+    const vaultIdentifier = normalizeIdentifier(row.identifier || cleanId);
     setVaultItems(items);
     setVaultNotes(notes);
+    setIdentifier(vaultIdentifier);
     setTwoFactorState(twoFactor || { enabled: false, secret: '' });
     setCurrentVaultId(row.id);
     setCurrentEncryptedVault(row.encrypted_data);
@@ -1012,9 +1033,7 @@ export default function App() {
       created_at: new Date().toISOString(),
       is_current: true,
     }]);
-    let customGroups = ['شخصي', 'عمل'];
-    items.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
-    setGroups(customGroups);
+    setGroups(mergeVaultGroups(savedGroups, items));
     setIsAdmin(false);
     setIsUnlocked(true);
     setVaultSubView('items');
@@ -1022,18 +1041,17 @@ export default function App() {
     setFailedAttempts(0);
     setCaptchaPassed(false);
     setPostCaptchaAttempts(0);
-    cacheVaultLocally(cleanId, row.encrypted_data, row);
+    cacheVaultLocally(vaultIdentifier, row.encrypted_data, row);
   };
 
-  const loadLocalVaultIntoUI = ({ items, notes, twoFactor, encryptedObj, cleanId }) => {
+  const loadLocalVaultIntoUI = ({ items, notes, groups: savedGroups, twoFactor, encryptedObj, cleanId }) => {
     setVaultItems(items);
     setVaultNotes(notes);
+    setIdentifier(cleanId);
     setTwoFactorState(twoFactor || { enabled: false, secret: '' });
     setCurrentVaultId(null);
     setCurrentEncryptedVault(encryptedObj);
-    let customGroups = ['شخصي', 'عمل'];
-    items.forEach(item => { if (item.group && !customGroups.includes(item.group)) customGroups.push(item.group); });
-    setGroups(customGroups);
+    setGroups(mergeVaultGroups(savedGroups, items));
     setIsAdmin(false);
     setIsUnlocked(true);
     setVaultSubView('items');
@@ -1055,10 +1073,10 @@ export default function App() {
       });
       return false;
     }
-    const { items, notes, twoFactor } = extractVaultData(decrypted);
+    const { items, notes, groups, twoFactor } = extractVaultData(decrypted);
 
     if (twoFactor?.enabled && twoFactor?.secret) {
-      setPendingUnlock({ type: 'cloud', items, notes, twoFactor, openedSession, row, cleanId, loginPassword });
+      setPendingUnlock({ type: 'cloud', items, notes, groups, twoFactor, openedSession, row, cleanId, loginPassword });
       setTotpInputCode('');
       setTotpError('');
       setTotpFailedAttempts(0);
@@ -1066,7 +1084,7 @@ export default function App() {
       return 'pending-2fa';
     }
 
-    loadCloudVaultIntoUI({ items, notes, twoFactor, openedSession, row, cleanId });
+    loadCloudVaultIntoUI({ items, notes, groups, twoFactor, openedSession, row, cleanId });
     return true;
   };
 
@@ -1236,6 +1254,100 @@ export default function App() {
   };
 
   useEffect(() => { loadAdminUsersData(); }, [isUnlocked, currentView, isAdmin]);
+
+  const loadAdminAnnouncements = async () => {
+    if (!supabaseConfigured || !isAdmin) return;
+    const { data, error: loadError } = await supabase
+      .from('passguard_announcements')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (loadError) {
+      triggerNotice(loadError.message);
+      return;
+    }
+    setAnnouncements(data || []);
+  };
+
+  const handleSaveAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!announcementForm.title.trim() || !announcementForm.content.trim() || announcementBusy) return;
+    setAnnouncementBusy(true);
+    try {
+      const payload = {
+        title: announcementForm.title.trim(),
+        content: announcementForm.content.trim(),
+        display_style: announcementForm.display_style,
+        placement: announcementForm.placement,
+        target_vault_id: announcementForm.target_vault_id || null,
+        is_active: !!announcementForm.is_active,
+        updated_at: new Date().toISOString(),
+      };
+      const result = announcementForm.id
+        ? await supabase.from('passguard_announcements').update(payload).eq('id', announcementForm.id)
+        : await supabase.from('passguard_announcements').insert(payload);
+      if (result.error) {
+        triggerNotice(result.error.message);
+      } else {
+        setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true });
+        await loadAdminAnnouncements();
+        triggerNotice(lang === 'ar' ? 'تم حفظ الإعلان بنجاح.' : 'Announcement saved successfully.');
+      }
+    } catch (saveError) {
+      triggerNotice(saveError.message);
+    } finally {
+      setAnnouncementBusy(false);
+    }
+  };
+
+  const handleDeleteAnnouncement = (announcementId) => {
+    askConfirm(lang === 'ar' ? 'هل تريد حذف هذا الإعلان؟' : 'Delete this announcement?', async () => {
+      const { error: deleteError } = await supabase.from('passguard_announcements').delete().eq('id', announcementId);
+      if (deleteError) {
+        triggerNotice(deleteError.message);
+        return;
+      }
+      if (announcementForm.id === announcementId) {
+        setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true });
+      }
+      await loadAdminAnnouncements();
+      triggerNotice(lang === 'ar' ? 'تم حذف الإعلان.' : 'Announcement deleted.');
+    });
+  };
+
+  useEffect(() => {
+    if (!supabaseConfigured) return undefined;
+    let active = true;
+    supabase.rpc('get_public_passguard_announcements').then(({ data, error: loadError }) => {
+      if (!active) return;
+      if (loadError) {
+        triggerNotice(loadError.message);
+        return;
+      }
+      setPublicAnnouncements(data || []);
+    }).catch(loadError => {
+      if (active) triggerNotice(loadError.message);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!supabaseConfigured || !currentVaultId || !sessionToken || isAdmin) {
+      setVaultAnnouncements([]);
+      return undefined;
+    }
+    let active = true;
+    supabase.rpc('get_vault_passguard_announcements', { p_session_token: sessionToken }).then(({ data, error: loadError }) => {
+      if (!active) return;
+      if (loadError) {
+        triggerNotice(loadError.message);
+        return;
+      }
+      setVaultAnnouncements(data || []);
+    }).catch(loadError => {
+      if (active) triggerNotice(loadError.message);
+    });
+    return () => { active = false; };
+  }, [currentVaultId, sessionToken, isAdmin]);
 
   const handleTitleChange = (val) => {
     setNewTitle(val);
@@ -1451,7 +1563,7 @@ export default function App() {
       return;
     }
     if (!identifier.trim() || !masterPassword.trim()) { setError(t.missingFieldsAlert); return; }
-    const cleanId = normalizeIdentifier(identifier);
+    let cleanId = normalizeIdentifier(identifier);
 
     const triggerFailedAttempt = async () => {
       if (captchaPassed) {
@@ -1506,19 +1618,33 @@ export default function App() {
       }
 
       try {
-        const legacyEncrypted = JSON.parse(localStorage.getItem(`passguard_vault_${cleanId}`) || 'null');
-        const legacyMeta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}');
+        let legacyId = cleanId;
+        let legacyEncrypted = JSON.parse(localStorage.getItem(`passguard_vault_${legacyId}`) || 'null');
+        let legacyMeta = JSON.parse(localStorage.getItem(`passguard_meta_${legacyId}`) || '{}');
+        if (!legacyEncrypted) {
+          for (let index = 0; index < localStorage.length; index += 1) {
+            const key = localStorage.key(index);
+            if (!key || !key.startsWith('passguard_meta_')) continue;
+            let meta = {};
+            try { meta = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { continue; }
+            if (normalizeIdentifier(meta.email) !== cleanId) continue;
+            legacyId = key.slice('passguard_meta_'.length);
+            legacyEncrypted = JSON.parse(localStorage.getItem(`passguard_vault_${legacyId}`) || 'null');
+            legacyMeta = meta;
+            break;
+          }
+        }
         const legacyDecrypted = legacyEncrypted ? await decryptData(legacyEncrypted, masterPassword) : null;
         if (legacyDecrypted) {
           const { data: migrated, error: migrateError } = await supabase.rpc('register_vault_secure', {
-            p_identifier: cleanId, p_master_password: masterPassword, p_email: legacyMeta.email || '', p_phone: legacyMeta.phone || '', p_encrypted_data: legacyEncrypted
+            p_identifier: legacyId, p_master_password: masterPassword, p_email: legacyMeta.email || '', p_phone: legacyMeta.phone || '', p_encrypted_data: legacyEncrypted
           });
           if (!migrateError) {
             const migratedRow = Array.isArray(migrated) ? migrated[0] : migrated;
             if (migratedRow?.id) {
-              const { data: migratedSession, error: sessionError } = await openCloudVaultSession(cleanId, masterPassword);
+              const { data: migratedSession, error: sessionError } = await openCloudVaultSession(legacyId, masterPassword);
               if (!sessionError) {
-                const migratedResult = await finishCloudVaultLogin(migratedSession, cleanId, masterPassword);
+                const migratedResult = await finishCloudVaultLogin(migratedSession, legacyId, masterPassword);
                 if (migratedResult) {
                   triggerNotice(lang === 'ar' ? 'تمت مزامنة خزنتك القديمة إلى الخادم بنجاح.' : 'Your legacy vault was successfully migrated to the cloud.');
                   return;
@@ -1527,10 +1653,29 @@ export default function App() {
             }
           }
         }
-      } catch (migrationError) { }
+      } catch (migrationError) {
+        console.error('Legacy vault migration failed:', migrationError);
+      }
 
       await triggerFailedAttempt();
       return;
+    }
+
+    if (!localStorage.getItem(`passguard_vault_${cleanId}`)) {
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index);
+        if (!key || !key.startsWith('passguard_meta_')) continue;
+        let meta = {};
+        try { meta = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { continue; }
+        if (normalizeIdentifier(meta.email) === cleanId) {
+          const alternateId = key.slice('passguard_meta_'.length);
+          if (localStorage.getItem(`passguard_vault_${alternateId}`)) {
+            cleanId = alternateId;
+            setIdentifier(alternateId);
+            break;
+          }
+        }
+      }
     }
 
     const metaKey = `passguard_meta_${cleanId}`;
@@ -1543,10 +1688,10 @@ export default function App() {
     const encryptedObj = JSON.parse(savedVault);
     const decrypted = await decryptData(encryptedObj, masterPassword);
     if (decrypted) {
-      const { items, notes, twoFactor } = extractVaultData(decrypted);
+      const { items, notes, groups, twoFactor } = extractVaultData(decrypted);
 
       if (twoFactor?.enabled && twoFactor?.secret) {
-        setPendingUnlock({ type: 'local', items, notes, twoFactor, encryptedObj, cleanId });
+        setPendingUnlock({ type: 'local', items, notes, groups, twoFactor, encryptedObj, cleanId });
         setTotpInputCode('');
         setTotpError('');
         setTotpFailedAttempts(0);
@@ -1554,7 +1699,7 @@ export default function App() {
         return;
       }
 
-      loadLocalVaultIntoUI({ items, notes, twoFactor, encryptedObj, cleanId });
+      loadLocalVaultIntoUI({ items, notes, groups, twoFactor, encryptedObj, cleanId });
     } else {
       await triggerFailedAttempt();
     }
@@ -1569,7 +1714,7 @@ export default function App() {
     if (/[^\x00-\x7F]/.test(masterPassword)) { setError(t.englishOnlyAlert); return; }
     if (!isValidPassword(masterPassword)) { setError(t.passwordComplexityAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
-    const initialData = { items: [], notes: [], twoFactor: { enabled: false, secret: '' } };
+    const initialData = { items: [], notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' } };
     const encrypted = await encryptData(initialData, masterPassword);
 
     if (supabaseConfigured) {
@@ -1598,7 +1743,7 @@ export default function App() {
     localStorage.setItem(storageKey, JSON.stringify(encrypted));
     localStorage.setItem(`passguard_meta_${cleanId}`, JSON.stringify({ isLocked: false, alert: false, identifier: cleanId, email: '', phone: '', createdAt: new Date().toISOString() }));
     setCurrentVaultId(null); setCurrentEncryptedVault(encrypted);
-    setGroups(['شخصي', 'عمل']); 
+    setGroups(DEFAULT_GROUPS);
     setVaultItems([]);
     setVaultNotes([]);
     setTwoFactorState({ enabled: false, secret: '' });
@@ -1716,15 +1861,17 @@ export default function App() {
     }
     if (!newNoteTitle.trim() || !newNoteContent.trim() || isSavingNote) return;
 
-    const newNote = {
-      id: crypto.randomUUID ? crypto.randomUUID() : Date.now(),
+    const updatedNote = {
+      id: editingNoteId || (crypto.randomUUID ? crypto.randomUUID() : Date.now()),
       title: newNoteTitle,
       content: newNoteContent,
       attachments: newNoteFiles,
       date: new Date().toISOString()
     };
     
-    const updatedNotes = [newNote, ...vaultNotes];
+    const updatedNotes = editingNoteId
+      ? vaultNotes.map(note => note.id === editingNoteId ? updatedNote : note)
+      : [updatedNote, ...vaultNotes];
     setVaultNotes(updatedNotes);
     
     const currentItems = vaultItems; 
@@ -1732,6 +1879,7 @@ export default function App() {
     setNewNoteTitle('');
     setNewNoteContent('');
     setNewNoteFiles([]);
+    setEditingNoteId(null);
     setShowNoteModal(false);
     setIsSavingNote(true); 
     triggerNotice(t.noteSaved); 
@@ -1833,17 +1981,17 @@ export default function App() {
         const nextItems = isEncryptedBackup ? importedItems : [...vaultItems, ...importedItems];
         
         if (isEncryptedBackup) {
-           const { items: backupItems, notes: backupNotes } = extractVaultData(await decryptData(importedData, masterPassword));
-           await saveVaultState(backupItems, backupNotes);
+           const { items: backupItems, notes: backupNotes, groups: backupGroups, twoFactor: backupTwoFactor } = extractVaultData(await decryptData(importedData, masterPassword));
+           const nextGroups = mergeVaultGroups(backupGroups, backupItems);
+           await saveVaultState(backupItems, backupNotes, masterPassword, backupTwoFactor, nextGroups);
            setVaultItems(backupItems);
            setVaultNotes(backupNotes);
-           const customGroups = ['شخصي', 'عمل', ...backupItems.map(item => item.group).filter(Boolean)];
-           setGroups([...new Set(customGroups)]);
+           setGroups(nextGroups);
         } else {
-           await saveVaultState(nextItems, vaultNotes);
+           const nextGroups = mergeVaultGroups(groups, nextItems);
+           await saveVaultState(nextItems, vaultNotes, masterPassword, null, nextGroups);
            setVaultItems(nextItems);
-           const customGroups = ['شخصي', 'عمل', ...nextItems.map(item => item.group).filter(Boolean)];
-           setGroups([...new Set(customGroups)]);
+           setGroups(nextGroups);
         }
 
         triggerNotice(t.importSuccessAlert);
@@ -1879,13 +2027,19 @@ export default function App() {
     }
   };
 
-  const submitNewGroup = (e) => {
+  const submitNewGroup = async (e) => {
     e.preventDefault();
     if (newGroupNameInput && newGroupNameInput.trim()) {
       const trimmed = newGroupNameInput.trim();
       if (!groups.includes(trimmed)) {
-        setGroups([...groups, trimmed]);
-        triggerNotice(lang === 'ar' ? `تم إنشاء المجموعة "${trimmed}" بنجاح.` : `Group "${trimmed}" created successfully.`);
+        const updatedGroups = [...groups, trimmed];
+        setGroups(updatedGroups);
+        try {
+          const syncFailed = await saveVaultState(vaultItems, vaultNotes, masterPassword, null, updatedGroups);
+          triggerNotice(syncFailed ? t.syncError : lang === 'ar' ? `تم إنشاء المجموعة "${trimmed}" بنجاح.` : `Group "${trimmed}" created successfully.`);
+        } catch (error) {
+          triggerNotice(error.message);
+        }
       }
       setNewGroupNameInput('');
     }
@@ -1894,13 +2048,14 @@ export default function App() {
   const saveRenamedGroup = async (oldName) => {
     const trimmed = editingGroupNewName.trim();
     if (!trimmed || trimmed === oldName || groups.includes(trimmed)) { setEditingGroupOldName(null); return; }
-    setGroups(groups.map(g => g === oldName ? trimmed : g));
+    const updatedGroups = groups.map(g => g === oldName ? trimmed : g);
+    setGroups(updatedGroups);
     const updatedItems = vaultItems.map(item => item.group === oldName ? { ...item, group: trimmed } : item);
     setVaultItems(updatedItems);
     if (selectedGroup === oldName) setSelectedGroup(trimmed);
     
     try {
-      const syncFailed = await saveVaultState(updatedItems, vaultNotes);
+      const syncFailed = await saveVaultState(updatedItems, vaultNotes, masterPassword, null, updatedGroups);
       setEditingGroupOldName(null); 
       if (syncFailed) triggerNotice(t.syncError);
       else triggerNotice(t.updateSuccessNotice);
@@ -1911,13 +2066,14 @@ export default function App() {
 
   const deleteGroup = (groupName) => {
     askConfirm(t.confirmDeleteGroup.replace('{group}', groupName).replace('{all}', t.allGroups), async () => {
-      setGroups(groups.filter(g => g !== groupName));
+      const updatedGroups = groups.filter(g => g !== groupName);
+      setGroups(updatedGroups);
       const updatedItems = vaultItems.map(item => item.group === groupName ? { ...item, group: '' } : item);
       setVaultItems(updatedItems);
       if (selectedGroup === groupName) setSelectedGroup('ALL_GROUPS');
       
       try {
-        const syncFailed = await saveVaultState(updatedItems, vaultNotes);
+        const syncFailed = await saveVaultState(updatedItems, vaultNotes, masterPassword, null, updatedGroups);
         if (syncFailed) triggerNotice(t.syncError);
         else triggerNotice(t.groupDeletedNotice);
       } catch (error) {
@@ -2143,6 +2299,7 @@ export default function App() {
     let meta = {};
     try { meta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}'); } catch (e) { }
     setManageData({ oldId: cleanId, identifier: meta.identifier || cleanId, masterPassword, oldPass: masterPassword, email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || new Date().toISOString(), vaultId: currentVaultId });
+    setShowManageMasterPassword(false);
     setVaultSubView('settings');
   };
 
@@ -2152,7 +2309,7 @@ export default function App() {
     if (!isValidPassword(manageData.masterPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
     const newIdClean = normalizeIdentifier(manageData.identifier);
     
-    const payload = { items: vaultItems, notes: vaultNotes, twoFactor: twoFactorState };
+    const payload = { items: vaultItems, notes: vaultNotes, groups, twoFactor: twoFactorState };
     const encrypted = await encryptData(payload, manageData.masterPassword);
 
     if (supabaseConfigured && currentVaultId) {
@@ -2169,7 +2326,12 @@ export default function App() {
 
       if (updateError) { triggerNotice(updateError.message); return; }
       const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.id) { triggerNotice(lang === 'ar' ? 'تعذر تحديث بيانات الخزنة.' : 'Could not update vault details.'); return; }
       setCurrentVaultId(row?.id || currentVaultId);
+      if (manageData.oldId !== newIdClean) {
+        localStorage.removeItem(`passguard_vault_${manageData.oldId}`);
+        localStorage.removeItem(`passguard_meta_${manageData.oldId}`);
+      }
     } else {
       const oldStorageKey = `passguard_vault_${manageData.oldId}`;
       const oldMetaKey = `passguard_meta_${manageData.oldId}`;
@@ -2183,20 +2345,28 @@ export default function App() {
     setIdentifier(newIdClean); setMasterPassword(manageData.masterPassword);
     cacheVaultLocally(newIdClean, encrypted, { email: manageData.email, phone: manageData.phone, createdAt: manageData.createdAt });
     setManageData({ ...manageData, oldId: newIdClean, oldPass: manageData.masterPassword });
+    setShowManageMasterPassword(false);
     triggerNotice(t.updateSuccessNotice); setVaultSubView('items');
   };
 
   const openAdminManageUser = async (user) => {
+    setManageData({ oldId: user.username, identifier: user.username, masterPassword: '', oldPass: '', email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', vaultId: user.id, encryptedData: null, isLocked: user.isLocked, alert: user.alert });
+    setShowManageMasterPassword(false);
+    setAdminSubView('manageUser');
+  };
+
+  const revealAdminManagedPassword = async () => {
+    if (!manageData.vaultId || adminLoading) return;
     setAdminLoading(true);
-    const { data, error } = await supabase.rpc('admin_reveal_vault', { p_vault_id: user.id });
+    const { data, error: revealError } = await supabase.rpc('admin_reveal_vault', { p_vault_id: manageData.vaultId });
     setAdminLoading(false);
     const recovery = Array.isArray(data) ? data[0] : data;
-    if (error || !recovery?.master_password) {
-      triggerNotice(error?.message || (lang === 'ar' ? 'تعذر تحميل مفتاح الاسترجاع لهذا المستخدم.' : 'Could not load this user recovery key.'));
+    if (revealError || !recovery?.master_password) {
+      triggerNotice(revealError?.message || (lang === 'ar' ? 'تعذر تحميل كلمة المرور الرئيسية.' : 'Could not load the master password.'));
       return;
     }
-    setManageData({ oldId: user.username, identifier: user.username, masterPassword: recovery.master_password, oldPass: recovery.master_password, email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', vaultId: user.id, encryptedData: recovery.encrypted_data, isLocked: user.isLocked, alert: user.alert });
-    setAdminSubView('manageUser');
+    setManageData(prev => ({ ...prev, masterPassword: recovery.master_password, oldPass: recovery.master_password, encryptedData: recovery.encrypted_data }));
+    setShowManageMasterPassword(true);
   };
 
   const handleAdminSaveUser = async (e) => {
@@ -2207,8 +2377,8 @@ export default function App() {
     const decrypted = await decryptData(manageData.encryptedData, manageData.oldPass);
     if (!decrypted) { triggerNotice(lang === 'ar' ? 'فشل فك التشفير - كلمة المرور الحالية للمشرف غير صحيحة.' : 'Decryption failed - current support password mismatch.'); return; }
 
-    const { items: dItems, notes: dNotes, twoFactor: dTwoFactor } = extractVaultData(decrypted);
-    const payloadToEncrypt = { items: dItems, notes: dNotes, twoFactor: dTwoFactor };
+    const { items: dItems, notes: dNotes, groups: dGroups, twoFactor: dTwoFactor } = extractVaultData(decrypted);
+    const payloadToEncrypt = { items: dItems, notes: dNotes, groups: dGroups, twoFactor: dTwoFactor };
     const encrypted = await encryptData(payloadToEncrypt, manageData.masterPassword);
     const newIdClean = normalizeIdentifier(manageData.identifier);
     const { data, error: updateError } = await supabase.rpc('admin_update_vault_secure', {
@@ -2383,6 +2553,8 @@ export default function App() {
 
   const metrics = calculateVaultMetrics();
   const isDark = theme === 'dark';
+  const activeAnnouncements = [...publicAnnouncements, ...(isAdmin ? [] : vaultAnnouncements)]
+    .filter(announcement => announcement.is_active && !dismissedAnnouncementIds.includes(announcement.id));
 
   return (
     <div className={`min-h-screen font-sans flex flex-col justify-between relative overflow-x-hidden overflow-y-auto transition-colors duration-500 ${isDark ? 'text-slate-100' : 'text-slate-900'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -2400,7 +2572,10 @@ export default function App() {
         .neon-logo-dark { animation: neonPulseDark 2s ease-in-out infinite; }
         .neon-logo-light { animation: neonPulseLight 2s ease-in-out infinite; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        @keyframes announcementMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        .announcement-marquee { animation: announcementMarquee 24s linear infinite; }
+        .announcement-marquee:hover { animation-play-state: paused; }
         .landing-main { min-height: calc(100vh - 6.5rem); }
         .landing-welcome { width: 100%; min-height: clamp(34rem, calc(100vh - 11rem), 52rem); justify-content: center; }
         @media (max-width: 767px) { .landing-main { min-height: calc(100vh - 5rem); } .landing-welcome { min-height: 38rem; } }
@@ -2590,7 +2765,7 @@ export default function App() {
             <div className="flex items-center justify-between border-b border-slate-800/60 pb-3 mb-4">
               <h3 className={`text-lg font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 <MessageSquare className="w-5 h-5 text-indigo-500" />
-                {t.addNoteTitle}
+                {editingNoteId ? (lang === 'ar' ? 'فتح وتعديل الملاحظة' : 'Open & edit note') : t.addNoteTitle}
               </h3>
               <button onClick={() => setShowNoteModal(false)} className={`font-bold px-2 py-1 transition-colors ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>✕</button>
             </div>
@@ -2944,6 +3119,24 @@ export default function App() {
           <div className="mb-4 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold shadow-2xl backdrop-blur-xl border border-indigo-400/30 animate-pulse shrink-0">{inAppNotice}</div>
         )}
 
+        {activeAnnouncements.filter(announcement => announcement.placement === 'banner').map(announcement => (
+          <div key={announcement.id} className={`w-full max-w-5xl mb-3 rounded-xl border shadow-lg overflow-hidden ${isDark ? 'bg-indigo-950/90 border-indigo-500/30 text-indigo-100' : 'bg-indigo-50 border-indigo-200 text-indigo-950'}`}>
+            <div className="flex items-center gap-3 px-4 py-2.5">
+              <span className="shrink-0 rounded-lg bg-indigo-600 px-2.5 py-1 text-[10px] font-bold text-white">{announcement.title}</span>
+              {announcement.display_style === 'ticker' ? (
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="announcement-marquee flex w-max items-center gap-10 whitespace-nowrap text-xs">
+                    {[0, 1].map(copy => <span key={copy} dir={lang === 'ar' ? 'rtl' : 'ltr'}>{announcement.content}</span>)}
+                  </div>
+                </div>
+              ) : (
+                <p className="min-w-0 flex-1 whitespace-pre-wrap text-xs">{announcement.content}</p>
+              )}
+              <button type="button" onClick={() => setDismissedAnnouncementIds(ids => [...ids, announcement.id])} aria-label={lang === 'ar' ? 'إخفاء الإعلان' : 'Dismiss announcement'} className="shrink-0 rounded-lg p-1 text-current opacity-70 hover:opacity-100"><X className="h-4 w-4" /></button>
+            </div>
+          </div>
+        ))}
+
         <div ref={securityReportRef} data-security-report="true" dir={lang === 'ar' ? 'rtl' : 'ltr'} style={{ position: 'fixed', left: '0', top: '0', zIndex: -1, visibility: 'hidden', opacity: 0, width: '794px', background: '#ffffff', color: '#172033', padding: '42px', fontFamily: 'Arial, sans-serif', lineHeight: 1.6 }}>
           <div style={{ borderBottom: '5px solid #0f766e', paddingBottom: '22px', marginBottom: '26px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -3149,6 +3342,9 @@ export default function App() {
                 <button onClick={() => setAdminSubView('messages')} className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-bold flex items-center gap-1.5 transition-colors ${adminSubView === 'messages' ? 'bg-indigo-600 text-white border-indigo-500' : isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}>
                   <MessageSquare className="w-3.5 h-3.5" /><span>{t.adminMessagesBtn} ({contactMessagesList.length})</span>
                 </button>
+                <button onClick={() => { setAdminSubView('announcements'); loadAdminAnnouncements(); }} className={`px-3 py-1.5 border rounded-xl cursor-pointer text-xs font-bold flex items-center gap-1.5 transition-colors ${adminSubView === 'announcements' ? 'bg-indigo-600 text-white border-indigo-500' : isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-700'}`}>
+                  <Send className="w-3.5 h-3.5" /><span>{lang === 'ar' ? 'الإعلانات' : 'Announcements'}</span>
+                </button>
                 <button onClick={() => { setAdminSubView('adminSettings'); loadMfaStatus(); }} className={`px-3.5 py-1.5 border rounded-xl cursor-pointer text-xs font-bold transition-colors ${isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20' : 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'}`}>
                   <Settings className="w-4 h-4 inline me-1" /><span>{lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
                 </button>
@@ -3294,6 +3490,83 @@ export default function App() {
                     </div>
                   )}
                 </div>
+              ) : adminSubView === 'announcements' ? (
+                <div className="p-4 sm:p-6 overflow-y-auto space-y-5 animate-fadeIn">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <Send className="w-4 h-4 text-indigo-400" />{lang === 'ar' ? 'إدارة إعلانات الموقع' : 'Manage Site Announcements'}
+                    </h3>
+                    <button type="button" onClick={() => setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true })} className={`px-3 py-2 rounded-xl text-xs font-bold ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+                      {lang === 'ar' ? 'إعلان جديد' : 'New announcement'}
+                    </button>
+                  </div>
+                  <form onSubmit={handleSaveAnnouncement} className={`p-4 sm:p-5 rounded-2xl border grid grid-cols-1 md:grid-cols-2 gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                    <label className="space-y-1">
+                      <span className={`block text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'عنوان الإعلان' : 'Announcement title'}</span>
+                      <input value={announcementForm.title} onChange={event => setAnnouncementForm({ ...announcementForm, title: event.target.value })} maxLength={120} required className={`w-full px-3 py-2.5 border rounded-xl text-xs ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                    </label>
+                    <label className="space-y-1">
+                      <span className={`block text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'المستهدف' : 'Audience'}</span>
+                      <select value={announcementForm.target_vault_id} onChange={event => setAnnouncementForm({ ...announcementForm, target_vault_id: event.target.value })} className={`w-full px-3 py-2.5 border rounded-xl text-xs ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                        <option value="">{lang === 'ar' ? 'جميع زوار الموقع' : 'Everyone'}</option>
+                        {registeredUsers.filter(user => user.id).map(user => <option key={user.id} value={user.id}>{user.username}</option>)}
+                      </select>
+                    </label>
+                    <label className="space-y-1">
+                      <span className={`block text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'مكان الظهور' : 'Placement'}</span>
+                      <select value={announcementForm.placement} onChange={event => setAnnouncementForm({ ...announcementForm, placement: event.target.value })} className={`w-full px-3 py-2.5 border rounded-xl text-xs ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                        <option value="banner">{lang === 'ar' ? 'شريط أعلى الصفحة' : 'Top banner'}</option>
+                        <option value="sidebar">{lang === 'ar' ? 'بطاقة جانبية' : 'Side card'}</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1">
+                      <span className={`block text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'شكل الإعلان' : 'Display style'}</span>
+                      <select value={announcementForm.display_style} onChange={event => setAnnouncementForm({ ...announcementForm, display_style: event.target.value })} className={`w-full px-3 py-2.5 border rounded-xl text-xs ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`}>
+                        <option value="ticker">{lang === 'ar' ? 'شريط متحرك' : 'Scrolling ticker'}</option>
+                        <option value="card">{lang === 'ar' ? 'بطاقة ثابتة' : 'Static card'}</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1 md:col-span-2">
+                      <span className={`block text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'نص الإعلان' : 'Announcement message'}</span>
+                      <textarea value={announcementForm.content} onChange={event => setAnnouncementForm({ ...announcementForm, content: event.target.value })} maxLength={1200} required rows={4} className={`w-full px-3 py-2.5 border rounded-xl text-xs resize-y ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
+                    </label>
+                    <label className={`md:col-span-2 flex items-center gap-2 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <input type="checkbox" checked={announcementForm.is_active} onChange={event => setAnnouncementForm({ ...announcementForm, is_active: event.target.checked })} />
+                      {lang === 'ar' ? 'الإعلان مفعّل' : 'Announcement is active'}
+                    </label>
+                    <div className="md:col-span-2 flex justify-end gap-2">
+                      {announcementForm.id && <button type="button" onClick={() => setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true })} className={`px-4 py-2 rounded-xl text-xs font-semibold ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'}`}>{t.cancelBtn}</button>}
+                      <button type="submit" disabled={announcementBusy} className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50">
+                        {announcementBusy ? '...' : lang === 'ar' ? 'حفظ الإعلان' : 'Save announcement'}
+                      </button>
+                    </div>
+                  </form>
+                  <div className="space-y-3">
+                    {announcements.length === 0 ? (
+                      <p className={`text-center py-8 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{lang === 'ar' ? 'لا توجد إعلانات بعد.' : 'No announcements yet.'}</p>
+                    ) : announcements.map(announcement => (
+                      <div key={announcement.id} className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}>
+                        <div className="min-w-0">
+                          <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{announcement.title}</h4>
+                          <p className={`mt-1 text-xs whitespace-pre-wrap break-words ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{announcement.content}</p>
+                          <p className="mt-2 text-[10px] text-indigo-400">
+                            {announcement.placement === 'sidebar' ? (lang === 'ar' ? 'جانبي' : 'Side') : (lang === 'ar' ? 'شريط علوي' : 'Banner')}
+                            {' · '}
+                            {announcement.display_style === 'ticker' ? (lang === 'ar' ? 'متحرك' : 'Ticker') : (lang === 'ar' ? 'ثابت' : 'Static')}
+                            {' · '}
+                            {announcement.target_vault_id ? registeredUsers.find(user => user.id === announcement.target_vault_id)?.username || (lang === 'ar' ? 'مستخدم محدد' : 'Selected user') : (lang === 'ar' ? 'الجميع' : 'Everyone')}
+                            {' · '}
+                            {announcement.is_active ? (lang === 'ar' ? 'مفعّل' : 'Active') : (lang === 'ar' ? 'متوقف' : 'Inactive')}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <button type="button" onClick={() => setAnnouncementForm({ id: announcement.id, title: announcement.title, content: announcement.content, display_style: announcement.display_style, placement: announcement.placement, target_vault_id: announcement.target_vault_id || '', is_active: !!announcement.is_active })} className={`px-3 py-2 rounded-xl text-xs font-bold ${isDark ? 'bg-indigo-500/10 text-indigo-300' : 'bg-indigo-50 text-indigo-700'}`}>{lang === 'ar' ? 'تعديل' : 'Edit'}</button>
+                          <button type="button" onClick={() => handleDeleteAnnouncement(announcement.id)} className="px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-500">{lang === 'ar' ? 'حذف' : 'Delete'}</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : adminSubView === 'manageUser' ? (
                 <div className="flex-1 flex flex-col p-8 overflow-y-auto max-w-xl mx-auto w-full animate-fadeIn justify-center">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
@@ -3308,12 +3581,16 @@ export default function App() {
                       </div>
                       <div>
                         <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.passwordLabel}</label>
-                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required />
+                        <input type={showManageMasterPassword ? 'text' : 'password'} value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required autoComplete="new-password" />
+                        <button type="button" onClick={() => showManageMasterPassword ? setShowManageMasterPassword(false) : revealAdminManagedPassword()} disabled={adminLoading} className={`mt-1.5 flex items-center gap-1 text-[10px] font-semibold ${isDark ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-700 hover:text-indigo-600'}`}>
+                          {showManageMasterPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          {lang === 'ar' ? 'إظهار/تعديل كلمة المرور الرئيسية' : 'Show/Edit Master Password'}
+                        </button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.emailLabel}</label>
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'البريد الإلكتروني (وسيلة دخول بديلة)' : 'Email (alternate sign-in)'}</label>
                         <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                       <div>
@@ -3457,11 +3734,11 @@ export default function App() {
                     <div className="relative flex-1">
                       <input type="text" placeholder={t.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full px-4 py-2 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                     </div>
-                    <div className="flex items-center gap-1 border rounded-xl p-1 shrink-0 transition-colors bg-slate-100 border-slate-300 dark:bg-slate-900 dark:border-slate-800">
-                      <button onClick={() => setAccountsViewMode('grid')} title={t.viewGrid} className={`p-1.5 rounded-lg transition-colors ${accountsViewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                    <div className={`flex items-center gap-1 border rounded-xl p-1 shrink-0 transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
+                      <button onClick={() => setAccountsViewMode('grid')} title={t.viewGrid} className={`p-1.5 rounded-lg transition-colors ${accountsViewMode === 'grid' ? isDark ? 'bg-slate-800 shadow-sm text-indigo-400' : 'bg-white shadow-sm text-indigo-600' : isDark ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'}`}>
                         <LayoutGrid className="w-4 h-4" />
                       </button>
-                      <button onClick={() => setAccountsViewMode('list')} title={t.viewList} className={`p-1.5 rounded-lg transition-colors ${accountsViewMode === 'list' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                      <button onClick={() => setAccountsViewMode('list')} title={t.viewList} className={`p-1.5 rounded-lg transition-colors ${accountsViewMode === 'list' ? isDark ? 'bg-slate-800 shadow-sm text-indigo-400' : 'bg-white shadow-sm text-indigo-600' : isDark ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'}`}>
                         <List className="w-4 h-4" />
                       </button>
                     </div>
@@ -3585,15 +3862,15 @@ export default function App() {
                       {t.notesTitle}
                     </h3>
                     <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                      <div className={`flex items-center gap-1 border rounded-xl p-1 shrink-0 transition-colors bg-slate-100 border-slate-300 dark:bg-slate-900 dark:border-slate-800`}>
-                        <button onClick={() => setNotesViewMode('grid')} title={t.viewGrid} className={`p-1.5 rounded-lg transition-colors ${notesViewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                      <div className={`flex items-center gap-1 border rounded-xl p-1 shrink-0 transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
+                        <button onClick={() => setNotesViewMode('grid')} title={t.viewGrid} className={`p-1.5 rounded-lg transition-colors ${notesViewMode === 'grid' ? isDark ? 'bg-slate-800 shadow-sm text-indigo-400' : 'bg-white shadow-sm text-indigo-600' : isDark ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'}`}>
                           <LayoutGrid className="w-4 h-4" />
                         </button>
-                        <button onClick={() => setNotesViewMode('list')} title={t.viewList} className={`p-1.5 rounded-lg transition-colors ${notesViewMode === 'list' ? 'bg-white shadow-sm text-indigo-600 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                        <button onClick={() => setNotesViewMode('list')} title={t.viewList} className={`p-1.5 rounded-lg transition-colors ${notesViewMode === 'list' ? isDark ? 'bg-slate-800 shadow-sm text-indigo-400' : 'bg-white shadow-sm text-indigo-600' : isDark ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'}`}>
                           <List className="w-4 h-4" />
                         </button>
                       </div>
-                      <button onClick={() => setShowNoteModal(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md">
+                      <button onClick={() => { setEditingNoteId(null); setNewNoteTitle(''); setNewNoteContent(''); setNewNoteFiles([]); setShowNoteModal(true); }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md">
                         <Plus className="w-4 h-4" /> {t.addNoteTitle}
                       </button>
                     </div>
@@ -3605,33 +3882,23 @@ export default function App() {
                   ) : (
                     <div className={notesViewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start auto-rows-max" : "flex flex-col space-y-3"}>
                       {vaultNotes.map(note => (
-                        <div key={note.id} className={`p-4 rounded-2xl border flex flex-col ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}>
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{note.title}</h4>
+                        <div key={note.id} className={`p-4 rounded-2xl border flex flex-col gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-300'}`}>
+                          <div className="flex justify-between items-start gap-2">
+                            <h4 className={`font-bold text-sm truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{note.title}</h4>
                             <span className={`text-[10px] font-mono whitespace-nowrap ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{formatDate(note.date)}</span>
                           </div>
-                          <p className={`text-xs mb-3 whitespace-pre-wrap flex-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{note.content}</p>
-                          
-                          {note.attachments && note.attachments.length > 0 && (
-                            <div className="mb-3 grid grid-cols-2 gap-2">
-                              {note.attachments.map((file, idx) => (
-                                <div key={idx} className={`p-1.5 border rounded-lg flex flex-col items-center gap-1 ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                                  {file.type.startsWith('image/') ? (
-                                    <img src={file.base64} alt={file.name} className="w-full h-20 object-cover rounded" />
-                                  ) : (
-                                    <FileText className="w-8 h-8 text-indigo-400 my-4" />
-                                  )}
-                                  <a href={file.base64} download={file.name} className={`text-[10px] truncate w-full text-center hover:underline break-word-custom ${isDark ? 'text-slate-400 hover:text-indigo-400' : 'text-slate-600 hover:text-indigo-600'}`}>
-                                    {file.name}
-                                  </a>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          
-                          <button onClick={() => handleDeleteNote(note.id)} className="self-end text-xs text-rose-500 font-semibold hover:underline mt-auto cursor-pointer flex items-center gap-1">
+                          <div className={`flex items-center gap-1.5 text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            <Paperclip className="w-3.5 h-3.5" />
+                            <span>{note.attachments?.length || 0} {lang === 'ar' ? 'مرفقات' : 'attachments'}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2 mt-auto">
+                            <button onClick={() => { setEditingNoteId(note.id); setNewNoteTitle(note.title || ''); setNewNoteContent(note.content || ''); setNewNoteFiles(note.attachments || []); setShowNoteModal(true); }} className="text-xs text-indigo-500 font-semibold hover:underline cursor-pointer flex items-center gap-1">
+                              <Eye className="w-3.5 h-3.5" />{lang === 'ar' ? 'فتح وتعديل الملاحظة' : 'Open & edit note'}
+                            </button>
+                            <button onClick={() => handleDeleteNote(note.id)} className="text-xs text-rose-500 font-semibold hover:underline cursor-pointer flex items-center gap-1">
                             <Trash2 className="w-3 h-3" /> {t.deleteNoteBtn}
-                          </button>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -3907,12 +4174,16 @@ export default function App() {
                       </div>
                       <div>
                         <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.passwordLabel}</label>
-                        <input type="text" value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required autoComplete="new-password" />
+                        <input type={showManageMasterPassword ? 'text' : 'password'} value={manageData.masterPassword} onChange={(e) => setManageData({ ...manageData, masterPassword: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-amber-500 font-mono transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-amber-400' : 'bg-white border-slate-300 text-amber-600'}`} required autoComplete="new-password" />
+                        <button type="button" onClick={() => setShowManageMasterPassword(value => !value)} className={`mt-1.5 flex items-center gap-1 text-[10px] font-semibold ${isDark ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-700 hover:text-indigo-600'}`}>
+                          {showManageMasterPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          {lang === 'ar' ? 'إظهار/تعديل كلمة المرور الرئيسية' : 'Show/Edit Master Password'}
+                        </button>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.emailLabel}</label>
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'البريد الإلكتروني (وسيلة دخول بديلة)' : 'Email (alternate sign-in)'}</label>
                         <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} autoComplete="off" />
                       </div>
                       <div>
@@ -4068,6 +4339,26 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {activeAnnouncements.filter(announcement => announcement.placement === 'sidebar').length > 0 && (
+        <aside className="fixed top-24 end-4 z-40 w-[min(22rem,calc(100vw-2rem))] max-h-[60vh] overflow-y-auto space-y-3">
+          {activeAnnouncements.filter(announcement => announcement.placement === 'sidebar').map(announcement => (
+            <article key={announcement.id} className={`rounded-2xl border p-4 shadow-2xl backdrop-blur-xl ${isDark ? 'bg-slate-900/95 border-indigo-500/40 text-slate-100' : 'bg-white/95 border-indigo-200 text-slate-900'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-indigo-500">{announcement.title}</h3>
+                  {announcement.display_style === 'ticker' ? (
+                    <div className="mt-2 overflow-hidden whitespace-nowrap text-xs">
+                      <div className="announcement-marquee inline-flex w-max gap-8"><span>{announcement.content}</span><span>{announcement.content}</span></div>
+                    </div>
+                  ) : <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed">{announcement.content}</p>}
+                </div>
+                <button type="button" onClick={() => setDismissedAnnouncementIds(ids => [...ids, announcement.id])} aria-label={lang === 'ar' ? 'إخفاء الإعلان' : 'Dismiss announcement'} className="shrink-0 rounded-lg p-1 opacity-70 hover:opacity-100"><X className="h-4 w-4" /></button>
+              </div>
+            </article>
+          ))}
+        </aside>
+      )}
 
       {/* التذييل الاحترافي Modern Footer */}
       <footer className={`w-full relative border-t z-20 shrink-0 transition-colors duration-500 font-sans py-14 sm:py-16 ${isDark ? 'bg-slate-950/75 border-slate-800/60 text-slate-300 backdrop-blur-3xl' : 'bg-white/80 border-slate-200/80 text-slate-600 backdrop-blur-3xl'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
