@@ -16,6 +16,64 @@ create index if not exists passguard_vault_identifier_normalized_idx
   on public.vaults (lower(trim(identifier)));
 create index if not exists passguard_vault_email_normalized_idx
   on public.vaults (lower(trim(coalesce(email, ''))));
+create index if not exists passguard_vault_phone_normalized_idx
+  on public.vaults (regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g'));
+
+create or replace function public.passguard_validate_login_phone()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_phone_digits text := regexp_replace(coalesce(new.phone, ''), '[^0-9]', '', 'g');
+  v_identifier_digits text := regexp_replace(coalesce(new.identifier, ''), '[^0-9]', '', 'g');
+  v_old_phone_digits text := '';
+begin
+  if tg_op = 'UPDATE' then
+    v_old_phone_digits := regexp_replace(coalesce(old.phone, ''), '[^0-9]', '', 'g');
+  end if;
+
+  if length(v_phone_digits) between 7 and 15 then
+    if tg_op <> 'UPDATE' or v_phone_digits <> v_old_phone_digits then
+      if exists (
+        select 1 from public.vaults v
+        where v.id <> new.id
+          and regexp_replace(coalesce(v.phone, ''), '[^0-9]', '', 'g') = v_phone_digits
+      ) then
+        raise exception 'phone number is already linked to another vault';
+      end if;
+
+      if exists (
+        select 1 from public.vaults v
+        where v.id <> new.id
+          and v.identifier ~ '^[+0-9(). -]+$'
+          and length(regexp_replace(v.identifier, '[^0-9]', '', 'g')) between 7 and 15
+          and regexp_replace(v.identifier, '[^0-9]', '', 'g') = v_phone_digits
+      ) then
+        raise exception 'phone number conflicts with another vault username';
+      end if;
+    end if;
+  end if;
+
+  if new.identifier ~ '^[+0-9(). -]+$'
+    and length(v_identifier_digits) between 7 and 15
+    and exists (
+      select 1 from public.vaults v
+      where v.id <> new.id
+        and regexp_replace(coalesce(v.phone, ''), '[^0-9]', '', 'g') = v_identifier_digits
+    ) then
+    raise exception 'vault username conflicts with another vault phone number';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists passguard_validate_login_phone on public.vaults;
+create trigger passguard_validate_login_phone
+  before insert or update of identifier, phone on public.vaults
+  for each row execute function public.passguard_validate_login_phone();
 
 alter table public.passguard_reserved_vault_identifiers enable row level security;
 revoke all on public.passguard_reserved_vault_identifiers from anon, authenticated;
@@ -105,8 +163,10 @@ set search_path = public, extensions
 as $$
 declare
   v_identifier text := lower(trim(p_identifier));
+  v_phone_identifier text := regexp_replace(coalesce(p_identifier, ''), '[^0-9]', '', 'g');
+  v_is_phone_identifier boolean;
   v_vault public.vaults%rowtype;
-  v_email_count integer;
+  v_match_count integer;
   v_session_token text;
   v_session_id uuid;
 begin
@@ -114,34 +174,35 @@ begin
     return null;
   end if;
 
+  v_is_phone_identifier := coalesce(p_identifier, '') ~ '^[+0-9(). -]+$'
+    and length(v_phone_identifier) between 7 and 15;
+
+  select count(distinct v.id) into v_match_count
+  from public.vaults v
+  where lower(trim(v.identifier)) = v_identifier
+    or lower(trim(coalesce(v.email, ''))) = v_identifier
+    or (
+      v_is_phone_identifier
+      and regexp_replace(coalesce(v.phone, ''), '[^0-9]', '', 'g') = v_phone_identifier
+    );
+
+  if v_match_count <> 1 then
+    return null;
+  end if;
+
   select * into v_vault
   from public.vaults v
   where lower(trim(v.identifier)) = v_identifier
+    or lower(trim(coalesce(v.email, ''))) = v_identifier
+    or (
+      v_is_phone_identifier
+      and regexp_replace(coalesce(v.phone, ''), '[^0-9]', '', 'g') = v_phone_identifier
+    )
   for update;
 
-  if found then
-    if v_vault.master_password_hash is null
-      or v_vault.master_password_hash <> crypt(p_master_password, v_vault.master_password_hash) then
-      return null;
-    end if;
-  else
-    select count(*) into v_email_count
-    from public.vaults v
-    where lower(trim(coalesce(v.email, ''))) = v_identifier;
-
-    if v_email_count <> 1 then
-      return null;
-    end if;
-
-    select * into v_vault
-    from public.vaults v
-    where lower(trim(coalesce(v.email, ''))) = v_identifier
-    for update;
-
-    if not found or v_vault.master_password_hash is null
-      or v_vault.master_password_hash <> crypt(p_master_password, v_vault.master_password_hash) then
-      return null;
-    end if;
+  if not found or v_vault.master_password_hash is null
+    or v_vault.master_password_hash <> crypt(p_master_password, v_vault.master_password_hash) then
+    return null;
   end if;
 
   if v_vault.is_locked then
@@ -176,6 +237,49 @@ begin
   );
 end;
 $$;
+
+create or replace function public.resolve_vault_login_alias_secure(p_identifier text)
+returns table (id uuid, identifier text)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_identifier text := lower(trim(coalesce(p_identifier, '')));
+  v_phone_identifier text := regexp_replace(coalesce(p_identifier, ''), '[^0-9]', '', 'g');
+  v_is_phone_identifier boolean;
+  v_match_count integer;
+begin
+  v_is_phone_identifier := coalesce(p_identifier, '') ~ '^[+0-9(). -]+$'
+    and length(v_phone_identifier) between 7 and 15;
+
+  select count(distinct v.id) into v_match_count
+  from public.vaults v
+  where lower(trim(v.identifier)) = v_identifier
+    or lower(trim(coalesce(v.email, ''))) = v_identifier
+    or (
+      v_is_phone_identifier
+      and regexp_replace(coalesce(v.phone, ''), '[^0-9]', '', 'g') = v_phone_identifier
+    );
+
+  if v_match_count <> 1 then
+    return;
+  end if;
+
+  return query
+  select v.id, v.identifier
+  from public.vaults v
+  where lower(trim(v.identifier)) = v_identifier
+    or lower(trim(coalesce(v.email, ''))) = v_identifier
+    or (
+      v_is_phone_identifier
+      and regexp_replace(coalesce(v.phone, ''), '[^0-9]', '', 'g') = v_phone_identifier
+    );
+end;
+$$;
+
+revoke all on function public.resolve_vault_login_alias_secure(text) from public, anon, authenticated;
+grant execute on function public.resolve_vault_login_alias_secure(text) to service_role;
 
 create or replace function public.update_vault_profile_secure(
   p_vault_id uuid,

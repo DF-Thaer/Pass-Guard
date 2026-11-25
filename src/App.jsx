@@ -8,12 +8,59 @@ import {
   BarChart3, Activity, ArrowRight, RotateCcw, Laptop, Smartphone, Wifi, 
   Clock, Server, ArrowLeft, Save, CheckSquare, Square, Scissors, Clipboard, 
   FolderPlus, Folder, Edit3, Settings, MessageSquare, Send, Phone, Mail,
-  LayoutGrid, List, Paperclip, X, FileText, Apple, Monitor
+  LayoutGrid, List, Paperclip, X, FileText, Apple, Monitor, Fingerprint,
+  Gem, Crown, Hexagon, Sparkles, Star
 } from 'lucide-react';
 
 // ==================== التشفير وفك التشفير (Client-Side AES-GCM 256-bit) ====================
 const CURRENT_KDF_ITERATIONS = 600000;
 const LEGACY_KDF_ITERATIONS = 100000;
+const MAX_NOTE_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const MAX_NOTE_IMAGE_SOURCE_BYTES = 20 * 1024 * 1024;
+const MAX_NOTE_IMAGE_DIMENSION = 1920;
+
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (typeof reader.result === 'string') resolve(reader.result);
+    else reject(new Error('Failed to read attachment.'));
+  };
+  reader.onerror = () => reject(reader.error || new Error('Failed to read attachment.'));
+  reader.readAsDataURL(file);
+});
+
+const compressNoteImage = async (file) => {
+  if (!['image/jpeg', 'image/png', 'image/bmp'].includes(file.type.toLowerCase())) return file;
+  if (typeof window.createImageBitmap !== 'function') throw new Error('Image compression is not supported in this browser.');
+
+  const bitmap = await window.createImageBitmap(file);
+  try {
+    const scale = Math.min(1, MAX_NOTE_IMAGE_DIMENSION / bitmap.width, MAX_NOTE_IMAGE_DIMENSION / bitmap.height);
+    if (scale === 1 && file.size <= 250 * 1024) return file;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Could not prepare image compression.');
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    const compressedBlob = await new Promise((resolve, reject) => {
+      canvas.toBlob(blob => {
+        if (blob && blob.type === 'image/webp') resolve(blob);
+        else reject(new Error('Could not encode compressed image.'));
+      }, 'image/webp', 0.82);
+    });
+    if (compressedBlob.size >= file.size) return file;
+
+    const compressedName = /\.[^.]+$/.test(file.name)
+      ? file.name.replace(/\.[^.]+$/, '.webp')
+      : `${file.name}.webp`;
+    return new File([compressedBlob], compressedName, { type: 'image/webp', lastModified: file.lastModified });
+  } finally {
+    bitmap.close();
+  }
+};
 
 const importCryptoKey = async (password, salt, iterations = CURRENT_KDF_ITERATIONS) => {
   const enc = new TextEncoder();
@@ -71,7 +118,7 @@ const DEFAULT_GROUPS = ['شخصي', 'عمل'];
 // دالة ذكية لاستخراج الحسابات والملاحظات (مع دعم بيانات 2FA)
 const extractVaultData = (decryptedData) => {
   if (Array.isArray(decryptedData)) {
-    return { items: decryptedData, notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' } };
+    return { items: decryptedData, notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' }, logoId: DEFAULT_VAULT_LOGO };
   }
   if (decryptedData && typeof decryptedData === 'object') {
     return { 
@@ -80,10 +127,11 @@ const extractVaultData = (decryptedData) => {
       groups: Array.isArray(decryptedData.groups)
         ? [...new Set(decryptedData.groups.filter(group => typeof group === 'string' && group.trim()).map(group => group.trim()))]
         : DEFAULT_GROUPS,
-      twoFactor: decryptedData.twoFactor || { enabled: false, secret: '' }
+      twoFactor: decryptedData.twoFactor || { enabled: false, secret: '' },
+      logoId: getValidVaultLogoId(decryptedData.logoId),
     };
   }
-  return { items: [], notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' } };
+  return { items: [], notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' }, logoId: DEFAULT_VAULT_LOGO };
 };
 
 const mergeVaultGroups = (savedGroups, items) => [...new Set([
@@ -201,6 +249,48 @@ const verifyTotpCode = async (secret, code, window = 1) => {
 const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
 const normalizeIdentifier = (value) => (value || '').trim().toLowerCase();
+const normalizePhone = (value) => (value || '').replace(/[^0-9]/g, '');
+const isPhoneIdentifier = (value) => /^[+0-9().\-\s]+$/.test(value || '') && normalizePhone(value).length >= 7 && normalizePhone(value).length <= 15;
+
+const DEFAULT_VAULT_LOGO = 'shield-check';
+const VAULT_LOGOS = [
+  { id: 'shield-check', Icon: ShieldCheck, labelAr: 'الدرع الآمن', labelEn: 'Secure Shield' },
+  { id: 'shield', Icon: Shield, labelAr: 'الدرع', labelEn: 'Shield' },
+  { id: 'lock', Icon: Lock, labelAr: 'القفل', labelEn: 'Lock' },
+  { id: 'key-round', Icon: KeyRound, labelAr: 'المفتاح الدائري', labelEn: 'Key' },
+  { id: 'key', Icon: Key, labelAr: 'المفتاح', labelEn: 'Keyhole' },
+  { id: 'fingerprint', Icon: Fingerprint, labelAr: 'البصمة', labelEn: 'Fingerprint' },
+  { id: 'gem', Icon: Gem, labelAr: 'الجوهرة', labelEn: 'Gem' },
+  { id: 'sparkles', Icon: Sparkles, labelAr: 'اللمعان', labelEn: 'Sparkles' },
+  { id: 'crown', Icon: Crown, labelAr: 'التاج', labelEn: 'Crown' },
+  { id: 'hexagon', Icon: Hexagon, labelAr: 'السداسي', labelEn: 'Hexagon' },
+];
+const getValidVaultLogoId = (value) => VAULT_LOGOS.some(logo => logo.id === value) ? value : DEFAULT_VAULT_LOGO;
+
+const findLocalVaultIds = (identifier) => {
+  const cleanIdentifier = normalizeIdentifier(identifier);
+  const phoneIdentifier = isPhoneIdentifier(cleanIdentifier) ? normalizePhone(cleanIdentifier) : '';
+  const matches = new Set();
+  const directVault = localStorage.getItem(`passguard_vault_${cleanIdentifier}`);
+  if (directVault) matches.add(cleanIdentifier);
+
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (!key || !key.startsWith('passguard_meta_')) continue;
+    const vaultId = key.slice('passguard_meta_'.length);
+    if (!localStorage.getItem(`passguard_vault_${vaultId}`)) continue;
+    let meta = {};
+    try { meta = JSON.parse(localStorage.getItem(key) || '{}'); } catch (error) { continue; }
+    if (
+      normalizeIdentifier(meta.identifier || vaultId) === cleanIdentifier ||
+      normalizeIdentifier(meta.email) === cleanIdentifier ||
+      (phoneIdentifier && normalizePhone(meta.phone) === phoneIdentifier)
+    ) {
+      matches.add(vaultId);
+    }
+  }
+  return [...matches];
+};
 
 // ==================== معالجة ملفات النسخ الاحتياطي (CSV / LastPass) ====================
 const parseCsv = (text) => {
@@ -460,7 +550,7 @@ const translations = {
     adminMessagesBtn: "Incoming Messages", noContactMessages: "No incoming messages found.",
     notesTitle: "Notes", addNoteTitle: "Add New Note", noteTitleLabel: "Note Title", noteContentLabel: "Note Content",
     attachmentsLabel: "Attachments (Images, PDFs)", deleteNoteBtn: "Delete Note", noNotes: "No notes currently.",
-    viewGrid: "Grid", viewList: "List", fileSizeError: "File size exceeds the allowed limit (5MB).", noteSaved: "Note saved successfully.", noteDeleted: "Note deleted.",
+    viewGrid: "Grid", viewList: "List", fileSizeError: "Attachments exceed the allowed storage limit (5MB).", imageInputSizeError: "An image exceeds the 20MB processing limit.", attachmentProcessError: "Could not process this attachment. Please try another file.", attachmentProcessing: "Please wait for the current attachments to finish processing.", processingAttachments: "Optimizing attachments...", noteSaved: "Note saved successfully.", noteDeleted: "Note deleted.",
     syncError: "Cloud sync failed. Saved locally on this device.",
     totpSectionTitle: "Two-Factor Authentication (2FA)",
     totpSectionDesc: "Add an extra layer of security. When enabled, you'll need to enter a 6-digit code from Google Authenticator, Authy, or Microsoft Authenticator when unlocking your vault.",
@@ -558,7 +648,7 @@ const translations = {
     adminMessagesBtn: "رسائل التواصل الواردة", noContactMessages: "لا توجد أي رسائل تواصل واردة حالياً.",
     notesTitle: "الملاحظات", addNoteTitle: "إضافة ملاحظة جديدة", noteTitleLabel: "عنوان الملاحظة", noteContentLabel: "محتوى الملاحظة",
     attachmentsLabel: "المرفقات (صور، ملفات PDF)", deleteNoteBtn: "حذف الملاحظة", noNotes: "لا توجد ملاحظات حالياً.",
-    viewGrid: "شبكة", viewList: "قائمة", fileSizeError: "حجم الملفات يتجاوز الحد المسموح (5 ميجابايت).", noteSaved: "تم حفظ الملاحظة بنجاح.", noteDeleted: "تم حذف الملاحظة.",
+    viewGrid: "شبكة", viewList: "قائمة", fileSizeError: "حجم المرفقات يتجاوز الحد المسموح للتخزين (5 ميجابايت).", imageInputSizeError: "حجم الصورة يتجاوز حد المعالجة (20 ميجابايت).", attachmentProcessError: "تعذرت معالجة المرفق. جرّب ملفاً آخر.", attachmentProcessing: "يرجى الانتظار حتى تنتهي معالجة المرفقات الحالية.", processingAttachments: "جارٍ تحسين حجم المرفقات...", noteSaved: "تم حفظ الملاحظة بنجاح.", noteDeleted: "تم حذف الملاحظة.",
     syncError: "فشلت المزامنة السحابية. تم الحفظ محلياً على هذا الجهاز.",
     totpSectionTitle: "المصادقة الثنائية (2FA)",
     totpSectionDesc: "أضف طبقة حماية إضافية. عند التفعيل، ستحتاج إلى إدخال رمز من 6 أرقام من تطبيق Google Authenticator أو Authy أو Microsoft Authenticator عند فتح خزنتك.",
@@ -626,6 +716,8 @@ export default function App() {
   const [publicAnnouncements, setPublicAnnouncements] = useState([]);
   const [vaultAnnouncements, setVaultAnnouncements] = useState([]);
   const [announcementForm, setAnnouncementForm] = useState({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true });
+  const [announcementFormOpen, setAnnouncementFormOpen] = useState(false);
+  const announcementFormRef = useRef(null);
   const [announcementBusy, setAnnouncementBusy] = useState(false);
   const [dismissedAnnouncementIds, setDismissedAnnouncementIds] = useState([]);
   const [auditTab, setAuditTab] = useState('metrics');
@@ -633,6 +725,7 @@ export default function App() {
   const [editableRecord, setEditableRecord] = useState(null);
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [groups, setGroups] = useState(['شخصي', 'عمل']);
+  const [vaultLogoId, setVaultLogoId] = useState(DEFAULT_VAULT_LOGO);
   const [selectedGroup, setSelectedGroup] = useState('ALL_GROUPS');
   const [showManageGroupsModal, setShowManageGroupsModal] = useState(false);
   const [newGroupNameInput, setNewGroupNameInput] = useState('');
@@ -686,6 +779,11 @@ export default function App() {
   const [mfaEnrollmentCode, setMfaEnrollmentCode] = useState('');
   const [mfaEnrollmentBusy, setMfaEnrollmentBusy] = useState(false);
   const [mfaFactorStatus, setMfaFactorStatus] = useState('unknown');
+  const [mfaSettingsFactorId, setMfaSettingsFactorId] = useState(null);
+  const [showAdminMfaDisable, setShowAdminMfaDisable] = useState(false);
+  const [adminMfaDisableCode, setAdminMfaDisableCode] = useState('');
+  const [adminMfaDisableBusy, setAdminMfaDisableBusy] = useState(false);
+  const [adminMfaDisableError, setAdminMfaDisableError] = useState('');
   
   const [vaultNotes, setVaultNotes] = useState([]);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -694,6 +792,8 @@ export default function App() {
   const [newNoteFiles, setNewNoteFiles] = useState([]);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isProcessingNoteFiles, setIsProcessingNoteFiles] = useState(false);
+  const noteFileProcessingRef = useRef(false);
 
   const [accountsViewMode, setAccountsViewMode] = useState('grid'); 
   const [notesViewMode, setNotesViewMode] = useState('grid'); 
@@ -717,11 +817,12 @@ export default function App() {
   const triggerNotice = (msg) => { setInAppNotice(msg); setTimeout(() => setInAppNotice(''), 4000); };
   const askConfirm = (message, onConfirm) => setConfirmDialog({ isOpen: true, message, onConfirm });
 
-  const saveVaultState = async (itemsToSave, notesToSave, pwd = masterPassword, twoFactorOverride = null, groupsOverride = null) => {
+  const saveVaultState = async (itemsToSave, notesToSave, pwd = masterPassword, twoFactorOverride = null, groupsOverride = null, logoIdOverride = null) => {
     if (!pwd) throw new Error("Master password is missing.");
     const twoFactorToSave = twoFactorOverride !== null ? twoFactorOverride : twoFactorState;
     const groupsToSave = groupsOverride !== null ? groupsOverride : groups;
-    const payload = { items: itemsToSave, notes: notesToSave, groups: groupsToSave, twoFactor: twoFactorToSave };
+    const logoIdToSave = logoIdOverride !== null ? getValidVaultLogoId(logoIdOverride) : vaultLogoId;
+    const payload = { items: itemsToSave, notes: notesToSave, groups: groupsToSave, twoFactor: twoFactorToSave, logoId: logoIdToSave };
     const encrypted = await encryptData(payload, pwd);
     
     let syncFailed = false;
@@ -826,6 +927,7 @@ export default function App() {
     const existingFactor = factorsData?.totp?.find(factor => factor.friendly_name === 'Pass-Guard Admin');
     if (existingFactor?.status === 'verified') {
       setMfaFactorStatus('verified');
+      setMfaSettingsFactorId(existingFactor.id);
       setMfaEnrollmentBusy(false);
       triggerNotice(t.mfaEnabled);
       return;
@@ -873,6 +975,7 @@ export default function App() {
     setMfaEnrollment(null);
     setMfaEnrollmentCode('');
     setMfaFactorStatus('verified');
+    setMfaSettingsFactorId(mfaEnrollment.id);
     triggerNotice(t.mfaEnabled);
   };
 
@@ -880,10 +983,50 @@ export default function App() {
     const { data, error } = await supabase.auth.mfa.listFactors();
     if (error) {
       setMfaFactorStatus('unknown');
+      setMfaSettingsFactorId(null);
       return;
     }
-    const hasVerifiedFactor = data?.totp?.some(factor => factor.status === 'verified');
-    setMfaFactorStatus(hasVerifiedFactor ? 'verified' : 'none');
+    const verifiedFactor = data?.totp?.find(factor => factor.friendly_name === 'Pass-Guard Admin' && factor.status === 'verified')
+      || data?.totp?.find(factor => factor.status === 'verified');
+    setMfaFactorStatus(verifiedFactor ? 'verified' : 'none');
+    setMfaSettingsFactorId(verifiedFactor?.id || null);
+  };
+
+  const disableAdminAuthMfa = async () => {
+    if (adminMfaDisableBusy) return;
+    const code = adminMfaDisableCode.replace(/\D/g, '');
+    if (code.length !== 6) {
+      setAdminMfaDisableError(t.totpInvalidCode);
+      return;
+    }
+    if (!mfaSettingsFactorId) {
+      setAdminMfaDisableError(t.mfaSetupError);
+      return;
+    }
+
+    setAdminMfaDisableBusy(true);
+    setAdminMfaDisableError('');
+    try {
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaSettingsFactorId });
+      if (challengeError) throw challengeError;
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: mfaSettingsFactorId,
+        challengeId: challenge.id,
+        code,
+      });
+      if (verifyError) throw verifyError;
+      const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId: mfaSettingsFactorId });
+      if (unenrollError) throw unenrollError;
+
+      setAdminMfaDisableCode('');
+      setShowAdminMfaDisable(false);
+      await loadMfaStatus();
+      triggerNotice(lang === 'ar' ? 'تم إلغاء المصادقة الثنائية لحساب المشرف.' : 'Administrator two-factor authentication disabled.');
+    } catch (disableError) {
+      setAdminMfaDisableError(disableError.message || t.mfaSetupError);
+    } finally {
+      setAdminMfaDisableBusy(false);
+    }
   };
 
   const handlePwnedCheck = async () => {
@@ -1012,13 +1155,14 @@ export default function App() {
     });
   };
 
-  const loadCloudVaultIntoUI = ({ items, notes, groups: savedGroups, twoFactor, openedSession, row, cleanId }) => {
+  const loadCloudVaultIntoUI = ({ items, notes, groups: savedGroups, twoFactor, logoId, openedSession, row, cleanId }) => {
     const device = parseDeviceInfo();
     const vaultIdentifier = normalizeIdentifier(row.identifier || cleanId);
     setVaultItems(items);
     setVaultNotes(notes);
     setIdentifier(vaultIdentifier);
     setTwoFactorState(twoFactor || { enabled: false, secret: '' });
+    setVaultLogoId(getValidVaultLogoId(logoId));
     setCurrentVaultId(row.id);
     setCurrentEncryptedVault(row.encrypted_data);
     setSessionToken(openedSession.session_token);
@@ -1044,11 +1188,12 @@ export default function App() {
     cacheVaultLocally(vaultIdentifier, row.encrypted_data, row);
   };
 
-  const loadLocalVaultIntoUI = ({ items, notes, groups: savedGroups, twoFactor, encryptedObj, cleanId }) => {
+  const loadLocalVaultIntoUI = ({ items, notes, groups: savedGroups, twoFactor, logoId, encryptedObj, cleanId }) => {
     setVaultItems(items);
     setVaultNotes(notes);
     setIdentifier(cleanId);
     setTwoFactorState(twoFactor || { enabled: false, secret: '' });
+    setVaultLogoId(getValidVaultLogoId(logoId));
     setCurrentVaultId(null);
     setCurrentEncryptedVault(encryptedObj);
     setGroups(mergeVaultGroups(savedGroups, items));
@@ -1073,10 +1218,10 @@ export default function App() {
       });
       return false;
     }
-    const { items, notes, groups, twoFactor } = extractVaultData(decrypted);
+    const { items, notes, groups, twoFactor, logoId } = extractVaultData(decrypted);
 
     if (twoFactor?.enabled && twoFactor?.secret) {
-      setPendingUnlock({ type: 'cloud', items, notes, groups, twoFactor, openedSession, row, cleanId, loginPassword });
+      setPendingUnlock({ type: 'cloud', items, notes, groups, twoFactor, logoId, openedSession, row, cleanId, loginPassword });
       setTotpInputCode('');
       setTotpError('');
       setTotpFailedAttempts(0);
@@ -1084,7 +1229,7 @@ export default function App() {
       return 'pending-2fa';
     }
 
-    loadCloudVaultIntoUI({ items, notes, groups, twoFactor, openedSession, row, cleanId });
+    loadCloudVaultIntoUI({ items, notes, groups, twoFactor, logoId, openedSession, row, cleanId });
     return true;
   };
 
@@ -1268,6 +1413,34 @@ export default function App() {
     setAnnouncements(data || []);
   };
 
+  const openAnnouncementForm = () => {
+    setAnnouncementFormOpen(true);
+    requestAnimationFrame(() => announcementFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  const startNewAnnouncement = () => {
+    setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true });
+    openAnnouncementForm();
+  };
+
+  const startEditAnnouncement = (announcement) => {
+    setAnnouncementForm({
+      id: announcement.id,
+      title: announcement.title,
+      content: announcement.content,
+      display_style: announcement.display_style,
+      placement: announcement.placement,
+      target_vault_id: announcement.target_vault_id || '',
+      is_active: !!announcement.is_active,
+    });
+    openAnnouncementForm();
+  };
+
+  const closeAnnouncementForm = () => {
+    setAnnouncementFormOpen(false);
+    setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true });
+  };
+
   const handleSaveAnnouncement = async (e) => {
     e.preventDefault();
     if (!announcementForm.title.trim() || !announcementForm.content.trim() || announcementBusy) return;
@@ -1283,12 +1456,14 @@ export default function App() {
         updated_at: new Date().toISOString(),
       };
       const result = announcementForm.id
-        ? await supabase.from('passguard_announcements').update(payload).eq('id', announcementForm.id)
-        : await supabase.from('passguard_announcements').insert(payload);
+        ? await supabase.from('passguard_announcements').update(payload).eq('id', announcementForm.id).select('id').maybeSingle()
+        : await supabase.from('passguard_announcements').insert(payload).select('id').single();
       if (result.error) {
         triggerNotice(result.error.message);
+      } else if (!result.data) {
+        triggerNotice(lang === 'ar' ? 'لم يتم العثور على الإعلان لتحديثه أو لا تملك صلاحية تعديله.' : 'The announcement was not found or you do not have permission to edit it.');
       } else {
-        setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true });
+        closeAnnouncementForm();
         await loadAdminAnnouncements();
         triggerNotice(lang === 'ar' ? 'تم حفظ الإعلان بنجاح.' : 'Announcement saved successfully.');
       }
@@ -1307,7 +1482,7 @@ export default function App() {
         return;
       }
       if (announcementForm.id === announcementId) {
-        setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true });
+        closeAnnouncementForm();
       }
       await loadAdminAnnouncements();
       triggerNotice(lang === 'ar' ? 'تم حذف الإعلان.' : 'Announcement deleted.');
@@ -1619,21 +1794,12 @@ export default function App() {
 
       try {
         let legacyId = cleanId;
-        let legacyEncrypted = JSON.parse(localStorage.getItem(`passguard_vault_${legacyId}`) || 'null');
-        let legacyMeta = JSON.parse(localStorage.getItem(`passguard_meta_${legacyId}`) || '{}');
-        if (!legacyEncrypted) {
-          for (let index = 0; index < localStorage.length; index += 1) {
-            const key = localStorage.key(index);
-            if (!key || !key.startsWith('passguard_meta_')) continue;
-            let meta = {};
-            try { meta = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { continue; }
-            if (normalizeIdentifier(meta.email) !== cleanId) continue;
-            legacyId = key.slice('passguard_meta_'.length);
-            legacyEncrypted = JSON.parse(localStorage.getItem(`passguard_vault_${legacyId}`) || 'null');
-            legacyMeta = meta;
-            break;
-          }
-        }
+        const legacyMatches = findLocalVaultIds(cleanId);
+        const legacyIdResolved = legacyMatches.length === 1 ? legacyMatches[0] : null;
+        if (legacyIdResolved) legacyId = legacyIdResolved;
+        const legacyEncrypted = legacyIdResolved ? JSON.parse(localStorage.getItem(`passguard_vault_${legacyId}`) || 'null') : null;
+        let legacyMeta = {};
+        try { legacyMeta = JSON.parse(localStorage.getItem(`passguard_meta_${legacyId}`) || '{}'); } catch (e) { }
         const legacyDecrypted = legacyEncrypted ? await decryptData(legacyEncrypted, masterPassword) : null;
         if (legacyDecrypted) {
           const { data: migrated, error: migrateError } = await supabase.rpc('register_vault_secure', {
@@ -1661,21 +1827,16 @@ export default function App() {
       return;
     }
 
-    if (!localStorage.getItem(`passguard_vault_${cleanId}`)) {
-      for (let index = 0; index < localStorage.length; index += 1) {
-        const key = localStorage.key(index);
-        if (!key || !key.startsWith('passguard_meta_')) continue;
-        let meta = {};
-        try { meta = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { continue; }
-        if (normalizeIdentifier(meta.email) === cleanId) {
-          const alternateId = key.slice('passguard_meta_'.length);
-          if (localStorage.getItem(`passguard_vault_${alternateId}`)) {
-            cleanId = alternateId;
-            setIdentifier(alternateId);
-            break;
-          }
-        }
-      }
+    const localVaultMatches = findLocalVaultIds(cleanId);
+    if (localVaultMatches.length > 1) {
+      setError(lang === 'ar'
+        ? 'بيانات الدخول هذه تطابق أكثر من خزنة محلية. استخدم اسم المستخدم أو صحّح البريد/رقم الهاتف.'
+        : 'These sign-in details match multiple local vaults. Use the username or correct the email/phone.');
+      return;
+    }
+    if (localVaultMatches.length === 1 && localVaultMatches[0] !== cleanId) {
+      cleanId = localVaultMatches[0];
+      setIdentifier(cleanId);
     }
 
     const metaKey = `passguard_meta_${cleanId}`;
@@ -1688,10 +1849,10 @@ export default function App() {
     const encryptedObj = JSON.parse(savedVault);
     const decrypted = await decryptData(encryptedObj, masterPassword);
     if (decrypted) {
-      const { items, notes, groups, twoFactor } = extractVaultData(decrypted);
+      const { items, notes, groups, twoFactor, logoId } = extractVaultData(decrypted);
 
       if (twoFactor?.enabled && twoFactor?.secret) {
-        setPendingUnlock({ type: 'local', items, notes, groups, twoFactor, encryptedObj, cleanId });
+        setPendingUnlock({ type: 'local', items, notes, groups, twoFactor, logoId, encryptedObj, cleanId });
         setTotpInputCode('');
         setTotpError('');
         setTotpFailedAttempts(0);
@@ -1699,7 +1860,7 @@ export default function App() {
         return;
       }
 
-      loadLocalVaultIntoUI({ items, notes, groups, twoFactor, encryptedObj, cleanId });
+      loadLocalVaultIntoUI({ items, notes, groups, twoFactor, logoId, encryptedObj, cleanId });
     } else {
       await triggerFailedAttempt();
     }
@@ -1714,7 +1875,7 @@ export default function App() {
     if (/[^\x00-\x7F]/.test(masterPassword)) { setError(t.englishOnlyAlert); return; }
     if (!isValidPassword(masterPassword)) { setError(t.passwordComplexityAlert); return; }
     const cleanId = normalizeIdentifier(identifier);
-    const initialData = { items: [], notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' } };
+    const initialData = { items: [], notes: [], groups: DEFAULT_GROUPS, twoFactor: { enabled: false, secret: '' }, logoId: DEFAULT_VAULT_LOGO };
     const encrypted = await encryptData(initialData, masterPassword);
 
     if (supabaseConfigured) {
@@ -1747,6 +1908,7 @@ export default function App() {
     setVaultItems([]);
     setVaultNotes([]);
     setTwoFactorState({ enabled: false, secret: '' });
+    setVaultLogoId(DEFAULT_VAULT_LOGO);
     setIsAdmin(false); setIsUnlocked(true); setVaultSubView('items'); setError('');
     setConfirmMasterPassword('');
     registerDeviceLogin(cleanId);
@@ -1785,67 +1947,68 @@ export default function App() {
     setShowContactModal(false);
   };
 
-  const handleNotePaste = (e) => {
-    const items = e.clipboardData.items;
-    let hasFiles = false;
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        hasFiles = true;
-        const blob = items[i].getAsFile();
-        if (blob.size > 5 * 1024 * 1024) {
+  const addNoteAttachments = async (files) => {
+    if (noteFileProcessingRef.current) {
+      triggerNotice(t.attachmentProcessing);
+      return;
+    }
+
+    noteFileProcessingRef.current = true;
+    setIsProcessingNoteFiles(true);
+    try {
+      let totalSize = newNoteFiles.reduce((total, attachment) => {
+        const base64 = attachment.base64.split(',')[1] || '';
+        return total + Math.floor((base64.length * 3) / 4);
+      }, 0);
+      const additions = [];
+
+      for (const originalFile of files) {
+        const isImage = originalFile.type.startsWith('image/');
+        if (isImage && originalFile.size > MAX_NOTE_IMAGE_SOURCE_BYTES) {
+          triggerNotice(t.imageInputSizeError);
+          continue;
+        }
+
+        const file = isImage ? await compressNoteImage(originalFile) : originalFile;
+        if (totalSize + file.size > MAX_NOTE_ATTACHMENT_BYTES) {
           triggerNotice(t.fileSizeError);
           continue;
         }
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          setNewNoteFiles(prev => [...prev, {
-            name: `pasted-image-${Date.now()}.png`,
-            type: blob.type,
-            base64: event.target.result
-          }]);
-        };
-        reader.readAsDataURL(blob);
+
+        const base64 = await readFileAsDataUrl(file);
+        additions.push({ name: file.name, type: file.type, base64 });
+        totalSize += file.size;
+      }
+
+      if (additions.length) setNewNoteFiles(previous => [...previous, ...additions]);
+    } catch (error) {
+      console.error('Failed to process note attachment:', error);
+      triggerNotice(t.attachmentProcessError);
+    } finally {
+      noteFileProcessingRef.current = false;
+      setIsProcessingNoteFiles(false);
+    }
+  };
+
+  const handleNotePaste = (e) => {
+    const items = e.clipboardData.items;
+    const pastedImages = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const blob = items[i].getAsFile();
+        if (blob) pastedImages.push(new File([blob], `pasted-image-${Date.now()}`, { type: blob.type }));
       }
     }
-    if (hasFiles) e.preventDefault();
+    if (pastedImages.length) {
+      e.preventDefault();
+      void addNoteAttachments(pastedImages);
+    }
   };
 
   const handleNoteFilesChange = (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-
-    let currentTotalSize = newNoteFiles.reduce((acc, curr) => {
-      return acc + (curr.base64.length * 3) / 4;
-    }, 0);
-
-    const validFiles = [];
-
-    for (const file of files) {
-      if (currentTotalSize + file.size > 5 * 1024 * 1024) {
-        triggerNotice(t.fileSizeError);
-        break;
-      }
-      currentTotalSize += file.size;
-      validFiles.push(file);
-    }
-
-    const readPromises = validFiles.map(file => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          resolve({
-            name: file.name,
-            type: file.type,
-            base64: event.target.result
-          });
-        };
-        reader.readAsDataURL(file);
-      });
-    });
-
-    Promise.all(readPromises).then(results => {
-      setNewNoteFiles(prev => [...prev, ...results]);
-    });
+    void addNoteAttachments(files);
     e.target.value = '';
   };
 
@@ -1859,7 +2022,7 @@ export default function App() {
         triggerNotice(lang === 'ar' ? 'الرجاء تسجيل الدخول مجدداً لحفظ البيانات.' : 'Please log in again to save data.');
         return;
     }
-    if (!newNoteTitle.trim() || !newNoteContent.trim() || isSavingNote) return;
+    if (!newNoteTitle.trim() || !newNoteContent.trim() || isSavingNote || isProcessingNoteFiles) return;
 
     const updatedNote = {
       id: editingNoteId || (crypto.randomUUID ? crypto.randomUUID() : Date.now()),
@@ -1960,13 +2123,16 @@ export default function App() {
         const isJson = file.name.toLowerCase().endsWith('.json');
         let importedData;
         let importedItems = null;
+        let importedLogoId = null;
 
         if (isJson) {
           importedData = JSON.parse(event.target.result);
           if (importedData.ciphertext && importedData.salt && importedData.iv) {
             const decrypted = await decryptData(importedData, masterPassword);
             if (!decrypted) { triggerNotice(t.importPasswordMismatchAlert); return; }
-            importedItems = extractVaultData(decrypted).items;
+            const backupData = extractVaultData(decrypted);
+            importedItems = backupData.items;
+            importedLogoId = backupData.logoId;
           } else {
             triggerNotice(t.importFormatErrorAlert);
             return;
@@ -1983,10 +2149,11 @@ export default function App() {
         if (isEncryptedBackup) {
            const { items: backupItems, notes: backupNotes, groups: backupGroups, twoFactor: backupTwoFactor } = extractVaultData(await decryptData(importedData, masterPassword));
            const nextGroups = mergeVaultGroups(backupGroups, backupItems);
-           await saveVaultState(backupItems, backupNotes, masterPassword, backupTwoFactor, nextGroups);
+           await saveVaultState(backupItems, backupNotes, masterPassword, backupTwoFactor, nextGroups, importedLogoId);
            setVaultItems(backupItems);
            setVaultNotes(backupNotes);
            setGroups(nextGroups);
+           setVaultLogoId(getValidVaultLogoId(importedLogoId));
         } else {
            const nextGroups = mergeVaultGroups(groups, nextItems);
            await saveVaultState(nextItems, vaultNotes, masterPassword, null, nextGroups);
@@ -2170,6 +2337,7 @@ export default function App() {
     setCurrentView('welcome');
     setInAppNotice(t.sessionRevokedNotice);
     setTwoFactorState({ enabled: false, secret: '' });
+    setVaultLogoId(DEFAULT_VAULT_LOGO);
     setPendingUnlock(null);
     setShowTotpModal(false);
     setTotpInputCode('');
@@ -2298,7 +2466,7 @@ export default function App() {
     const cleanId = normalizeIdentifier(identifier);
     let meta = {};
     try { meta = JSON.parse(localStorage.getItem(`passguard_meta_${cleanId}`) || '{}'); } catch (e) { }
-    setManageData({ oldId: cleanId, identifier: meta.identifier || cleanId, masterPassword, oldPass: masterPassword, email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || new Date().toISOString(), vaultId: currentVaultId });
+    setManageData({ oldId: cleanId, identifier: meta.identifier || cleanId, masterPassword, oldPass: masterPassword, email: meta.email || '', phone: meta.phone || '', createdAt: meta.createdAt || new Date().toISOString(), vaultId: currentVaultId, logoId: vaultLogoId });
     setShowManageMasterPassword(false);
     setVaultSubView('settings');
   };
@@ -2308,8 +2476,9 @@ export default function App() {
     if (!manageData.identifier || !manageData.masterPassword) { triggerNotice(t.missingFieldsAlert); return; }
     if (!isValidPassword(manageData.masterPassword)) { triggerNotice(t.passwordComplexityAlert); return; }
     const newIdClean = normalizeIdentifier(manageData.identifier);
+    const newLogoId = getValidVaultLogoId(manageData.logoId);
     
-    const payload = { items: vaultItems, notes: vaultNotes, groups, twoFactor: twoFactorState };
+    const payload = { items: vaultItems, notes: vaultNotes, groups, twoFactor: twoFactorState, logoId: newLogoId };
     const encrypted = await encryptData(payload, manageData.masterPassword);
 
     if (supabaseConfigured && currentVaultId) {
@@ -2342,6 +2511,7 @@ export default function App() {
     }
 
     setCurrentEncryptedVault(encrypted);
+    setVaultLogoId(newLogoId);
     setIdentifier(newIdClean); setMasterPassword(manageData.masterPassword);
     cacheVaultLocally(newIdClean, encrypted, { email: manageData.email, phone: manageData.phone, createdAt: manageData.createdAt });
     setManageData({ ...manageData, oldId: newIdClean, oldPass: manageData.masterPassword });
@@ -2350,7 +2520,7 @@ export default function App() {
   };
 
   const openAdminManageUser = async (user) => {
-    setManageData({ oldId: user.username, identifier: user.username, masterPassword: '', oldPass: '', email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', vaultId: user.id, encryptedData: null, isLocked: user.isLocked, alert: user.alert });
+    setManageData({ oldId: user.username, identifier: user.username, masterPassword: '', oldPass: '', email: user.email || '', phone: user.phone || '', createdAt: user.createdAt || 'N/A', vaultId: user.id, encryptedData: null, isLocked: user.isLocked, alert: user.alert, disableTwoFactor: false });
     setShowManageMasterPassword(false);
     setAdminSubView('manageUser');
   };
@@ -2377,8 +2547,9 @@ export default function App() {
     const decrypted = await decryptData(manageData.encryptedData, manageData.oldPass);
     if (!decrypted) { triggerNotice(lang === 'ar' ? 'فشل فك التشفير - كلمة المرور الحالية للمشرف غير صحيحة.' : 'Decryption failed - current support password mismatch.'); return; }
 
-    const { items: dItems, notes: dNotes, groups: dGroups, twoFactor: dTwoFactor } = extractVaultData(decrypted);
-    const payloadToEncrypt = { items: dItems, notes: dNotes, groups: dGroups, twoFactor: dTwoFactor };
+    const { items: dItems, notes: dNotes, groups: dGroups, twoFactor: dTwoFactor, logoId: dLogoId } = extractVaultData(decrypted);
+    const twoFactorToSave = manageData.disableTwoFactor ? { enabled: false, secret: '' } : dTwoFactor;
+    const payloadToEncrypt = { items: dItems, notes: dNotes, groups: dGroups, twoFactor: twoFactorToSave, logoId: dLogoId };
     const encrypted = await encryptData(payloadToEncrypt, manageData.masterPassword);
     const newIdClean = normalizeIdentifier(manageData.identifier);
     const { data, error: updateError } = await supabase.rpc('admin_update_vault_secure', {
@@ -2394,7 +2565,9 @@ export default function App() {
 
     if (updateError) { triggerNotice(updateError.message); return; }
     if (!data) { triggerNotice(lang === 'ar' ? 'تعذر تحديث الخزنة.' : 'Could not update vault.'); return; }
-    triggerNotice(lang === 'ar' ? 'تم تحديث بيانات المستخدم والخزنة بنجاح.' : 'User and vault data updated successfully.');
+    triggerNotice(manageData.disableTwoFactor && dTwoFactor?.enabled
+      ? lang === 'ar' ? 'تم تحديث الخزنة وإلغاء المصادقة الثنائية للمستخدم.' : 'Vault updated and user two-factor authentication disabled.'
+      : lang === 'ar' ? 'تم تحديث بيانات المستخدم والخزنة بنجاح.' : 'User and vault data updated successfully.');
     await loadAdminUsersData();
     setAdminSubView('dashboard');
   };
@@ -2445,7 +2618,11 @@ export default function App() {
       }
       const newTwoFactor = { enabled: true, secret: totpSetupData.secret, enabledAt: new Date().toISOString() };
       const pwd = masterPassword;
-      await saveVaultState(vaultItems, vaultNotes, pwd, newTwoFactor);
+      const syncFailed = await saveVaultState(vaultItems, vaultNotes, pwd, newTwoFactor);
+      if (syncFailed) {
+        setTotpSetupError(t.syncError);
+        return;
+      }
       setTwoFactorState(newTwoFactor);
       setTotpSetupData(null);
       setTotpSetupCode('');
@@ -2476,7 +2653,11 @@ export default function App() {
       }
       const newTwoFactor = { enabled: false, secret: '' };
       const pwd = masterPassword;
-      await saveVaultState(vaultItems, vaultNotes, pwd, newTwoFactor);
+      const syncFailed = await saveVaultState(vaultItems, vaultNotes, pwd, newTwoFactor);
+      if (syncFailed) {
+        setDisableTotpError(t.syncError);
+        return;
+      }
       setTwoFactorState(newTwoFactor);
       setShowDisableTotpModal(false);
       setDisableTotpCode('');
@@ -2555,6 +2736,7 @@ export default function App() {
   const isDark = theme === 'dark';
   const activeAnnouncements = [...publicAnnouncements, ...(isAdmin ? [] : vaultAnnouncements)]
     .filter(announcement => announcement.is_active && !dismissedAnnouncementIds.includes(announcement.id));
+  const ActiveVaultLogo = VAULT_LOGOS.find(logo => logo.id === vaultLogoId)?.Icon || ShieldCheck;
 
   return (
     <div className={`min-h-screen font-sans flex flex-col justify-between relative overflow-x-hidden overflow-y-auto transition-colors duration-500 ${isDark ? 'text-slate-100' : 'text-slate-900'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -2572,7 +2754,7 @@ export default function App() {
         .neon-logo-dark { animation: neonPulseDark 2s ease-in-out infinite; }
         .neon-logo-light { animation: neonPulseLight 2s ease-in-out infinite; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
-        @keyframes announcementMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @keyframes announcementMarquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
         .announcement-marquee { animation: announcementMarquee 24s linear infinite; }
         .announcement-marquee:hover { animation-play-state: paused; }
@@ -2780,7 +2962,8 @@ export default function App() {
               </div>
               <div>
                 <label className={`block mb-1 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.attachmentsLabel}</label>
-                <input type="file" multiple accept="image/*,application/pdf" onChange={handleNoteFilesChange} className={`w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
+                <input type="file" multiple accept="image/*,application/pdf" onChange={handleNoteFilesChange} disabled={isProcessingNoteFiles} className={`w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:opacity-50 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
+                {isProcessingNoteFiles && <p className="mt-2 text-[11px] text-indigo-400">{t.processingAttachments}</p>}
                 
                 {newNoteFiles.length > 0 && (
                   <div className="mt-3 grid grid-cols-2 gap-2">
@@ -2800,8 +2983,8 @@ export default function App() {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowNoteModal(false)} className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer ${isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>{t.cancelBtn}</button>
-                <button type="submit" disabled={isSavingNote} className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-wait cursor-pointer shadow-lg flex items-center gap-2">
-                   {isSavingNote && <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-3 h-3"></span>}
+                <button type="submit" disabled={isSavingNote || isProcessingNoteFiles} className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-wait cursor-pointer shadow-lg flex items-center gap-2">
+                   {(isSavingNote || isProcessingNoteFiles) && <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-3 h-3"></span>}
                    {t.saveNotesBtn}
                 </button>
               </div>
@@ -3126,7 +3309,7 @@ export default function App() {
               {announcement.display_style === 'ticker' ? (
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <div className="announcement-marquee flex w-max items-center gap-10 whitespace-nowrap text-xs">
-                    {[0, 1].map(copy => <span key={copy} dir={lang === 'ar' ? 'rtl' : 'ltr'}>{announcement.content}</span>)}
+                    <span dir={lang === 'ar' ? 'rtl' : 'ltr'}>{announcement.content}</span>
                   </div>
                 </div>
               ) : (
@@ -3281,7 +3464,7 @@ export default function App() {
             <form onSubmit={authMode === 'register' ? handleRegister : handleLogin} className="space-y-3.5">
               <div>
                 <label className={`text-xs block mb-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{authMode === 'admin' ? t.adminIdentifierLabel : t.identifierLabel}</label>
-                <input type="text" placeholder="user@domain.com" value={identifier} disabled={authMode === 'admin'} onChange={(e) => setIdentifier(e.target.value)} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
+                <input type="text" placeholder={authMode === 'admin' ? 'admin' : lang === 'ar' ? 'اسم المستخدم أو البريد أو رقم الهاتف' : 'Username, email, or phone'} value={identifier} disabled={authMode === 'admin'} onChange={(e) => setIdentifier(e.target.value)} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:border-indigo-500 text-sm transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} required />
               </div>
               <div>
                 <label className={`text-xs block mb-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{authMode === 'admin' ? t.adminPasswordLabel : t.passwordLabel}</label>
@@ -3496,11 +3679,12 @@ export default function App() {
                     <h3 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       <Send className="w-4 h-4 text-indigo-400" />{lang === 'ar' ? 'إدارة إعلانات الموقع' : 'Manage Site Announcements'}
                     </h3>
-                    <button type="button" onClick={() => setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true })} className={`px-3 py-2 rounded-xl text-xs font-bold ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+                    <button type="button" onClick={startNewAnnouncement} className={`px-3 py-2 rounded-xl text-xs font-bold ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
                       {lang === 'ar' ? 'إعلان جديد' : 'New announcement'}
                     </button>
                   </div>
-                  <form onSubmit={handleSaveAnnouncement} className={`p-4 sm:p-5 rounded-2xl border grid grid-cols-1 md:grid-cols-2 gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
+                  {announcementFormOpen && (
+                  <form ref={announcementFormRef} onSubmit={handleSaveAnnouncement} className={`p-4 sm:p-5 rounded-2xl border grid grid-cols-1 md:grid-cols-2 gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                     <label className="space-y-1">
                       <span className={`block text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'عنوان الإعلان' : 'Announcement title'}</span>
                       <input value={announcementForm.title} onChange={event => setAnnouncementForm({ ...announcementForm, title: event.target.value })} maxLength={120} required className={`w-full px-3 py-2.5 border rounded-xl text-xs ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
@@ -3535,12 +3719,13 @@ export default function App() {
                       {lang === 'ar' ? 'الإعلان مفعّل' : 'Announcement is active'}
                     </label>
                     <div className="md:col-span-2 flex justify-end gap-2">
-                      {announcementForm.id && <button type="button" onClick={() => setAnnouncementForm({ id: null, title: '', content: '', display_style: 'ticker', placement: 'banner', target_vault_id: '', is_active: true })} className={`px-4 py-2 rounded-xl text-xs font-semibold ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'}`}>{t.cancelBtn}</button>}
+                      <button type="button" onClick={closeAnnouncementForm} className={`px-4 py-2 rounded-xl text-xs font-semibold ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'}`}>{t.cancelBtn}</button>
                       <button type="submit" disabled={announcementBusy} className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50">
-                        {announcementBusy ? '...' : lang === 'ar' ? 'حفظ الإعلان' : 'Save announcement'}
+                        {announcementBusy ? '...' : announcementForm.id ? lang === 'ar' ? 'حفظ التعديلات' : 'Save changes' : lang === 'ar' ? 'حفظ الإعلان' : 'Save announcement'}
                       </button>
                     </div>
                   </form>
+                  )}
                   <div className="space-y-3">
                     {announcements.length === 0 ? (
                       <p className={`text-center py-8 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{lang === 'ar' ? 'لا توجد إعلانات بعد.' : 'No announcements yet.'}</p>
@@ -3560,7 +3745,7 @@ export default function App() {
                           </p>
                         </div>
                         <div className="flex shrink-0 gap-2">
-                          <button type="button" onClick={() => setAnnouncementForm({ id: announcement.id, title: announcement.title, content: announcement.content, display_style: announcement.display_style, placement: announcement.placement, target_vault_id: announcement.target_vault_id || '', is_active: !!announcement.is_active })} className={`px-3 py-2 rounded-xl text-xs font-bold ${isDark ? 'bg-indigo-500/10 text-indigo-300' : 'bg-indigo-50 text-indigo-700'}`}>{lang === 'ar' ? 'تعديل' : 'Edit'}</button>
+                          <button type="button" onClick={() => startEditAnnouncement(announcement)} className={`px-3 py-2 rounded-xl text-xs font-bold ${isDark ? 'bg-indigo-500/10 text-indigo-300' : 'bg-indigo-50 text-indigo-700'}`}>{lang === 'ar' ? 'تعديل' : 'Edit'}</button>
                           <button type="button" onClick={() => handleDeleteAnnouncement(announcement.id)} className="px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-500">{lang === 'ar' ? 'حذف' : 'Delete'}</button>
                         </div>
                       </div>
@@ -3598,6 +3783,17 @@ export default function App() {
                         <input type="tel" value={manageData.phone} onChange={(e) => handlePhoneChange(e, (val) => setManageData({ ...manageData, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} />
                       </div>
                     </div>
+                    {manageData.encryptedData && (
+                      <label className={`flex items-start gap-2 rounded-xl border p-3 text-[11px] ${isDark ? 'border-rose-500/30 bg-rose-500/5 text-rose-300' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+                        <input
+                          type="checkbox"
+                          checked={!!manageData.disableTwoFactor}
+                          onChange={event => setManageData({ ...manageData, disableTwoFactor: event.target.checked })}
+                          className="mt-0.5 accent-rose-600"
+                        />
+                        <span>{lang === 'ar' ? 'إلغاء المصادقة الثنائية عن خزنة هذا المستخدم عند حفظ التعديلات (تحتاج أولاً إلى إظهار كلمة المرور الرئيسية).' : 'Disable two-factor authentication for this vault when saving (reveal the master password first).'}</span>
+                      </label>
+                    )}
                     <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                       <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{t.creationDateLabel}</span>
                       <span className="font-mono text-indigo-400">{formatDate(manageData.createdAt)}</span>
@@ -3629,7 +3825,33 @@ export default function App() {
                     <div className={`p-4 rounded-xl border space-y-3 ${isDark ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50 border-emerald-200'}`}>
                       <h4 className={`text-sm font-bold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>{t.mfaSetupTitle}</h4>
                       {mfaFactorStatus === 'verified' ? (
-                        <p className={`text-[11px] font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>{t.mfaEnabled}</p>
+                        <>
+                          <p className={`text-[11px] font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>{t.mfaEnabled}</p>
+                          {!showAdminMfaDisable ? (
+                            <button type="button" onClick={() => { setShowAdminMfaDisable(true); setAdminMfaDisableCode(''); setAdminMfaDisableError(''); }} className={`px-3 py-2 border rounded-lg text-xs font-bold ${isDark ? 'border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20' : 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'}`}>
+                              {lang === 'ar' ? 'تعطيل المصادقة الثنائية' : 'Disable Two-Factor Authentication'}
+                            </button>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{lang === 'ar' ? 'أدخل الرمز الحالي من تطبيق المصادقة لتأكيد التعطيل.' : 'Enter the current authenticator code to confirm disabling MFA.'}</p>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                maxLength={6}
+                                value={adminMfaDisableCode}
+                                onChange={event => setAdminMfaDisableCode(event.target.value.replace(/\D/g, ''))}
+                                placeholder={t.mfaCodePlaceholder}
+                                className={`w-full px-3 py-2.5 border rounded-lg text-center font-mono tracking-[0.3em] focus:outline-none focus:border-rose-500 ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                              />
+                              {adminMfaDisableError && <p className="text-rose-500 text-[11px] font-semibold">{adminMfaDisableError}</p>}
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => { setShowAdminMfaDisable(false); setAdminMfaDisableCode(''); setAdminMfaDisableError(''); }} disabled={adminMfaDisableBusy} className={`flex-1 px-3 py-2 border rounded-lg text-xs font-semibold disabled:opacity-50 ${isDark ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-slate-300 bg-white text-slate-700'}`}>{t.cancelBtn}</button>
+                                <button type="button" onClick={disableAdminAuthMfa} disabled={adminMfaDisableBusy || adminMfaDisableCode.length !== 6} className="flex-1 px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold disabled:opacity-50">{adminMfaDisableBusy ? '...' : lang === 'ar' ? 'تأكيد التعطيل' : 'Confirm disable'}</button>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       ) : !mfaEnrollment ? (
                         <>
                           <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.mfaSetupDescription}</p>
@@ -3663,7 +3885,7 @@ export default function App() {
             <aside className={`mobile-vault-sidebar w-full md:w-64 border-b md:border-b-0 md:border-l p-4 flex flex-col justify-between shrink-0 transition-colors ${isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-slate-50 border-slate-300'}`}>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-slate-800/60">
-                  <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shadow-inner"><ShieldCheck className="w-4 h-4" /></div>
+                  <div className={`p-2 rounded-xl border shadow-inner ${isDark ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/30' : 'bg-indigo-100 text-indigo-700 border-indigo-200'}`}><ActiveVaultLogo className="w-4 h-4" /></div>
                   <div className="overflow-hidden">
                     <h3 className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.vaultTitlePrefix}</h3>
                     <p className="text-xs font-mono font-bold text-indigo-400 truncate">{identifier}</p>
@@ -4187,10 +4409,35 @@ export default function App() {
                         <input type="text" value={manageData.email} onChange={(e) => setManageData({ ...manageData, email: e.target.value })} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} autoComplete="off" />
                       </div>
                       <div>
-                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.phoneLabel}</label>
+                        <label className={`block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'رقم الهاتف (وسيلة دخول بديلة)' : 'Phone (alternate sign-in)'}</label>
                         <input type="tel" value={manageData.phone} onChange={(e) => handlePhoneChange(e, (val) => setManageData({ ...manageData, phone: val }))} className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-indigo-500 transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'}`} autoComplete="off" />
                       </div>
                     </div>
+                    <fieldset>
+                      <legend className={`mb-2 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{lang === 'ar' ? 'شعار الخزنة' : 'Vault logo'}</legend>
+                      <p className={`mb-3 text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>{lang === 'ar' ? 'اختر الشعار الذي يظهر بجانب اسم خزنتك، ويتكيّف لونه تلقائياً مع الثيم.' : 'Choose the logo shown with your vault. Its colors adapt to the current theme.'}</p>
+                      <div className="grid grid-cols-5 gap-2">
+                        {VAULT_LOGOS.map(logo => {
+                          const LogoIcon = logo.Icon;
+                          const selected = getValidVaultLogoId(manageData.logoId) === logo.id;
+                          return (
+                            <button
+                              key={logo.id}
+                              type="button"
+                              aria-pressed={selected}
+                              aria-label={lang === 'ar' ? logo.labelAr : logo.labelEn}
+                              onClick={() => setManageData({ ...manageData, logoId: logo.id })}
+                              className={`flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border p-2 transition-colors ${selected
+                                ? isDark ? 'border-indigo-400 bg-indigo-500/20 text-indigo-300' : 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                : isDark ? 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-600' : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'}`}
+                            >
+                              <LogoIcon className="h-5 w-5" />
+                              <span className="text-[9px] leading-tight">{lang === 'ar' ? logo.labelAr : logo.labelEn}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
                     <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-300'}`}>
                       <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{t.creationDateLabel}</span>
                       <span className="font-mono text-indigo-400">{formatDate(manageData.createdAt)}</span>
@@ -4349,7 +4596,7 @@ export default function App() {
                   <h3 className="text-sm font-bold text-indigo-500">{announcement.title}</h3>
                   {announcement.display_style === 'ticker' ? (
                     <div className="mt-2 overflow-hidden whitespace-nowrap text-xs">
-                      <div className="announcement-marquee inline-flex w-max gap-8"><span>{announcement.content}</span><span>{announcement.content}</span></div>
+                      <div className="announcement-marquee inline-flex w-max"><span>{announcement.content}</span></div>
                     </div>
                   ) : <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed">{announcement.content}</p>}
                 </div>
@@ -4398,12 +4645,6 @@ export default function App() {
               </a>
               <a href="https://wa.me/962792315565" target="_blank" rel="noopener noreferrer" title="WhatsApp" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#25D366]/10 hover:border-[#25D366]/50 hover:text-[#25D366] hover:shadow-[0_0_15px_rgba(37,211,102,0.3)]' : 'border-slate-300 bg-white hover:bg-[#25D366]/10 hover:border-[#25D366]/50 hover:text-[#25D366]'}`}>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" /></svg>
-              </a>
-              <a href="https://t.me/t30902007" target="_blank" rel="noopener noreferrer" title="Telegram" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc] hover:shadow-[0_0_15px_rgba(0,136,204,0.3)]' : 'border-slate-300 bg-white hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 hover:text-[#0088cc]'}`}>
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.09l-6.4 4.024-2.76-.86c-.6-.185-.61-.6.125-.89l10.736-4.136c.5-.18.91.105.74.887z" /></svg>
-              </a>
-              <a href="https://www.facebook.com/t30902007" target="_blank" rel="noopener noreferrer" title="Facebook" className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all duration-300 cursor-pointer shadow-sm hover:-translate-y-1 ${isDark ? 'border-slate-700/50 bg-slate-900/50 hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2] hover:shadow-[0_0_15px_rgba(24,119,242,0.3)]' : 'border-slate-300 bg-white hover:bg-[#1877F2]/10 hover:border-[#1877F2]/50 hover:text-[#1877F2]'}`}>
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" /></svg>
               </a>
             </div>
 

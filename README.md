@@ -11,9 +11,11 @@ A local, client-side encrypted password manager built with **React**, **Vite**, 
 - **Zero-Knowledge Cryptography**: All encryption and decryption routines run locally in-memory using military-grade `AES-GCM 256-bit` and `PBKDF2` (100,000 iterations).
 - **Interactive Security Auditor**: Real-time evaluation of password entropy, strength scores, and reused credential detection.
 - **Categorization & Management**: Custom groups persist inside each encrypted vault, alongside multi-account actions (bulk copy, cut, paste) and search indexing.
+- **Optimized Note Images**: JPEG, PNG, and BMP attachments are resized to at most 1920px and converted to WebP in the browser before encrypted storage. Per-note attachments remain limited to 5 MB; original images are limited to 20 MB for safe processing. PDFs, GIFs, and SVGs are preserved without conversion.
 - **Telemetry & Session Auditing**: Tracks authorized login environments, network telemetry, and detected devices.
 - **Revocable Cloud Sessions**: Revoke active vault sessions remotely; revoked sessions stop cloud writes.
 - **Passkeys**: Optional WebAuthn second factor using device biometrics, PIN, or a security key.
+- **Configurable Two-Factor Authentication**: Vault owners can disable TOTP after confirming a current code, and admins can disable it for a managed vault. Admins can also remove their own Supabase Auth MFA after code verification.
 - **Encrypted Backup & Restore**: Full JSON import/export encrypted against your unique derived master key.
 - **Automated CI/CD**: Seamless GitHub Pages builds powered by GitHub Actions.
 
@@ -49,4 +51,4 @@ The Edge Function uses `@simplewebauthn/server` through Deno's npm compatibility
 
 ## Announcements And Alternate Sign-In
 
-After both migrations above, run `supabase/PASSGUARD_FEATURES_MIGRATION.sql` in the Supabase SQL editor. This enables admin-managed site/user announcements, retired username protection after a rename, and sign-in using the vault's linked email address as an optional alternate to its current username. Run the migration before deploying the matching frontend.
+After both migrations above, run `supabase/PASSGUARD_FEATURES_MIGRATION.sql` in the Supabase SQL editor. This enables admin-managed site/user announcements, retired username protection after a rename, and sign-in to the same vault with its current username, linked email, or linked phone number. It also enables theme-adaptive vault logos, which are stored inside the encrypted vault data. Re-run this migration to apply later updates to these features, then deploy the matching frontend. If you use Passkeys, redeploy the updated `supabase/functions/passkeys` Edge Function as well.
